@@ -1,0 +1,209 @@
+version: '3.8'
+
+services:
+  # --- Microservices (using existing external containers for postgres, redis, kafka) ---
+  discovery-service:
+    build:
+      context: .
+      dockerfile: discovery-service/Dockerfile
+    container_name: qrserve-discovery-service
+    ports:
+      - "8761:8761"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8761/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
+    container_name: qrserve-auth-service
+    ports:
+      - "8087:8087"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/qrserve_auth
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=postgres
+      - JWT_SECRET=${JWT_SECRET:-dGhpcy1pcy1hLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1zaWduaW5nLWl0LXNob3VsZC1iZS1sb25nLWVub3VnaA==}
+      - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+
+  merchant-service:
+    build:
+      context: .
+      dockerfile: merchant-service/Dockerfile
+    container_name: qrserve-merchant-service
+    ports:
+      - "8085:8085"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/qrserve_merchant
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=postgres
+      - JWT_SECRET=${JWT_SECRET:-dGhpcy1pcy1hLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1zaWduaW5nLWl0LXNob3VsZC1iZS1sb25nLWVub3VnaA==}
+      - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+
+  menu-service:
+    build:
+      context: .
+      dockerfile: menu-service/Dockerfile
+    container_name: qrserve-menu-service
+    ports:
+      - "8086:8086"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/qrserve_menu
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=postgres
+      - JWT_SECRET=${JWT_SECRET:-dGhpcy1pcy1hLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1zaWduaW5nLWl0LXNob3VsZC1iZS1sb25nLWVub3VnaA==}
+      - REDIS_HOST=host.docker.internal
+      - REDIS_PORT=6379
+      - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+
+  order-service:
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+    container_name: qrserve-order-service
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/qrserve_order
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=postgres
+      - JWT_SECRET=${JWT_SECRET:-dGhpcy1pcy1hLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1zaWduaW5nLWl0LXNob3VsZC1iZS1sb25nLWVub3VnaA==}
+      - KAFKA_BOOTSTRAP_SERVERS=host.docker.internal:9092
+      - MERCHANT_SERVICE_URL=http://merchant-service:8085
+      - MENU_SERVICE_URL=http://menu-service:8086
+      - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+
+  qr-service:
+    build:
+      context: .
+      dockerfile: qr-service/Dockerfile
+    container_name: qrserve-qr-service
+    ports:
+      - "8088:8088"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/qrserve_qr
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=postgres
+      - JWT_SECRET=${JWT_SECRET:-dGhpcy1pcy1hLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1zaWduaW5nLWl0LXNob3VsZC1iZS1sb25nLWVub3VnaA==}
+      - MERCHANT_SERVICE_URL=http://merchant-service:8085
+      - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: notification-service/Dockerfile
+    container_name: qrserve-notification-service
+    ports:
+      - "8084:8084"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/qrserve_notification
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=postgres
+      - JWT_SECRET=${JWT_SECRET:-dGhpcy1pcy1hLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1zaWduaW5nLWl0LXNob3VsZC1iZS1sb25nLWVub3VnaA==}
+      - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+
+  analytics-service:
+    build:
+      context: .
+      dockerfile: analytics-service/Dockerfile
+    container_name: qrserve-analytics-service
+    ports:
+      - "8089:8089"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/qrserve_analytics
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=postgres
+      - JWT_SECRET=${JWT_SECRET:-dGhpcy1pcy1hLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1zaWduaW5nLWl0LXNob3VsZC1iZS1sb25nLWVub3VnaA==}
+      - MERCHANT_SERVICE_URL=http://merchant-service:8085
+      - ORDER_SERVICE_URL=http://order-service:8083
+      - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: qrserve-api-gateway
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - JWT_SECRET=${JWT_SECRET:-dGhpcy1pcy1hLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1zaWduaW5nLWl0LXNob3VsZC1iZS1sb25nLWVub3VnaA==}
+      - REDIS_HOST=host.docker.internal
+      - REDIS_PORT=6379
+      - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      merchant-service:
+        condition: service_started
+      menu-service:
+        condition: service_started
+      order-service:
+        condition: service_started
+      qr-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+      analytics-service:
+        condition: service_started

@@ -1,0 +1,131 @@
+# ============================================
+# Gradle
+# ============================================
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# ============================================
+# Java / Kotlin compiled output
+# ============================================
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# ============================================
+# IDE - IntelliJ IDEA
+# ============================================
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+.idea_modules/
+
+# ============================================
+# IDE - Eclipse
+# ============================================
+.classpath
+.project
+.settings/
+bin/
+*.launch
+
+# ============================================
+# IDE - VS Code
+# ============================================
+.vscode/
+*.code-workspace
+
+# ============================================
+# IDE - NetBeans
+# ============================================
+nbproject/
+nb-configuration.xml
+nbactions.xml
+
+# ============================================
+# Environment / Secrets
+# ============================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+secrets/
+credentials/
+
+# ============================================
+# Logs
+# ============================================
+*.log
+logs/
+log/
+*.out
+*.err
+
+# ============================================
+# Test artifacts
+# ============================================
+test-results/
+reports/
+*.test
+*.results
+*.html
+*.xml
+*.json
+!**/src/test/resources/**/*.json
+!**/src/main/resources/**/*.json
+
+# ============================================
+# OS files
+# ============================================
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*~
+*.tmp
+*.bak
+
+# ============================================
+# Docker / Kubernetes generated
+# ============================================
+docker-compose.override.yml
+*.local.yml
+k8s/*.generated.yaml
+helm/charts/*.tgz
+
+# ============================================
+# Local configuration (per-service)
+# ============================================
+**/src/main/resources/application-local.yml
+**/src/main/resources/application-dev.yml
+**/src/main/resources/application-test.yml
+**/src/main/resources/bootstrap-local.yml
+
+# ============================================
+# Gradle wrapper (keep jar, ignore temp)
+# ============================================
+gradle-app.setting
+.gradle-test-kit/
+
+# ============================================
+# Misc
+# ============================================
+*.orig
+*.rej
+.idea_modules/
+captures/
+.externalToolBuilders/
+*.hprof
+heapdump.*

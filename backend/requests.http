@@ -1,0 +1,188 @@
+### Environment Variables
+@baseUrl = http://localhost:8081
+@authToken = {{loginRequest.response.body.accessToken}}
+@refreshToken = {{loginRequest.response.body.refreshToken}}
+
+###############################################################################
+# 1. AUTHENTICATION SERVICE (Routes to Port 8087 via Gateway)
+###############################################################################
+
+### User Login
+# @name loginRequest
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@hotel.com",
+  "password": "password"
+}
+
+### 2. Admin Create New Waiter / Kitchen User
+POST {{baseUrl}}/api/auth/users
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "name": "Abebe Kebede",
+  "email": "abebe.kitchen@hotel.com",
+  "password": "KitchenPass123!",
+  "role": "KITCHEN",
+  "merchantId": "0dcb197c-2e06-4f27-a596-e6ec93a4f1c3"
+}
+
+### Refresh Token
+POST {{baseUrl}}/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+###############################################################################
+# 2. MERCHANTS & BRANCHES SERVICE (Routes to Port 8085 via Gateway)
+###############################################################################
+
+### Create Merchant
+POST {{baseUrl}}/api/merchants
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "name": "Sunrise Coffee",
+  "phone": "+251911111111",
+  "city": "Addis Ababa",
+  "address": "Bole",
+  "category": "COFFEE_SHOP"
+}
+
+### Create Branch
+POST {{baseUrl}}/api/branches
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "merchantId": "0dcb197c-2e06-4f27-a596-e6ec93a4f1c3",
+  "name": "Bole Branch",
+  "phone": "+251911111111"
+}
+
+###############################################################################
+# 3. TABLE & QR MANAGEMENT SERVICE (Routes to Port 8085 / 8088 via Gateway)
+###############################################################################
+
+### Create Table
+POST {{baseUrl}}/api/tables
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "branchId": 1,
+  "tableNumber": "T-15",
+  "capacity": 4
+}
+
+### Get All Table
+GET {{baseUrl}}/api/tables/all
+Authorization: Bearer {{authToken}}
+
+
+### Get Table QR Metadata
+GET {{baseUrl}}/api/qr/1
+Authorization: Bearer {{authToken}}
+
+### Export PDF Printable Table Stand
+POST {{baseUrl}}/api/qr/export/pdf
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "tableId": 1,
+  "format": "PDF",
+  "brandColor": "#E60028",
+  "titleText": "Scan to Order"
+}
+
+###############################################################################
+# 4. MENU BUILDER SERVICE (Routes to Port 8086 via Gateway)
+###############################################################################
+
+### Create Category
+POST {{baseUrl}}/api/categories
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "merchantId": "0dcb197c-2e06-4f27-a596-e6ec93a4f1c3",
+  "name": "Coffee"
+}
+
+### Create Product / Menu Item
+POST {{baseUrl}}/api/products
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "categoryId": 1,
+  "name": "Cappuccino",
+  "description": "Fresh coffee",
+  "price": 180,
+  "image": "https://images.unsplash.com/photo-1534778101976-62847782c213",
+  "preparationTime": 10
+}
+
+### Get Full Digital Menu
+GET {{baseUrl}}/api/menu/0dcb197c-2e06-4f27-a596-e6ec93a4f1c3
+
+###############################################################################
+# 5. CUSTOMER ORDERS & KITCHEN (Routes to Port 8083 via Gateway)
+###############################################################################
+
+### Place Customer Order
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+
+{
+  "tableId": 1,
+  "customerName": "John",
+  "note": "Extra sugar",
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 2
+    }
+  ]
+}
+
+
+### Get all Orders
+GET {{baseUrl}}/api/orders
+Authorization: Bearer {{authToken}}
+
+### Update Order Status
+PATCH {{baseUrl}}/api/orders/ORD-12345/status
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "status": "READY"
+}
+
+### Get Kitchen Orders
+GET {{baseUrl}}/api/kitchen/orders?status=PENDING&branchId=1
+Authorization: Bearer {{authToken}}
+
+###############################################################################
+# 6. ANALYTICS & REPORTING (Routes to Port 8089 via Gateway)
+###############################################################################
+
+### Get Today KPI Metrics
+GET {{baseUrl}}/api/analytics/today
+Authorization: Bearer {{authToken}}
+
+### Get Revenue Analytics
+GET {{baseUrl}}/api/analytics/revenue
+Authorization: Bearer {{authToken}}
+
+### Get Popular Products
+GET {{baseUrl}}/api/analytics/popular-items
+Authorization: Bearer {{authToken}}

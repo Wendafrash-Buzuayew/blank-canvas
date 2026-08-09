@@ -1,0 +1,219 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.4.3' apply false
+    id 'io.spring.dependency-management' version '1.1.7' apply false
+}
+
+allprojects {
+    group = 'com.qrserve'
+    version = '1.0.0-SNAPSHOT'
+
+    repositories {
+        mavenCentral()
+    }
+}
+
+// 1. Base tools and dependencies for ALL projects
+subprojects {
+    apply plugin: 'java-library'
+    apply plugin: 'io.spring.dependency-management'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
+
+    dependencyManagement {
+        imports {
+            mavenBom "org.springframework.boot:spring-boot-dependencies:3.4.3"
+            mavenBom "org.springframework.cloud:spring-cloud-dependencies:2024.0.0"
+        }
+    }
+
+    configurations {
+        compileOnly {
+            extendsFrom annotationProcessor
+        }
+    }
+
+    dependencies {
+        // JJWT Dependencies
+        api 'io.jsonwebtoken:jjwt-api:0.12.6'
+        runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+        runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+
+        // Lombok & Mapstruct
+        compileOnly 'org.projectlombok:lombok'
+        annotationProcessor 'org.projectlombok:lombok'
+        annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.0'
+        implementation 'org.mapstruct:mapstruct:1.6.0'
+
+        // Testing
+        testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    }
+
+    test {
+        useJUnitPlatform()
+    }
+}
+
+// 2. Standard Business Microservices (EXCLUDING api-gateway, discovery-service, and shared)
+def standardBusinessServices = subprojects.findAll { 
+    it.name != 'api-gateway' && it.name != 'discovery-service' && !it.path.startsWith(':shared') 
+}
+
+configure(standardBusinessServices) {
+    dependencies {
+        api 'org.springframework.boot:spring-boot-starter-web'
+        api 'org.springframework.boot:spring-boot-starter-data-jpa'
+        api 'org.springframework.boot:spring-boot-starter-security'
+        api 'org.springframework.boot:spring-boot-starter-websocket'
+        api 'org.springframework.boot:spring-boot-starter-actuator'
+        api 'org.springframework.boot:spring-boot-starter-data-redis'
+        api 'org.springframework.kafka:spring-kafka'
+        api 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+
+        implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.4'
+        implementation 'com.google.zxing:core:3.5.3'
+        implementation 'com.google.zxing:javase:3.5.3'
+
+        runtimeOnly 'com.h2database:h2'
+        runtimeOnly 'org.postgresql:postgresql'
+        testImplementation 'org.springframework.security:spring-security-test'
+    }
+}
+
+// 3. Shared Modules Setup
+project(':shared:common') {
+    dependencies {
+        implementation 'org.springframework.boot:spring-boot-starter-validation'
+    }
+}
+
+project(':shared:exceptions') {
+    dependencies {
+        implementation project(':shared:common')
+        implementation 'org.springframework:spring-web'
+        implementation 'org.springframework:spring-context'
+        implementation 'org.springframework.boot:spring-boot-starter-validation'
+    }
+}
+
+project(':shared:security') {
+    dependencies {
+        implementation project(':shared:common')
+        implementation 'org.springframework.boot:spring-boot-starter-security'
+        implementation 'org.springframework.boot:spring-boot-starter-web'
+    }
+}
+
+project(':shared:events') {
+    dependencies {
+        implementation 'org.springframework:spring-context'
+    }
+}
+
+// 4. Configure Executable Microservices
+def microservices = [
+    ':discovery-service',
+    ':auth-service',
+    ':merchant-service',
+    ':menu-service',
+    ':order-service',
+    ':qr-service',
+    ':notification-service',
+    ':analytics-service',
+    ':api-gateway'
+]
+
+configure(microservices.collect { project(it) }) { p ->
+    apply plugin: 'org.springframework.boot'
+
+    dependencies {
+        implementation project(':shared:common')
+
+        // MVC-specific shared modules applied ONLY to standard business microservices
+        if (p.name != 'api-gateway' && p.name != 'discovery-service') {
+            implementation project(':shared:exceptions')
+            implementation project(':shared:security')
+        }
+    }
+
+    bootJar {
+        enabled = true
+        archiveClassifier = 'boot'
+    }
+
+    jar {
+        enabled = true
+        archiveClassifier = ''
+    }
+}
+
+// 5. Inter-Service Code Imports & Configurations
+project(':auth-service') {
+    springBoot { mainClass = 'com.qrserve.auth.AuthServiceApplication' }
+}
+
+project(':merchant-service') {
+    springBoot { mainClass = 'com.qrserve.merchant.MerchantServiceApplication' }
+}
+
+project(':menu-service') {
+    springBoot { mainClass = 'com.qrserve.menu.MenuServiceApplication' }
+}
+
+project(':qr-service') {
+    springBoot { mainClass = 'com.qrserve.qr.QrServiceApplication' }
+}
+
+project(':order-service') {
+    springBoot { mainClass = 'com.qrserve.order.OrderServiceApplication' }
+    dependencies {
+        implementation project(':shared:events')
+    }
+}
+
+project(':notification-service') {
+    springBoot { mainClass = 'com.qrserve.notification.NotificationServiceApplication' }
+    dependencies {
+        implementation project(':shared:events')
+    }
+}
+
+// FIX: Dedicated configuration for Discovery Service (Eureka Server)
+project(':discovery-service') {
+    springBoot { mainClass = 'com.qrserve.discovery.DiscoveryServiceApplication' }
+    dependencies {
+        implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-server'
+    }
+}
+
+project(':analytics-service') {
+    springBoot { mainClass = 'com.qrserve.analytics.AnalyticsServiceApplication' }
+    dependencies {
+        implementation project(':shared:events')
+    }
+}
+
+// 6. Reactive API Gateway Configuration
+project(':api-gateway') {
+    dependencies {
+        implementation 'org.springframework.boot:spring-boot-starter-webflux'
+        implementation 'org.springframework.cloud:spring-cloud-starter-gateway'
+        implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+        implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
+        implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-reactor-resilience4j'
+    }
+
+    // Explicitly prevent Spring MVC from entering Gateway classpath
+    configurations.all {
+        exclude group: 'org.springframework.boot', module: 'spring-boot-starter-web'
+        exclude group: 'org.springframework', module: 'spring-webmvc'
+    }
+
+    springBoot {
+        mainClass = 'com.qrserve.gateway.ApiGatewayApplication'
+    }
+}

@@ -1,0 +1,31 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+        maven { url 'https://repo.spring.io/release' }
+    }
+}
+
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+        maven { url 'https://repo.spring.io/release' }
+    }
+}
+
+rootProject.name = 'qrserve'
+
+include 'auth-service'
+include 'merchant-service'
+include 'menu-service'
+include 'order-service'
+include 'qr-service'
+include 'notification-service'
+include 'analytics-service'
+include 'api-gateway'
+include ':discovery-service'
+
+include 'shared:common'
+include 'shared:exceptions'
+include 'shared:events'
+include 'shared:security'

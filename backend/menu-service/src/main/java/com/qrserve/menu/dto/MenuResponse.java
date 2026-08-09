@@ -1,0 +1,41 @@
+package com.qrserve.menu.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.util.List;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class MenuResponse {
+    private List<CategoryDto> categories;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class CategoryDto {
+        private Long id;
+        private String name;
+        private List<ProductDto> items;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ProductDto {
+        private Long id;
+        private String name;
+        private String description;
+        private BigDecimal price;
+        private String image;
+        private boolean available;
+        private Integer preparationTime;
+    }
+}

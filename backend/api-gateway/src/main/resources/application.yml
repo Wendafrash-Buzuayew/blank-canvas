@@ -1,0 +1,100 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+    # Enable dynamic route locator via Eureka
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+
+      routes:
+        # Auth Service Route
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/auth/**
+
+        # Merchant Service Route
+        - id: merchant-service
+          uri: lb://merchant-service
+          predicates:
+            - Path=/api/merchants/**, /api/branches/**, /api/tables/**, /api/waiters/**, /api/table-assignments/**, /api/customer-requests/**
+
+        # Order Service Route
+        - id: order-service
+          uri: lb://order-service
+          predicates:
+            - Path=/api/orders/**, /api/kitchen/**
+
+        # Menu Service Route
+        - id: menu-service
+          uri: lb://menu-service
+          predicates:
+            - Path=/api/categories/**, /api/products/**, /api/menu/**
+
+        # QR Service Route
+        - id: qr-service
+          uri: lb://qr-service
+          predicates:
+            - Path=/api/qr/**
+
+        # Analytics Service Route
+        - id: analytics-service
+          uri: lb://analytics-service
+          predicates:
+            - Path=/api/analytics/**
+
+        # Notification Service Route (WebSocket)
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/ws/**
+
+  main:
+    web-application-type: reactive
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka}
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      default:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+
+logging:
+  level:
+    org.springframework.cloud.gateway: TRACE
+    org.springframework.security: TRACE
+    reactor.netty: DEBUG

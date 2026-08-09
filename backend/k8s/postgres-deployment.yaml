@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-deployment
+  labels:
+    app: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: "qrserve_auth"
+            - name: POSTGRES_USER
+              value: "qrserve_user"
+            - name: POSTGRES_PASSWORD
+              value: "qrserve_password"
+          volumeMounts:
+            - name: init-scripts
+              mountPath: /docker-entrypoint-initdb.d
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+      volumes:
+        - name: init-scripts
+          configMap:
+            name: postgres-init-scripts
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-scripts
+data:
+  init-db.sql: |
+    CREATE DATABASE qrserve_auth;
+    CREATE DATABASE qrserve_merchant;
+    CREATE DATABASE qrserve_menu;
+    CREATE DATABASE qrserve_order;
+    CREATE DATABASE qrserve_qr;
+    CREATE DATABASE qrserve_notification;
+    CREATE DATABASE qrserve_analytics;
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: postgres
