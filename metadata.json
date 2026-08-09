@@ -1,0 +1,6 @@
+{
+  "name": "QRServe",
+  "description": "Smart QR Menu Builder & Order Management Platform for restaurants, cafes, bars, and hotels.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

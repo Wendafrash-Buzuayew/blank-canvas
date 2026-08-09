@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
     "com.qrserve.merchant",
     "com.qrserve.shared.security",
     "com.qrserve.shared.common",
+    "com.qrserve.shared.events",
     "com.qrserve.shared.exceptions"
 })
 @EnableJpaRepositories(basePackages = {"com.qrserve.merchant.repository"})

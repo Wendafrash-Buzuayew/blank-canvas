@@ -48,8 +48,8 @@ public class StompWebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         // Enable the simple in-memory broker for /topic destinations
         registry.enableSimpleBroker("/topic")
-                .setHeartbeatValue(10000)
-                .setHeartbeatValue(10000);
+                // .setHeartbeatValue(10000)
+                .setHeartbeatValue(new long[] { 10000L, 10000L });
         // Application destination prefix for messages sent to @MessageMapping
         registry.setApplicationDestinationPrefixes("/app");
         // User-specific queue prefix

@@ -44,6 +44,7 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
+                    "/actuator/**",
                     "/error",
                     "/api/auth/**",
                     "/api/v1/auth/**",

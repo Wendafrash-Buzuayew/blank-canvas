@@ -65,7 +65,11 @@ def standardBusinessServices = subprojects.findAll {
 
 configure(standardBusinessServices) {
     dependencies {
-        api 'org.springframework.boot:spring-boot-starter-web'
+        // Exclude Tomcat and add Undertow
+        api('org.springframework.boot:spring-boot-starter-web') {
+            exclude group: 'org.springframework.boot', module: 'spring-boot-starter-tomcat'
+        }
+        api 'org.springframework.boot:spring-boot-starter-undertow'
         api 'org.springframework.boot:spring-boot-starter-data-jpa'
         api 'org.springframework.boot:spring-boot-starter-security'
         api 'org.springframework.boot:spring-boot-starter-websocket'
@@ -104,7 +108,13 @@ project(':shared:security') {
     dependencies {
         implementation project(':shared:common')
         implementation 'org.springframework.boot:spring-boot-starter-security'
-        implementation 'org.springframework.boot:spring-boot-starter-web'
+        // Exclude Tomcat here as well
+        // Exclude tomcat, but bring in undertow and explicit servlet API
+        implementation('org.springframework.boot:spring-boot-starter-web') {
+            exclude group: 'org.springframework.boot', module: 'spring-boot-starter-tomcat'
+        }
+        implementation 'org.springframework.boot:spring-boot-starter-undertow'
+        compileOnly 'jakarta.servlet:jakarta.servlet-api'
     }
 }
 
@@ -158,6 +168,9 @@ project(':auth-service') {
 
 project(':merchant-service') {
     springBoot { mainClass = 'com.qrserve.merchant.MerchantServiceApplication' }
+    dependencies {
+        implementation project(':shared:events')
+    }
 }
 
 project(':menu-service') {

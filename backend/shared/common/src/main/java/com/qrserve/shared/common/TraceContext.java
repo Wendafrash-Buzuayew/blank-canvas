@@ -34,6 +34,14 @@ public final class TraceContext {
         return traceId;
     }
 
+    public static void setTraceId(String traceId) {
+        // traceId = MDC.get(TRACE_ID_KEY);
+        if (traceId == null || traceId.isBlank()) {
+            traceId = generateTraceId();
+            MDC.put(TRACE_ID_KEY, traceId);
+        }
+    }
+
     /**
      * Returns the current spanId from MDC, or generates a new one if absent.
      */

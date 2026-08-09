@@ -15,3 +15,19 @@ eureka:
     enable-self-preservation: false
     eviction-interval-timer-in-ms: 10000
     
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus, metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+  tracing:
+    sampling:
+      probability: 1.0 # Sample 100% in dev/staging; lower to 0.1 in high-traffic production
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
