@@ -11,7 +11,7 @@ export const UserManagement: React.FC = () => {
     name: '',
     email: '',
     password: '',
-    role: 'WAITER' as 'SUPER_ADMIN' | 'MERCHANT_OWNER' | 'MANAGER' | 'CASHIER' | 'WAITER' | 'KITCHEN',
+    role: 'WAITER' as 'SUPER_ADMIN' | 'MERCHANT_OWNER' | 'BRANCH_MANAGER' | 'CASHIER' | 'WAITER' | 'KITCHEN',
     merchantId: '',
   });
   const [error, setError] = useState<string | null>(null);
@@ -122,13 +122,13 @@ export const UserManagement: React.FC = () => {
                 >
                   <option value="WAITER">Waiter</option>
                   <option value="KITCHEN">Kitchen Staff</option>
-                  <option value="MANAGER">Branch Manager</option>
+                  <option value="BRANCH_MANAGER">Branch Manager</option>
                   <option value="CASHIER">Cashier</option>
                   <option value="MERCHANT_OWNER">Merchant Owner</option>
                   <option value="SUPER_ADMIN">Super Admin</option>
                 </select>
               </div>
-              {(formData.role === 'MERCHANT_OWNER' || formData.role === 'MANAGER' || formData.role === 'WAITER' || formData.role === 'KITCHEN' || formData.role === 'CASHIER') && (
+              {(formData.role === 'MERCHANT_OWNER' || formData.role === 'BRANCH_MANAGER' || formData.role === 'WAITER' || formData.role === 'KITCHEN' || formData.role === 'CASHIER') && (
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Merchant ID (optional)</label>
                   <input

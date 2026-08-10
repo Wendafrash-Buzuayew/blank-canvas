@@ -16,6 +16,8 @@ import { WaiterManagement } from '../pages/WaiterManagement';
 import { UserManagement } from '../pages/UserManagement';
 import { AnalyticsPage } from '../pages/AnalyticsPage';
 import { SettingsPage } from '../pages/SettingsPage';
+import { WaiterRequestsPage } from '../pages/WaiterRequestsPage';
+import { KitchenLivePage } from '../pages/KitchenLivePage';
 
 // Root redirect component that sends users to their role-based home
 const RootRedirect: React.FC = () => {
@@ -42,7 +44,7 @@ export const AppRouter: React.FC = () => {
       <Routes>
         {/* ===== Public Routes ===== */}
         <Route path="/" element={<LandingPage
-          onStartCustomerDemo={() => { window.location.href = '/menu/demo/1'; }}
+          onStartCustomerDemo={() => { window.location.href = '/menu/demo/main/1'; }}
           onStartMerchantDemo={() => { window.location.href = '/login'; }}
           onBookDemo={() => alert('Demo booking request sent! We will contact you at wendebuzu@gmail.com')}
         />} />
@@ -50,6 +52,7 @@ export const AppRouter: React.FC = () => {
         <Route path="/login" element={<LoginPage />} />
 
         {/* Public QR Menu - /menu/{merchantSlug}/{tableNumber} */}
+        <Route path="/menu/:merchantSlug/:branchSlug/:tableNumber" element={<CustomerMenuPage />} />
         <Route path="/menu/:merchantSlug/:tableNumber" element={<CustomerMenuPage />} />
 
         {/* ===== SUPER_ADMIN Routes ===== */}
@@ -163,7 +166,7 @@ export const AppRouter: React.FC = () => {
           path="/merchant/orders"
           element={
             <ProtectedRoute allowedRoles={['MERCHANT_OWNER', 'SUPER_ADMIN']}>
-              <DashboardPage />
+              <KitchenLivePage />
             </ProtectedRoute>
           }
         />
@@ -205,7 +208,7 @@ export const AppRouter: React.FC = () => {
           path="/branch/orders"
           element={
             <ProtectedRoute allowedRoles={['BRANCH_MANAGER', 'MERCHANT_OWNER', 'SUPER_ADMIN']}>
-              <DashboardPage />
+              <KitchenLivePage />
             </ProtectedRoute>
           }
         />
@@ -229,7 +232,7 @@ export const AppRouter: React.FC = () => {
           path="/branch/kitchen"
           element={
             <ProtectedRoute allowedRoles={['BRANCH_MANAGER', 'MERCHANT_OWNER', 'SUPER_ADMIN']}>
-              <DashboardPage />
+              <KitchenLivePage />
             </ProtectedRoute>
           }
         />
@@ -271,7 +274,7 @@ export const AppRouter: React.FC = () => {
           path="/waiter/requests"
           element={
             <ProtectedRoute allowedRoles={['WAITER', 'MERCHANT_OWNER', 'BRANCH_MANAGER', 'SUPER_ADMIN']}>
-              <DashboardPage />
+              <WaiterRequestsPage />
             </ProtectedRoute>
           }
         />
@@ -281,7 +284,7 @@ export const AppRouter: React.FC = () => {
           path="/kitchen/dashboard"
           element={
             <ProtectedRoute allowedRoles={['KITCHEN', 'MERCHANT_OWNER', 'BRANCH_MANAGER', 'SUPER_ADMIN']}>
-              <DashboardPage />
+              <KitchenLivePage />
             </ProtectedRoute>
           }
         />
@@ -289,7 +292,7 @@ export const AppRouter: React.FC = () => {
           path="/kitchen/incoming"
           element={
             <ProtectedRoute allowedRoles={['KITCHEN', 'MERCHANT_OWNER', 'BRANCH_MANAGER', 'SUPER_ADMIN']}>
-              <DashboardPage />
+              <KitchenLivePage />
             </ProtectedRoute>
           }
         />
@@ -297,7 +300,7 @@ export const AppRouter: React.FC = () => {
           path="/kitchen/preparing"
           element={
             <ProtectedRoute allowedRoles={['KITCHEN', 'MERCHANT_OWNER', 'BRANCH_MANAGER', 'SUPER_ADMIN']}>
-              <DashboardPage />
+              <KitchenLivePage />
             </ProtectedRoute>
           }
         />
@@ -305,7 +308,7 @@ export const AppRouter: React.FC = () => {
           path="/kitchen/ready"
           element={
             <ProtectedRoute allowedRoles={['KITCHEN', 'MERCHANT_OWNER', 'BRANCH_MANAGER', 'SUPER_ADMIN']}>
-              <DashboardPage />
+              <KitchenLivePage />
             </ProtectedRoute>
           }
         />

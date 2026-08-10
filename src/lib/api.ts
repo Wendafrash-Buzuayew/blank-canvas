@@ -38,7 +38,7 @@ export interface CreateUserRequest {
   name: string;
   email: string;
   password: string;
-  role: 'SUPER_ADMIN' | 'MERCHANT_OWNER' | 'MANAGER' | 'CASHIER' | 'WAITER' | 'KITCHEN';
+  role: 'SUPER_ADMIN' | 'MERCHANT_OWNER' | 'BRANCH_MANAGER' | 'CASHIER' | 'WAITER' | 'KITCHEN';
   merchantId?: string;
 }
 
@@ -800,4 +800,93 @@ export const analyticsApi = {
     const query = merchantId ? `?merchantId=${merchantId}` : '';
     return request<PopularItemDto[]>(`/analytics/popular-items${query}`);
   },
+};
+// ============================================================================
+// v1 API surface (Phase 2/3 contracts served by merchant-service)
+// ============================================================================
+
+export type WaiterRequestType = 'CALL_WAITER' | 'REQUEST_WATER' | 'REQUEST_BILL';
+
+export interface PublicMenuResolutionResponse {
+  merchantId: string;
+  merchantName?: string;
+  merchantSlug?: string;
+  branchId: number;
+  branchName?: string;
+  branchSlug?: string;
+  tableId: number;
+  tableNumber: string;
+  currency?: string;
+}
+
+export interface WaiterAssignmentDto {
+  assignmentId?: number;
+  merchantId?: string;
+  branchId: number;
+  tableId: number;
+  tableNumber?: string;
+  waiterId: number;
+  userId?: string;
+  waiterName?: string;
+  shift?: string;
+  status?: string;
+  assignedAt?: string;
+  endedAt?: string;
+}
+
+export interface WaiterTasksResponse {
+  waiterId: number | null;
+  merchantId: string;
+  branchId: number;
+  assignedTables: WaiterAssignmentDto[];
+  pendingRequests: CustomerRequestEntity[];
+}
+
+/** GET /api/v1/public/menu/{merchantSlug}/{branchSlug}/{tableNumber} */
+export const publicApi = {
+  resolveMenu: (merchantSlug: string, branchSlug: string, tableNumber: string, signature?: string) =>
+    request<PublicMenuResolutionResponse>(
+      `/v1/public/menu/${encodeURIComponent(merchantSlug)}/${encodeURIComponent(branchSlug)}/${encodeURIComponent(tableNumber)}${signature ? `?signature=${encodeURIComponent(signature)}` : ''}`,
+      { skipAuth: true }
+    ),
+
+  health: () => request<{ status: string }>('/v1/public/menu/health', { skipAuth: true }),
+
+  /** POST /api/v1/tables/{tableId}/requests — customer service call from a table */
+  createTableRequest: (
+    tableId: number,
+    body: { requestType: WaiterRequestType; note?: string; customerName?: string; merchantId?: string; branchId?: number }
+  ) =>
+    request<CustomerRequestEntity>(`/v1/tables/${tableId}/requests`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+      skipAuth: true,
+    }),
+};
+
+/** Waiter task board + request resolution (v1) */
+export const waiterTaskApi = {
+  /** GET /api/v1/waiters/tasks */
+  getTasks: (params: { merchantId: string; branchId: number; waiterId?: number; userId?: string }) => {
+    const query = new URLSearchParams();
+    query.set('merchantId', params.merchantId);
+    query.set('branchId', String(params.branchId));
+    if (params.waiterId != null) query.set('waiterId', String(params.waiterId));
+    if (params.userId) query.set('userId', params.userId);
+    return request<WaiterTasksResponse>(`/v1/waiters/tasks?${query.toString()}`);
+  },
+
+  /** PATCH /api/v1/requests/{requestId}/resolve */
+  resolveRequest: (requestId: number, status: 'ACKNOWLEDGED' | 'COMPLETED' | 'CANCELLED', merchantId?: string) =>
+    request<CustomerRequestEntity>(
+      `/v1/requests/${requestId}/resolve${merchantId ? `?merchantId=${merchantId}` : ''}`,
+      { method: 'PATCH', body: JSON.stringify({ status }) }
+    ),
+
+  /** POST /api/v1/tables/{tableId}/assign-waiter */
+  assignWaiter: (tableId: number, body: { branchId: number; waiterId: number; shift?: string }) =>
+    request<WaiterAssignmentDto>(`/v1/tables/${tableId}/assign-waiter`, {
+      method: 'POST',
+      body: JSON.stringify({ ...body, tableId }),
+    }),
 };
