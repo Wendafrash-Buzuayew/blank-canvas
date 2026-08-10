@@ -10,6 +10,9 @@ import {
   qrApi, 
   tableApi,
   waiterApi,
+  waiterTaskApi,
+  publicApi,
+  WaiterRequestType,
   CreateOrderRequest,
   MenuResponse,
   TodayAnalyticsResponse,
@@ -400,3 +403,105 @@ export function mapKitchenOrderToFrontend(order: KitchenOrder): OrderEntity {
     updatedAt: order.createdAt,
   };
 }
+// ============ v1 Queries (waiter tasks, public menu resolution) ============
+
+export const useWaiterTasks = (params: {
+  merchantId?: string | null;
+  branchId?: number | null;
+  waiterId?: number;
+  userId?: string;
+  refetchInterval?: number;
+}) => {
+  const { merchantId, branchId, waiterId, userId, refetchInterval } = params;
+  return useQuery({
+    queryKey: ['waiter-tasks', merchantId, branchId, waiterId, userId],
+    queryFn: () =>
+      waiterTaskApi.getTasks({ merchantId: merchantId!, branchId: branchId!, waiterId, userId }),
+    enabled: !!merchantId && branchId != null && isAuthenticated(),
+    refetchInterval: refetchInterval ?? 30000,
+  });
+};
+
+export const useResolveRequest = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      requestId,
+      status,
+      merchantId,
+    }: {
+      requestId: number;
+      status: 'ACKNOWLEDGED' | 'COMPLETED' | 'CANCELLED';
+      merchantId?: string;
+    }) => waiterTaskApi.resolveRequest(requestId, status, merchantId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['waiter-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-requests'] });
+    },
+  });
+};
+
+export const useAssignWaiterV1 = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      tableId,
+      branchId,
+      waiterId,
+      shift,
+    }: {
+      tableId: number;
+      branchId: number;
+      waiterId: number;
+      shift?: string;
+    }) => waiterTaskApi.assignWaiter(tableId, { branchId, waiterId, shift }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['waiter-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['tables'] });
+    },
+  });
+};
+
+/** Resolve a QR-scanned public menu URL to merchant/branch/table identifiers. */
+export const usePublicMenuResolution = (
+  merchantSlug?: string,
+  branchSlug?: string,
+  tableNumber?: string,
+  signature?: string
+) => {
+  return useQuery({
+    queryKey: ['public-menu-resolution', merchantSlug, branchSlug, tableNumber, signature],
+    queryFn: () => publicApi.resolveMenu(merchantSlug!, branchSlug!, tableNumber!, signature),
+    enabled: !!merchantSlug && !!branchSlug && !!tableNumber,
+    retry: 1,
+  });
+};
+
+/** Full public menu for a resolved merchant. */
+export const usePublicMenu = (merchantId?: string | null) => {
+  return useQuery({
+    queryKey: ['public-menu', merchantId],
+    queryFn: () => menuApi.getFullMenu(merchantId!),
+    enabled: !!merchantId,
+  });
+};
+
+export const useCreateTableRequest = () => {
+  return useMutation({
+    mutationFn: ({
+      tableId,
+      requestType,
+      note,
+      customerName,
+      merchantId,
+      branchId,
+    }: {
+      tableId: number;
+      requestType: WaiterRequestType;
+      note?: string;
+      customerName?: string;
+      merchantId?: string;
+      branchId?: number;
+    }) => publicApi.createTableRequest(tableId, { requestType, note, customerName, merchantId, branchId }),
+  });
+};
