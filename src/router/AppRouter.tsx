@@ -44,7 +44,7 @@ export const AppRouter: React.FC = () => {
       <Routes>
         {/* ===== Public Routes ===== */}
         <Route path="/" element={<LandingPage
-          onStartCustomerDemo={() => { window.location.href = '/menu/demo/1'; }}
+          onStartCustomerDemo={() => { window.location.href = '/menu/demo/main/1'; }}
           onStartMerchantDemo={() => { window.location.href = '/login'; }}
           onBookDemo={() => alert('Demo booking request sent! We will contact you at wendebuzu@gmail.com')}
         />} />

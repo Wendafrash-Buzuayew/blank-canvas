@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { realtime } from '../lib/realtime';
 import { authApi, setTokens, clearTokens, setUser, getUser, isAuthenticated, LoginResponse, UserInfoResponse } from '../lib/api';
 
 export type AuthUser = {
@@ -121,6 +122,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Ignore network errors on logout
     }
     clearTokens();
+    realtime.disconnect();
     setUserState(null);
     setAuthState(false);
     window.dispatchEvent(new CustomEvent('qrserve_auth_update'));
