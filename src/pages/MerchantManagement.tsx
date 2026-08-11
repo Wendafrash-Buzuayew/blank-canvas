@@ -37,7 +37,6 @@ export const MerchantManagement: React.FC = () => {
   const { data: merchants = [], isLoading: merchantsLoading, error: merchantsError, refetch: refetchMerchants } = useQuery({
     queryKey: ['merchants', merchantIds],
     queryFn: async () => {
-      console.log('[MerchantManagement] Fetching merchants for IDs:', merchantIds);
       const results = await Promise.all(
         merchantIds.map(id => merchantApi.getMerchant(id).catch(err => {
           console.error(`[MerchantManagement] Failed to fetch merchant ${id}:`, err);
@@ -45,7 +44,6 @@ export const MerchantManagement: React.FC = () => {
         }))
       );
       const valid = results.filter((m): m is MerchantEntity => m !== null);
-      console.log('[MerchantManagement] Fetched merchants:', valid);
       return valid;
     },
     enabled: merchantIds.length > 0,
@@ -55,7 +53,6 @@ export const MerchantManagement: React.FC = () => {
   const updateMutation = useUpdateMerchant();
   const deleteMutation = useDeleteMerchant();
 
-  console.log('[MerchantManagement] merchants:', merchants);
 
   const handleOpenCreate = () => {
     setEditingMerchant(null);

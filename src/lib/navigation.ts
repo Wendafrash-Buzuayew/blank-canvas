@@ -38,9 +38,10 @@ export const ROLE_NAVIGATION: Record<string, NavItem[]> = {
     { label: 'Subscriptions', path: '/admin/subscriptions', icon: CreditCard },
     { label: 'Settings', path: '/admin/settings', icon: Settings },
   ],
-  MERCHANT_ADMIN: [
+  MERCHANT_OWNER: [
     { label: 'Dashboard', path: '/merchant/dashboard', icon: LayoutDashboard },
     { label: 'Branches', path: '/merchant/branches', icon: Building2 },
+    { label: 'Users', path: '/merchant/users', icon: Users },
     { label: 'Tables', path: '/merchant/tables', icon: TableIcon },
     { label: 'Menu', path: '/merchant/menu', icon: Utensils },
     { label: 'Orders', path: '/merchant/orders', icon: ShoppingBag },
@@ -75,9 +76,7 @@ export const ROLE_NAVIGATION: Record<string, NavItem[]> = {
  * Falls back to an empty array if the role is unknown.
  */
 export function getNavigationForRole(role: string): NavItem[] {
-  const items = ROLE_NAVIGATION[role] || [];
-  console.log('[Navigation] Role:', role, 'sidebarItems:', items);
-  return items;
+  return ROLE_NAVIGATION[role] || [];
 }
 
 /**

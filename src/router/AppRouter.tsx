@@ -147,6 +147,14 @@ export const AppRouter: React.FC = () => {
           }
         />
         <Route
+          path="/merchant/users"
+          element={
+            <ProtectedRoute allowedRoles={['MERCHANT_OWNER', 'SUPER_ADMIN']}>
+              <UserManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/merchant/tables"
           element={
             <ProtectedRoute allowedRoles={['MERCHANT_OWNER', 'SUPER_ADMIN']}>

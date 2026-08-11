@@ -13,9 +13,6 @@ export const AnalyticsPage: React.FC = () => {
   const { data: revenueData, isLoading: revenueLoading } = useRevenueAnalytics(merchantId);
   const { data: popularItems, isLoading: popularLoading } = usePopularItems(merchantId);
 
-  console.log('[AnalyticsPage] todayMetrics:', todayMetrics);
-  console.log('[AnalyticsPage] revenueData:', revenueData);
-  console.log('[AnalyticsPage] popularItems:', popularItems);
 
   if (todayLoading || revenueLoading || popularLoading) {
     return (

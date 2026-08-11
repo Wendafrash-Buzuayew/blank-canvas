@@ -19,9 +19,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
   const navItems = getNavigationForRole(user.role);
   const roleLabel = getRoleLabel(user.role);
 
-  console.log('[Sidebar] user:', user);
-  console.log('[Sidebar] role:', user.role);
-  console.log('[Sidebar] routes:', navItems);
 
   const handleLogout = () => {
     logout();
