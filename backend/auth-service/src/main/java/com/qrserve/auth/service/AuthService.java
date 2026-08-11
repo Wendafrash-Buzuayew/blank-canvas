@@ -16,6 +16,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -108,5 +113,28 @@ public class AuthService {
                 .role(user.getRole())
                 .enabled(user.isEnabled())
                 .build();
+    }
+
+    /**
+     * List users, optionally scoped to a merchant. Used by admin/owner consoles to
+     * resolve human-readable user names instead of exposing UUIDs in the UI.
+     */
+    @Transactional(readOnly = true)
+    public List<UserInfoResponse> listUsers(UUID merchantId) {
+        List<UserEntity> users = merchantId != null
+                ? userRepository.findByMerchantId(merchantId)
+                : userRepository.findAll();
+
+        return users.stream()
+                .sorted(Comparator.comparing(UserEntity::getName, Comparator.nullsLast(String::compareToIgnoreCase)))
+                .map(user -> UserInfoResponse.builder()
+                        .id(user.getId())
+                        .merchantId(user.getMerchantId())
+                        .name(user.getName())
+                        .email(user.getEmail())
+                        .role(user.getRole())
+                        .enabled(user.isEnabled())
+                        .build())
+                .collect(Collectors.toList());
     }
 }
