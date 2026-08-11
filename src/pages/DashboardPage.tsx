@@ -14,10 +14,6 @@ export const DashboardPage: React.FC = () => {
   const { data: tables, isLoading: tablesLoading } = useTables();
   const { data: orders, isLoading: ordersLoading } = useOrders();
 
-  console.log('[DashboardPage] user:', user);
-  console.log('[DashboardPage] todayMetrics:', todayMetrics);
-  console.log('[DashboardPage] tables:', tables);
-  console.log('[DashboardPage] orders:', orders);
 
   if (metricsLoading || tablesLoading || ordersLoading) {
     return (

@@ -51,7 +51,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setUser(authUser);
           setUserState(authUser);
           setAuthState(true);
-          console.log('[AuthContext] Refreshed user from /api/auth/me on mount:', authUser);
         })
         .catch((err) => {
           console.error('[AuthContext] Failed to refresh user on mount:', err);
@@ -91,10 +90,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       try {
         const info = await authApi.getMe();
         authUser = mapUserInfoToAuthUser(info);
-        console.log('[AuthContext] Fetched user from /api/auth/me after login:', authUser);
       } catch (err) {
         // Fallback: decode JWT payload if /me fails
-        console.warn('[AuthContext] /api/auth/me failed, falling back to JWT decode:', err);
         const payload = JSON.parse(atob(response.accessToken.split('.')[1]));
         authUser = {
           id: payload.sub || payload.userId || '',
@@ -140,7 +137,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const authUser = mapUserInfoToAuthUser(info);
       setUser(authUser);
       setUserState(authUser);
-      console.log('[AuthContext] Refreshed user from /api/auth/me:', authUser);
     } catch (err) {
       console.error('[AuthContext] Failed to refresh user:', err);
     }

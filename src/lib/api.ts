@@ -356,6 +356,10 @@ export const authApi = {
   getMe: () =>
     request<UserInfoResponse>('/auth/me'),
 
+  /** GET /api/auth/users — list users (tenant-scoped server side). */
+  listUsers: (merchantId?: string) =>
+    request<UserInfoResponse[]>(`/auth/users${merchantId ? `?merchantId=${merchantId}` : ''}`),
+
   createUser: (data: CreateUserRequest) =>
     request<CreateUserResponse>('/auth/users', {
       method: 'POST',

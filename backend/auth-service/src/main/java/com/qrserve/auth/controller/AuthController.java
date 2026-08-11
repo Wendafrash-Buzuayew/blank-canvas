@@ -17,7 +17,9 @@ import com.qrserve.shared.security.UserPrincipal;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 @RestController
@@ -58,6 +60,19 @@ public class AuthController {
             "email", createdUser.getEmail(),
             "role", createdUser.getRole()
         ));
+    }
+
+    @GetMapping("/users")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MERCHANT_OWNER', 'BRANCH_MANAGER')")
+    @Operation(summary = "List users, optionally scoped to a merchant")
+    public ResponseEntity<List<UserInfoResponse>> listUsers(
+            @RequestParam(required = false) UUID merchantId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        // Non super-admins are always scoped to their own tenant.
+        UUID scope = principal != null && principal.getMerchantId() != null
+                ? principal.getMerchantId()
+                : merchantId;
+        return ResponseEntity.ok(authService.listUsers(scope));
     }
 
     @GetMapping("/me")
