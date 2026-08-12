@@ -18,6 +18,8 @@ import { AnalyticsPage } from '../pages/AnalyticsPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { WaiterRequestsPage } from '../pages/WaiterRequestsPage';
 import { KitchenLivePage } from '../pages/KitchenLivePage';
+import { MenuBuilderPage } from '../pages/MenuBuilderPage';
+import { WaiterDashboardPage } from '../pages/WaiterDashboardPage';
 
 // Root redirect component that sends users to their role-based home
 const RootRedirect: React.FC = () => {
@@ -166,7 +168,7 @@ export const AppRouter: React.FC = () => {
           path="/merchant/menu"
           element={
             <ProtectedRoute allowedRoles={['MERCHANT_OWNER', 'SUPER_ADMIN']}>
-              <DashboardPage />
+              <MenuBuilderPage />
             </ProtectedRoute>
           }
         />
@@ -258,7 +260,7 @@ export const AppRouter: React.FC = () => {
           path="/waiter/dashboard"
           element={
             <ProtectedRoute allowedRoles={['WAITER', 'MERCHANT_OWNER', 'BRANCH_MANAGER', 'SUPER_ADMIN']}>
-              <DashboardPage />
+              <WaiterDashboardPage />
             </ProtectedRoute>
           }
         />
@@ -274,7 +276,7 @@ export const AppRouter: React.FC = () => {
           path="/waiter/orders"
           element={
             <ProtectedRoute allowedRoles={['WAITER', 'MERCHANT_OWNER', 'BRANCH_MANAGER', 'SUPER_ADMIN']}>
-              <DashboardPage />
+              <WaiterDashboardPage />
             </ProtectedRoute>
           }
         />

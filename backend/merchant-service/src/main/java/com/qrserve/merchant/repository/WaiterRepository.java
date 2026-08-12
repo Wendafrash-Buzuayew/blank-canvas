@@ -14,4 +14,8 @@ public interface WaiterRepository extends JpaRepository<WaiterEntity, Long> {
     List<WaiterEntity> findByBranchId(Long branchId);
     Optional<WaiterEntity> findByUserId(UUID userId);
     List<WaiterEntity> findByMerchantIdAndStatus(UUID merchantId, String status);
+    List<WaiterEntity> findByMerchantIdAndBranchId(
+            UUID merchantId,
+            Long branchId
+    );
 }

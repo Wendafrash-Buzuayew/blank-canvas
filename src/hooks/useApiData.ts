@@ -24,6 +24,7 @@ import {
   BranchEntity,
   TableEntity,
   WaiterEntity,
+  ProductEntity,
   CreateMerchantRequest,
   CreateBranchRequest,
   CreateTableRequest,
@@ -259,10 +260,52 @@ export const useCreateCategory = () => {
   });
 };
 
+export const useUpdateCategory = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: { name: string; displayOrder?: number } }) =>
+      menuApi.updateCategory(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menu'] });
+    },
+  });
+};
+
+export const useDeleteCategory = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: menuApi.deleteCategory,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menu'] });
+    },
+  });
+};
+
 export const useCreateProduct = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: menuApi.createProduct,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menu'] });
+    },
+  });
+};
+
+export const useUpdateProduct = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<ProductEntity> }) =>
+      menuApi.updateProduct(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menu'] });
+    },
+  });
+};
+
+export const useDeleteProduct = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: menuApi.deleteProduct,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['menu'] });
     },

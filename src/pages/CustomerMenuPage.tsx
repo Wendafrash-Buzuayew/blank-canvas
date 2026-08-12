@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Bell, Droplets, Receipt, ShoppingCart, Minus, Plus, CheckCircle2, Radio } from 'lucide-react';
+import { Bell, Droplets, Receipt, ShoppingCart, Minus, Plus, CheckCircle2, Radio, ScanLine, X } from 'lucide-react';
 import { Spinner, ErrorState } from '../components/ui/States';
 import { usePublicMenuResolution, usePublicMenu, useCreateOrder, useCreateTableRequest } from '../hooks/useApiData';
 import { useOrderStream } from '../hooks/useRealtime';
@@ -27,6 +27,8 @@ export const CustomerMenuPage: React.FC = () => {
   }>();
   const [searchParams] = useSearchParams();
   const signature = searchParams.get('signature') || undefined;
+  const isQrDemo = searchParams.get('demo') === 'qr';
+  const [showQrOverlay, setShowQrOverlay] = useState(isQrDemo);
 
   // Legacy QR links omit the branch slug; the backend contract expects one.
   const effectiveBranchSlug = branchSlug || 'main';
@@ -107,6 +109,36 @@ export const CustomerMenuPage: React.FC = () => {
               (resolveError as Error | undefined)?.message || ''
             }`}
           />
+        </div>
+      </div>
+    );
+  }
+
+  if (showQrOverlay) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+        <div className="max-w-sm w-full text-center space-y-6">
+          <div className="w-24 h-24 mx-auto rounded-3xl bg-white/10 border-2 border-white/20 flex items-center justify-center">
+            <ScanLine className="w-12 h-12 text-emerald-400 animate-pulse" />
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-white">QR Code Scanned!</h2>
+            <p className="text-sm text-slate-400 mt-2">
+              Simulating a customer scanning the QR stand at <strong className="text-white">Table {resolution.tableNumber}</strong>
+            </p>
+          </div>
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-left space-y-2">
+            <div className="text-xs font-bold text-slate-300">Detected:</div>
+            <div className="text-sm font-black text-white">{resolution.merchantName || merchantSlug}</div>
+            <div className="text-xs text-slate-400">{resolution.branchName || effectiveBranchSlug} · Table {resolution.tableNumber}</div>
+          </div>
+          <button
+            onClick={() => setShowQrOverlay(false)}
+            className="w-full py-3.5 bg-[#E60028] hover:bg-[#CC0024] text-white font-bold text-sm rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-colors"
+          >
+            <X className="w-4 h-4" />
+            Open Digital Menu
+          </button>
         </div>
       </div>
     );

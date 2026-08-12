@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -12,7 +13,9 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class MenuResponse {
+public class MenuResponse implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private List<CategoryDto> categories;
 
     @Data

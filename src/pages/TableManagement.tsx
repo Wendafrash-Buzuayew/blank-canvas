@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Spinner, ErrorState, EmptyState } from '../components/ui/States';
 import { EntitySelect } from '../components/ui/EntitySelect';
-import { useTables, useCreateTable, useDeleteTable, useUpdateTableStatus } from '../hooks/useApiData';
+import { useTables, useCreateTable, useDeleteTable, useUpdateTableStatus, useAssignWaiterV1 } from '../hooks/useApiData';
 import { useBranchesLookup, useMerchantsLookup, useUsersLookup, useWaitersLookup } from '../hooks/useLookups';
 import { friendlyError } from '../lib/errors';
 import { isAuthenticated, tableAssignmentApi, TableAssignmentEntity } from '../lib/api';
@@ -19,6 +19,7 @@ export const TableManagement: React.FC = () => {
   const createMutation = useCreateTable();
   const deleteMutation = useDeleteTable();
   const updateStatusMutation = useUpdateTableStatus();
+  const assignWaiterMutation = useAssignWaiterV1();
 
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ merchantId: '', branchId: 0, tableNumber: '', capacity: 4 });
@@ -104,6 +105,17 @@ export const TableManagement: React.FC = () => {
       await updateStatusMutation.mutateAsync({ id, status });
     } catch (err) {
       setPageError(friendlyError(err, 'We could not update this table.'));
+    }
+  };
+
+  const handleAssignWaiter = async (tableId: number, branchId: number, waiterId: number) => {
+    if (!waiterId) return;
+    setPageError(null);
+    try {
+      await assignWaiterMutation.mutateAsync({ tableId, branchId, waiterId });
+      assignmentsQuery.refetch();
+    } catch (err) {
+      setPageError(friendlyError(err, 'We could not assign the waiter.'));
     }
   };
 
@@ -266,6 +278,33 @@ export const TableManagement: React.FC = () => {
                     <QrCode className="w-3 h-3" />
                     {table.qrToken ? 'QR Active' : 'No QR'}
                   </span>
+                </div>
+
+                <div>
+                  <select
+                    value={waiterNameByTable.get(table.id) ? 'assigned' : ''}
+                    onChange={(e) => {
+                      const waiterId = Number(e.target.value);
+                      if (waiterId) handleAssignWaiter(table.id, table.branchId, waiterId);
+                    }}
+                    disabled={assignWaiterMutation.isPending}
+                    aria-label={`Assign waiter to table ${table.tableNumber}`}
+                    className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20"
+                  >
+                    <option value="">
+                      {waiterNameByTable.get(table.id) ? `Assigned: ${waiterNameByTable.get(table.id)}` : 'Assign waiter...'}
+                    </option>
+                    {(waitersQuery.data ?? [])
+                      .filter((w) => w.branchId === table.branchId)
+                      .map((w) => {
+                        const person = userById.get(w.userId);
+                        return (
+                          <option key={w.id} value={w.id}>
+                            {person?.name || `Waiter #${w.id}`}
+                          </option>
+                        );
+                      })}
+                  </select>
                 </div>
               </div>
             ))}

@@ -92,7 +92,7 @@ export const useTablesLookup = () => {
   });
 };
 
-export const useWaitersLookup = (params: { merchantId?: string; branchId?: number } = {}) => {
+export const useWaitersLookup = (params: { branchId?: number } = {}) => {
   return useQuery({
     queryKey: ['waiters', params],
     queryFn: (): Promise<WaiterEntity[]> => waiterApi.getWaiters(params),

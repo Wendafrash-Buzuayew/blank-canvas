@@ -46,6 +46,24 @@ public class WaiterService {
     }
 
     /**
+     * Get all waiters for a merchant and branch (tenant-scoped).
+     */
+    @Transactional(readOnly = true)
+    public List<WaiterEntity> getWaitersByMerchantAndBranch(
+            UUID merchantId,
+            Long branchId) {
+
+        return waiterRepository.findByMerchantIdAndBranchId(
+                merchantId,
+                branchId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<WaiterEntity> getAllWaiters() {
+        return waiterRepository.findAll();
+    }
+
+    /**
      * Get a specific waiter by ID, within tenant scope.
      */
     @Transactional(readOnly = true)
@@ -65,8 +83,10 @@ public class WaiterService {
     @Transactional
     public WaiterEntity updateWaiter(Long id, WaiterEntity updates, UUID merchantId) {
         WaiterEntity waiter = getWaiter(id, merchantId);
-        if (updates.getStatus() != null) waiter.setStatus(updates.getStatus());
-        if (updates.getShift() != null) waiter.setShift(updates.getShift());
+        if (updates.getStatus() != null)
+            waiter.setStatus(updates.getStatus());
+        if (updates.getShift() != null)
+            waiter.setShift(updates.getShift());
         return waiterRepository.save(waiter);
     }
 

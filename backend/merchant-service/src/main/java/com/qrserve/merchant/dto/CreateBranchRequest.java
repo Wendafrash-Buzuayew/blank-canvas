@@ -17,5 +17,8 @@ public class CreateBranchRequest {
     @NotBlank
     private String phone;
 
+    @NotBlank
+    private String slug;
+
     private String address;
 }
