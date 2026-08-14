@@ -3,6 +3,8 @@ package com.qrserve.menu.service;
 import com.qrserve.menu.dto.CreateCategoryRequest;
 import com.qrserve.menu.dto.CreateProductRequest;
 import com.qrserve.menu.dto.MenuResponse;
+import com.qrserve.menu.dto.UpdateCategoryRequest;
+import com.qrserve.menu.dto.UpdateProductRequest;
 import com.qrserve.menu.entity.CategoryEntity;
 import com.qrserve.menu.entity.ProductEntity;
 import com.qrserve.menu.repository.CategoryRepository;
@@ -25,6 +27,8 @@ public class MenuService {
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
 
+    // ============ Category CRUD ============
+
     @Transactional
     @CacheEvict(value = "menus", key = "#request.merchantId")
     public CategoryEntity createCategory(CreateCategoryRequest request) {
@@ -35,6 +39,35 @@ public class MenuService {
                 .build();
         return categoryRepository.save(category);
     }
+
+    @Transactional(readOnly = true)
+    public List<CategoryEntity> getCategories(UUID merchantId) {
+        return categoryRepository.findByMerchantIdOrderByDisplayOrderAsc(merchantId);
+    }
+
+    @Transactional
+    @CacheEvict(value = "menus", key = "#result.merchantId")
+    public CategoryEntity updateCategory(Long id, UpdateCategoryRequest request) {
+        CategoryEntity category = categoryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with ID: " + id));
+        category.setName(request.getName());
+        if (request.getDisplayOrder() != null) {
+            category.setDisplayOrder(request.getDisplayOrder());
+        }
+        return categoryRepository.save(category);
+    }
+
+    @Transactional
+    @CacheEvict(value = "menus", allEntries = true)
+    public void deleteCategory(Long id) {
+        CategoryEntity category = categoryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with ID: " + id));
+        // Delete/cascade products in this category
+        productRepository.deleteByCategoryId(id);
+        categoryRepository.delete(category);
+    }
+
+    // ============ Product CRUD ============
 
     @Transactional
     @CacheEvict(value = "menus", key = "#result.merchantId")
@@ -55,6 +88,49 @@ public class MenuService {
 
         return productRepository.save(product);
     }
+
+    @Transactional(readOnly = true)
+    public List<ProductEntity> getProducts(Long categoryId, UUID merchantId) {
+        if (categoryId != null) {
+            return productRepository.findByCategoryId(categoryId);
+        }
+        if (merchantId != null) {
+            return productRepository.findByMerchantId(merchantId);
+        }
+        return productRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public ProductEntity getProduct(Long id) {
+        return productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found with ID: " + id));
+    }
+
+    @Transactional
+    @CacheEvict(value = "menus", allEntries = true)
+    public ProductEntity updateProduct(Long id, UpdateProductRequest request) {
+        ProductEntity product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found with ID: " + id));
+
+        if (request.getName() != null) product.setName(request.getName());
+        if (request.getDescription() != null) product.setDescription(request.getDescription());
+        if (request.getPrice() != null) product.setPrice(request.getPrice());
+        if (request.getImage() != null) product.setImage(request.getImage());
+        if (request.getAvailable() != null) product.setAvailable(request.getAvailable());
+        if (request.getPreparationTime() != null) product.setPreparationTime(request.getPreparationTime());
+
+        return productRepository.save(product);
+    }
+
+    @Transactional
+    @CacheEvict(value = "menus", allEntries = true)
+    public void deleteProduct(Long id) {
+        ProductEntity product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found with ID: " + id));
+        productRepository.delete(product);
+    }
+
+    // ============ Full Menu ============
 
     @Cacheable(value = "menus", key = "#merchantId")
     public MenuResponse getFullMenu(UUID merchantId) {

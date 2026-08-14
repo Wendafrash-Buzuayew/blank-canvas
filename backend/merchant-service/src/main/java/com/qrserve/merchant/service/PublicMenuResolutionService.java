@@ -43,9 +43,13 @@ public class PublicMenuResolutionService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Table not found for branch " + branch.getId() + " and table number: " + tableNumber));
 
-        // 4. Validate QR signature over {merchantId, branchId, tableId}
-        if (!qrSignatureService.validateSignature(signature, merchant.getId(), branch.getId(), table.getId())) {
-            throw new UnauthorizedException("Invalid or missing QR signature for the requested table");
+        // 4. Validate QR signature over {merchantId, branchId, tableId} IF provided.
+        //    Signature is optional in demo/preview mode so the public menu can be
+        //    browsed without a scanned QR payload. When a signature IS supplied it
+        //    must be valid (tamper protection for production QR scans).
+        if (signature != null && !signature.isBlank()
+                && !qrSignatureService.validateSignature(signature, merchant.getId(), branch.getId(), table.getId())) {
+            throw new UnauthorizedException("Invalid QR signature for the requested table");
         }
 
         return PublicMenuResolutionResponse.builder()

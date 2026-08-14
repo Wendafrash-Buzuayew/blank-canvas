@@ -859,13 +859,17 @@ export const publicApi = {
   /** POST /api/v1/tables/{tableId}/requests — customer service call from a table */
   createTableRequest: (
     tableId: number,
-    body: { requestType: WaiterRequestType; note?: string; customerName?: string; merchantId?: string; branchId?: number }
+    body: { requestType: WaiterRequestType; note?: string; customerName?: string; merchantId?: string; branchId?: number },
+    signature?: string
   ) =>
-    request<CustomerRequestEntity>(`/v1/tables/${tableId}/requests`, {
-      method: 'POST',
-      body: JSON.stringify(body),
-      skipAuth: true,
-    }),
+    request<CustomerRequestEntity>(
+      `/v1/tables/${tableId}/requests${signature ? `?signature=${encodeURIComponent(signature)}` : ''}`,
+      {
+        method: 'POST',
+        body: JSON.stringify(body),
+        skipAuth: true,
+      }
+    ),
 };
 
 /** Waiter task board + request resolution (v1) */

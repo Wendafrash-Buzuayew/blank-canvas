@@ -538,6 +538,7 @@ export const useCreateTableRequest = () => {
       customerName,
       merchantId,
       branchId,
+      signature,
     }: {
       tableId: number;
       requestType: WaiterRequestType;
@@ -545,6 +546,7 @@ export const useCreateTableRequest = () => {
       customerName?: string;
       merchantId?: string;
       branchId?: number;
-    }) => publicApi.createTableRequest(tableId, { requestType, note, customerName, merchantId, branchId }),
+      signature?: string;
+    }) => publicApi.createTableRequest(tableId, { requestType, note, customerName, merchantId, branchId }, signature),
   });
 };

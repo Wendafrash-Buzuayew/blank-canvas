@@ -87,6 +87,7 @@ export const CustomerMenuPage: React.FC = () => {
         requestType,
         merchantId: resolution.merchantId,
         branchId: resolution.branchId,
+        signature,
       },
       { onSuccess: () => setRequestSent(requestType) }
     );

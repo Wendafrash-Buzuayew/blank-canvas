@@ -6,67 +6,68 @@ spring:
     name: api-gateway
   cloud:
     gateway:
-    # Enable dynamic route locator via Eureka
-      discovery:
-        locator:
-          enabled: true
-          lower-case-service-id: true
-      globalcors:
-        cors-configurations:
-          '[/**]':
-            allowedOriginPatterns: "*"
-            allowedMethods:
-              - GET
-              - POST
-              - PUT
-              - PATCH
-              - DELETE
-              - OPTIONS
-            allowedHeaders: "*"
-            allowCredentials: true
+      server:
+        webflux:
+          discovery:
+            locator:
+              enabled: true
+              lower-case-service-id: true
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowedOriginPatterns: "*"
+                allowedMethods:
+                  - GET
+                  - POST
+                  - PUT
+                  - PATCH
+                  - DELETE
+                  - OPTIONS
+                allowedHeaders: "*"
+                allowCredentials: true
 
-      routes:
-        # Auth Service Route
-        - id: auth-service
-          uri: lb://auth-service
-          predicates:
-            - Path=/api/auth/**
+          routes:
+            # Auth Service Route
+            - id: auth-service
+              uri: lb://auth-service
+              predicates:
+                - Path=/api/auth/**
 
-        # Merchant Service Route
-        - id: merchant-service
-          uri: lb://merchant-service
-          predicates:
-            - Path=/api/merchants/**, /api/branches/**, /api/tables/**, /api/waiters/**, /api/table-assignments/**, /api/customer-requests/**
+            # Merchant Service Route (includes v1 public/waiter/table endpoints)
+            - id: merchant-service
+              uri: lb://merchant-service
+              predicates:
+                - Path=/api/merchants/**, /api/branches/**, /api/tables/**, /api/waiters/**, /api/table-assignments/**, /api/customer-requests/**, /api/v1/**
 
-        # Order Service Route
-        - id: order-service
-          uri: lb://order-service
-          predicates:
-            - Path=/api/orders/**, /api/kitchen/**
+            # Order Service Route
+            - id: order-service
+              uri: lb://order-service
+              predicates:
+                - Path=/api/orders/**, /api/kitchen/**
 
-        # Menu Service Route
-        - id: menu-service
-          uri: lb://menu-service
-          predicates:
-            - Path=/api/categories/**, /api/products/**, /api/menu/**
+            # Menu Service Route
+            - id: menu-service
+              uri: lb://menu-service
+              predicates:
+                - Path=/api/categories/**, /api/products/**, /api/menu/**
 
-        # QR Service Route
-        - id: qr-service
-          uri: lb://qr-service
-          predicates:
-            - Path=/api/qr/**
+            # QR Service Route
+            - id: qr-service
+              uri: lb://qr-service
+              predicates:
+                - Path=/api/qr/**
 
-        # Analytics Service Route
-        - id: analytics-service
-          uri: lb://analytics-service
-          predicates:
-            - Path=/api/analytics/**
+            # Analytics Service Route
+            - id: analytics-service
+              uri: lb://analytics-service
+              predicates:
+                - Path=/api/analytics/**
 
-        # Notification Service Route (WebSocket)
-        - id: notification-service
-          uri: lb://notification-service
-          predicates:
-            - Path=/ws/**
+            # Notification Service Route (WebSocket)
+            - id: notification-service
+              uri: lb://notification-service
+              predicates:
+                - Path=/ws/**
 
   main:
     web-application-type: reactive
@@ -103,7 +104,7 @@ management:
       show-details: when_authorized
   tracing:
     sampling:
-      probability: 1.0 # Sample 100% in dev/staging; lower to 0.1 in high-traffic production
+      probability: 1.0
 
 logging:
   pattern:

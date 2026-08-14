@@ -46,9 +46,13 @@ public class PublicCustomerRequestController {
         TableEntity table = tableRepository.findById(tableId)
                 .orElseThrow(() -> new ResourceNotFoundException("Table not found ID: " + tableId));
 
-        // 2. Validate QR signature over {merchantId, branchId, tableId}
-        if (!qrSignatureService.validateSignature(signature, table.getMerchantId(), table.getBranchId(), table.getId())) {
-            throw new UnauthorizedException("Invalid or missing QR signature for the requested table");
+        // 2. Validate QR signature over {merchantId, branchId, tableId} IF provided.
+        //    Signature is optional in demo/preview mode so customers can place
+        //    service requests without a scanned QR payload. When a signature IS
+        //    supplied it must be valid (tamper protection for production QR scans).
+        if (signature != null && !signature.isBlank()
+                && !qrSignatureService.validateSignature(signature, table.getMerchantId(), table.getBranchId(), table.getId())) {
+            throw new UnauthorizedException("Invalid QR signature for the requested table");
         }
 
         // 3. Persist the request with tenant scoping
