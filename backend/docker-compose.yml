@@ -142,6 +142,8 @@ services:
       - DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/qrserve_notification
       - DATABASE_USERNAME=postgres
       - DATABASE_PASSWORD=postgres
+      - REDIS_HOST=host.docker.internal  
+      - REDIS_PORT=6379                   
       - JWT_SECRET=${JWT_SECRET:-dGhpcy1pcy1hLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1zaWduaW5nLWl0LXNob3VsZC1iZS1sb25nLWVub3VnaA==}
       - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
     extra_hosts:

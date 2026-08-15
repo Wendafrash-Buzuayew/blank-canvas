@@ -13,6 +13,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.http.HttpMethod;
+
 import java.util.List;
 
 
@@ -43,18 +45,42 @@ public class SecurityConfig {
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .authorizeHttpRequests(auth -> auth
+                // 1. ALWAYS allow CORS preflight requests from browsers
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                // 2. Permit WebSocket / SockJS endpoints
+                .requestMatchers("/ws/**", "/ws/info/**", "/ws/info").permitAll()
+
+                // 3. System & Swagger endpoints
                 .requestMatchers(
                     "/actuator/**",
                     "/error",
-                    "/api/auth/**",
-                    "/api/v1/auth/**",
-                    "/api/menu/**",
-                    "/api/v1/public/**",
                     "/v3/api-docs/**",
                     "/swagger-ui/**",
                     "/swagger-ui.html"
                 ).permitAll()
-                .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
+
+                // 4. Public API endpoints (Including both versioned and unversioned)
+                .requestMatchers(
+                    "/api/auth/**",
+                    "/api/v1/auth/**",
+                    "/api/menu/**",
+                    "/api/v1/menu/**",
+                    "/api/v1/public/**"
+                ).permitAll()
+
+                // Narrow rules must come BEFORE the broad permitAll
+                .requestMatchers(HttpMethod.POST, "/api/customer-requests", "/api/v1/customer-requests").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/customer-requests/table/**", "/api/v1/customer-requests/table/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/customer-requests", "/api/v1/customer-requests").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/customer-requests/**", "/api/v1/customer-requests/**").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/orders", "/api/v1/orders").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/tables/*", "/api/v1/tables/*").permitAll()
+
+                // 6. Explicit Waiter & Orders requirements (Ensure authenticated JWT required)
+                .requestMatchers("/api/v1/waiters/**", "/api/v1/orders/**").authenticated()
+
+                // All other requests require JWT authentication
                 .anyRequest().authenticated()
             )
             // Add JWT Filter before Spring's default username/password filter

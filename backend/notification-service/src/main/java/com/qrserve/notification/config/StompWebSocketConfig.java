@@ -3,9 +3,13 @@ package com.qrserve.notification.config;
 import com.qrserve.notification.interceptor.JwtHandshakeInterceptor;
 import com.qrserve.notification.interceptor.StompAuthInterceptor;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.web.socket.config.annotation.*;
 
 /**
@@ -49,12 +53,23 @@ public class StompWebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // Enable the simple in-memory broker for /topic destinations
         registry.enableSimpleBroker("/topic")
                 // .setHeartbeatValue(10000)
-                .setHeartbeatValue(new long[] { 10000L, 10000L });
+                .setHeartbeatValue(new long[] { 10000L, 10000L })
+                .setTaskScheduler(heartBeatTaskScheduler());
         // Application destination prefix for messages sent to @MessageMapping
         registry.setApplicationDestinationPrefixes("/app");
         // User-specific queue prefix
         registry.setUserDestinationPrefix("/user");
     }
+
+    @Bean
+    public TaskScheduler heartBeatTaskScheduler() {
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(1);
+        scheduler.setThreadNamePrefix("ws-heartbeat-");
+        scheduler.initialize();
+        return scheduler;
+    }
+
 
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {

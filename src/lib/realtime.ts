@@ -68,13 +68,17 @@ class RealtimeClient {
   private ensureClient(): Client {
     if (this.client) return this.client;
 
-    const token = getAuthToken();
     const url = resolveWsUrl();
 
     const client = new Client({
-      // SockJS transport (backend registers the endpoint `.withSockJS()`)
-      webSocketFactory: () => new SockJS(token ? `${url}?token=${encodeURIComponent(token)}` : url) as any,
-      connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
+      webSocketFactory: () => {
+        const token = getAuthToken();
+        return new SockJS(token ? `${url}?token=${encodeURIComponent(token)}` : url) as any;
+      },
+      beforeConnect: () => {
+        const token = getAuthToken();  
+        client.connectHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+      },
       reconnectDelay: 5000,
       heartbeatIncoming: 10000,
       heartbeatOutgoing: 10000,
@@ -83,7 +87,6 @@ class RealtimeClient {
 
     client.onConnect = () => {
       this.setStatus('connected');
-      // (Re)subscribe every destination that has listeners.
       this.handlers.forEach((_set, destination) => this.subscribeNative(destination));
     };
     client.onStompError = () => this.setStatus('error');

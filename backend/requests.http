@@ -186,3 +186,60 @@ Authorization: Bearer {{authToken}}
 ### Get Popular Products
 GET {{baseUrl}}/api/analytics/popular-items
 Authorization: Bearer {{authToken}}
+
+### 1. Create a New Customer Request
+POST {{baseUrl}}/api/customer-requests
+Content-Type: application/json
+
+{
+  "merchantId": "0dcb197c-2e06-4f27-a596-e6ec93a4f1c3",
+  "branchId": 2,
+  "tableId": 5,
+  "requestType": "CALL_WAITER",
+  "note": "Please bring extra napkins"
+}
+
+### 2. List Pending Customer Requests for a Branch
+GET {{baseUrl}}/api/customer-requests?branchId=1&status=PENDING
+
+### 3. List All Customer Requests for a Branch
+GET {{baseUrl}}/api/customer-requests?branchId=1
+
+### 4. List All Customer Requests for a Merchant
+GET {{baseUrl}}/api/customer-requests?merchantId=0dcb197c-2e06-4f27-a596-e6ec93a4f1c3
+
+### 5. Get Requests for a Specific Table
+GET {{baseUrl}}/api/customer-requests/table/5
+
+### 6. Update Customer Request Status (ACKNOWLEDGED / COMPLETED / CANCELLED)
+PUT {{baseUrl}}/api/customer-requests/1?merchantId=0dcb197c-2e06-4f27-a596-e6ec93a4f1c3
+Content-Type: application/json
+
+{
+  "status": "ACKNOWLEDGED"
+}
+
+# Waiter tasks
+GET {{baseUrl}}/api/v1/waiters/tasks?merchantId=0dcb197c-2e06-4f27-a596-e6ec93a4f1c3&branchId=1&userId=c76a92d8-adf3-438b-ad1e-b4849e36cd1f
+
+
+# Order iteams
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+
+{
+    "tableId": 5,
+    "items": [
+        {
+            "productId": 1,
+            "quantity": 1
+        },
+        {
+            "productId": 3,
+            "quantity": 1
+        }
+    ]
+}
+
+GET {{baseUrl}}/api/tables/5
+Authorization: Bearer {{authToken}}

@@ -28,6 +28,7 @@ import {
   CreateMerchantRequest,
   CreateBranchRequest,
   CreateTableRequest,
+  customerRequestApi, 
 } from '../lib/api';
 
 // ============ Auth Queries ============
@@ -535,10 +536,8 @@ export const useCreateTableRequest = () => {
       tableId,
       requestType,
       note,
-      customerName,
       merchantId,
       branchId,
-      signature,
     }: {
       tableId: number;
       requestType: WaiterRequestType;
@@ -547,6 +546,13 @@ export const useCreateTableRequest = () => {
       merchantId?: string;
       branchId?: number;
       signature?: string;
-    }) => publicApi.createTableRequest(tableId, { requestType, note, customerName, merchantId, branchId }, signature),
+    }) =>
+      customerRequestApi.createRequest({
+        merchantId: merchantId!,
+        branchId: branchId!,
+        tableId,
+        requestType,
+        note,
+      }),
   });
 };
