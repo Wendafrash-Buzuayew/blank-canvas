@@ -64,9 +64,10 @@ public class RedisConfig {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
         container.addMessageListener(listenerAdapter, new ChannelTopic(NOTIFICATION_CHANNEL));
-        container.setErrorHandler(t -> {
+         container.setErrorHandler(t -> {
             // Log but don't crash the container on Redis errors
-            System.err.println("Redis message listener error: " + t.getMessage());
+            org.slf4j.LoggerFactory.getLogger(RedisConfig.class)
+                .error("Redis message listener error", t);
         });
         return container;
     }
