@@ -6,7 +6,6 @@ import {
   merchantApi,
   tableApi,
   waiterApi,
-  isAuthenticated,
   BranchEntity,
   MerchantEntity,
   TableEntity,
@@ -27,7 +26,7 @@ import { useAuth } from '../context/AuthContext';
 const LOOKUP_STALE_TIME = 5 * 60_000;
 
 export const useMerchantsLookup = () => {
-  const { user } = useAuth();
+  const { user, isAuthenticated: isAuth } = useAuth();
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
 
   return useQuery({
@@ -38,13 +37,14 @@ export const useMerchantsLookup = () => {
       const merchant = await merchantApi.getMerchant(user.merchantId);
       return merchant ? [merchant] : [];
     },
-    enabled: isAuthenticated() && (isSuperAdmin || !!user?.merchantId),
+    enabled: isAuth && (isSuperAdmin || !!user?.merchantId),
     staleTime: LOOKUP_STALE_TIME,
   });
 };
 
 /** All branches the current user can see, fetched once per merchant and cached. */
 export const useBranchesLookup = (merchantIdFilter?: string | null) => {
+  const { isAuthenticated: isAuth } = useAuth();
   const merchantsQuery = useMerchantsLookup();
   const merchants = merchantsQuery.data ?? [];
   const merchantIds = useMemo(() => merchants.map((m) => m.id).sort(), [merchants]);
@@ -57,7 +57,7 @@ export const useBranchesLookup = (merchantIdFilter?: string | null) => {
       );
       return results.flat();
     },
-    enabled: isAuthenticated() && merchantIds.length > 0,
+    enabled: isAuth && merchantIds.length > 0,
     staleTime: LOOKUP_STALE_TIME,
   });
 
@@ -74,29 +74,31 @@ export const useBranchesLookup = (merchantIdFilter?: string | null) => {
 };
 
 export const useUsersLookup = () => {
-  const { user } = useAuth();
+  const { user, isAuthenticated: isAuth } = useAuth();
   return useQuery({
     queryKey: ['lookup', 'users', user?.merchantId ?? 'all'],
     queryFn: (): Promise<UserInfoResponse[]> => authApi.listUsers(user?.merchantId ?? undefined),
-    enabled: isAuthenticated(),
+    enabled: isAuth,
     staleTime: LOOKUP_STALE_TIME,
   });
 };
 
 export const useTablesLookup = () => {
+  const { isAuthenticated: isAuth } = useAuth();
   return useQuery({
     queryKey: ['tables'],
     queryFn: (): Promise<TableEntity[]> => tableApi.getAllTables(),
-    enabled: isAuthenticated(),
+    enabled: isAuth,
     staleTime: 60_000,
   });
 };
 
 export const useWaitersLookup = (params: { branchId?: number } = {}) => {
+  const { isAuthenticated: isAuth } = useAuth();
   return useQuery({
     queryKey: ['waiters', params],
     queryFn: (): Promise<WaiterEntity[]> => waiterApi.getWaiters(params),
-    enabled: isAuthenticated(),
+    enabled: isAuth,
     staleTime: 60_000,
   });
 };

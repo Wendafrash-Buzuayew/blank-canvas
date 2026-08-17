@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { isAuthenticated } from '../lib/api';
+import { useAuth } from '../context/AuthContext';
 import { 
   analyticsApi, 
   authApi, 
@@ -28,7 +28,6 @@ import {
   CreateMerchantRequest,
   CreateBranchRequest,
   CreateTableRequest,
-  customerRequestApi, 
 } from '../lib/api';
 
 // ============ Auth Queries ============
@@ -47,20 +46,22 @@ export const useCreateUser = () => {
 };
 
 export const useCurrentUser = () => {
+  const { isAuthenticated: isAuth } = useAuth();
   return useQuery({
     queryKey: ['auth', 'me'],
     queryFn: () => authApi.getMe(),
-    enabled: isAuthenticated(),
+    enabled: isAuth,
   });
 };
 
 // ============ Merchant Queries ============
 
 export const useMerchant = (merchantId: string | undefined) => {
+  const { isAuthenticated: isAuth } = useAuth();
   return useQuery({
     queryKey: ['merchant', merchantId],
     queryFn: () => merchantApi.getMerchant(merchantId!),
-    enabled: !!merchantId && isAuthenticated(),
+    enabled: !!merchantId && isAuth,
   });
 };
 
@@ -70,6 +71,7 @@ export const useCreateMerchant = () => {
     mutationFn: merchantApi.createMerchant,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['merchants'] });
+      queryClient.invalidateQueries({ queryKey: ['lookup', 'merchants'] });
     },
   });
 };
@@ -82,6 +84,7 @@ export const useUpdateMerchant = () => {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['merchant', variables.id] });
       queryClient.invalidateQueries({ queryKey: ['merchants'] });
+      queryClient.invalidateQueries({ queryKey: ['lookup', 'merchants'] });
     },
   });
 };
@@ -92,6 +95,7 @@ export const useDeleteMerchant = () => {
     mutationFn: merchantApi.deleteMerchant,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['merchants'] });
+      queryClient.invalidateQueries({ queryKey: ['lookup', 'merchants'] });
     },
   });
 };
@@ -99,10 +103,11 @@ export const useDeleteMerchant = () => {
 // ============ Branch Queries ============
 
 export const useBranches = (merchantId: string | undefined) => {
+  const { isAuthenticated: isAuth } = useAuth();
   return useQuery({
     queryKey: ['branches', merchantId],
     queryFn: () => branchApi.getBranchesByMerchant(merchantId!),
-    enabled: !!merchantId && isAuthenticated(),
+    enabled: !!merchantId && isAuth,
   });
 };
 
@@ -112,6 +117,7 @@ export const useCreateBranch = () => {
     mutationFn: branchApi.createBranch,
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['branches', variables.merchantId] });
+      queryClient.invalidateQueries({ queryKey: ['lookup', 'branches'] });
     },
   });
 };
@@ -123,6 +129,7 @@ export const useUpdateBranch = () => {
       branchApi.updateBranch(id, data),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['branches', variables.data.merchantId] });
+      queryClient.invalidateQueries({ queryKey: ['lookup', 'branches'] });
     },
   });
 };
@@ -134,6 +141,7 @@ export const useDeleteBranch = () => {
       branchApi.deleteBranch(id),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['branches', variables.merchantId] });
+      queryClient.invalidateQueries({ queryKey: ['lookup', 'branches'] });
     },
   });
 };
@@ -141,18 +149,20 @@ export const useDeleteBranch = () => {
 // ============ Table Queries ============
 
 export const useTables = () => {
+  const { isAuthenticated: isAuth } = useAuth();
   return useQuery({
     queryKey: ['tables'],
     queryFn: () => tableApi.getAllTables(),
-    enabled: isAuthenticated(),
+    enabled: isAuth,
   });
 };
 
 export const useTable = (tableId: number | undefined) => {
+  const { isAuthenticated: isAuth } = useAuth();
   return useQuery({
     queryKey: ['table', tableId],
     queryFn: () => tableApi.getTable(tableId!),
-    enabled: !!tableId && isAuthenticated(),
+    enabled: !!tableId && isAuth,
   });
 };
 
@@ -201,10 +211,11 @@ export const useDeleteTable = () => {
 // ============ Waiter Queries ============
 
 export const useWaiters = (params: { merchantId?: string; branchId?: number } = {}) => {
+  const { isAuthenticated: isAuth } = useAuth();
   return useQuery({
     queryKey: ['waiters', params],
     queryFn: () => waiterApi.getWaiters(params),
-    enabled: isAuthenticated(),
+    enabled: isAuth,
   });
 };
 
@@ -243,10 +254,11 @@ export const useDeleteWaiter = () => {
 // ============ Menu Queries ============
 
 export const useMenu = (merchantId: string | undefined) => {
+  const { isAuthenticated: isAuth } = useAuth();
   return useQuery({
     queryKey: ['menu', merchantId],
     queryFn: () => menuApi.getFullMenu(merchantId!),
-    enabled: !!merchantId && isAuthenticated(),
+    enabled: !!merchantId && isAuth,
     staleTime: 60_000,
   });
 };
@@ -256,6 +268,7 @@ export const useCreateCategory = () => {
   return useMutation({
     mutationFn: menuApi.createCategory,
     onSuccess: (_data, variables) => {
+      // Scope invalidation to the specific merchant's menu.
       queryClient.invalidateQueries({ queryKey: ['menu', variables.merchantId] });
     },
   });
@@ -297,8 +310,14 @@ export const useUpdateProduct = () => {
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<ProductEntity> }) =>
       menuApi.updateProduct(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['menu'] });
+    onSuccess: (_data, variables) => {
+      // When the caller supplies a merchantId (allowed on ProductEntity), scope the
+      // invalidation; otherwise fall back to the broad prefix.
+      if (variables.data.merchantId) {
+        queryClient.invalidateQueries({ queryKey: ['menu', variables.data.merchantId] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['menu'] });
+      }
     },
   });
 };
@@ -327,19 +346,21 @@ export const useCreateOrder = () => {
 };
 
 export const useOrders = () => {
+  const { isAuthenticated: isAuth } = useAuth();
   return useQuery({
     queryKey: ['orders'],
     queryFn: () => orderApi.getAllOrders(),
-    enabled: isAuthenticated(),
+    enabled: isAuth,
     refetchInterval: 15_000,
   });
 };
 
 export const useKitchenOrders = (params: { status?: string; branchId?: number; merchantId?: string } = {}) => {
+  const { isAuthenticated: isAuth } = useAuth();
   return useQuery({
     queryKey: ['kitchen-orders', params],
     queryFn: () => orderApi.getKitchenOrders(params),
-    enabled: isAuthenticated(),
+    enabled: isAuth,
     refetchInterval: 10_000,
   });
 };
@@ -359,38 +380,42 @@ export const useUpdateOrderStatus = () => {
 // ============ QR Queries ============
 
 export const useTableQr = (tableId: number | undefined) => {
+  const { isAuthenticated: isAuth } = useAuth();
   return useQuery({
     queryKey: ['qr', tableId],
     queryFn: () => qrApi.getQrForTable(tableId!),
-    enabled: !!tableId && isAuthenticated(),
+    enabled: !!tableId && isAuth,
   });
 };
 
 // ============ Analytics Queries ============
 
 export const useTodayAnalytics = (merchantId?: string) => {
+  const { isAuthenticated: isAuth } = useAuth();
   return useQuery({
     queryKey: ['analytics', 'today', merchantId],
     queryFn: () => analyticsApi.getTodayMetrics(merchantId),
-    enabled: isAuthenticated(),
+    enabled: isAuth,
     refetchInterval: 30_000,
   });
 };
 
 export const useRevenueAnalytics = (merchantId?: string) => {
+  const { isAuthenticated: isAuth } = useAuth();
   return useQuery({
     queryKey: ['analytics', 'revenue', merchantId],
     queryFn: () => analyticsApi.getRevenueAnalytics(merchantId),
-    enabled: isAuthenticated(),
+    enabled: isAuth,
     refetchInterval: 60_000,
   });
 };
 
 export const usePopularItems = (merchantId?: string) => {
+  const { isAuthenticated: isAuth } = useAuth();
   return useQuery({
     queryKey: ['analytics', 'popular', merchantId],
     queryFn: () => analyticsApi.getPopularItems(merchantId),
-    enabled: isAuthenticated(),
+    enabled: isAuth,
     refetchInterval: 60_000,
   });
 };
@@ -456,12 +481,13 @@ export const useWaiterTasks = (params: {
   userId?: string;
   refetchInterval?: number;
 }) => {
+  const { isAuthenticated: isAuth } = useAuth();
   const { merchantId, branchId, waiterId, userId, refetchInterval } = params;
   return useQuery({
     queryKey: ['waiter-tasks', merchantId, branchId, waiterId, userId],
     queryFn: () =>
       waiterTaskApi.getTasks({ merchantId: merchantId!, branchId: branchId!, waiterId, userId }),
-    enabled: !!merchantId && branchId != null && isAuthenticated(),
+    enabled: !!merchantId && branchId != null && isAuth,
     refetchInterval: refetchInterval ?? 30000,
   });
 };
@@ -530,14 +556,20 @@ export const usePublicMenu = (merchantId?: string | null) => {
   });
 };
 
+/**
+ * Create a customer service request from a table.
+ *
+ * Routes through the versioned public endpoint `/api/v1/tables/{tableId}/requests`
+ * so the QR `signature` is actually forwarded to the backend (where it is validated
+ * against the table's merchant/branch/table triple).
+ */
 export const useCreateTableRequest = () => {
   return useMutation({
     mutationFn: ({
       tableId,
       requestType,
       note,
-      merchantId,
-      branchId,
+      signature,
     }: {
       tableId: number;
       requestType: WaiterRequestType;
@@ -547,12 +579,10 @@ export const useCreateTableRequest = () => {
       branchId?: number;
       signature?: string;
     }) =>
-      customerRequestApi.createRequest({
-        merchantId: merchantId!,
-        branchId: branchId!,
+      publicApi.createTableRequest(
         tableId,
-        requestType,
-        note,
-      }),
+        { requestType, note },
+        signature
+      ),
   });
 };

@@ -155,8 +155,6 @@ export const CustomerMenuPage: React.FC = () => {
       {
         tableId: resolution.tableId,
         requestType,
-        merchantId: resolution.merchantId,
-        branchId: resolution.branchId,
         signature,
       },
       {

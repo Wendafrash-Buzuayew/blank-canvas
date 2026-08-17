@@ -22,9 +22,14 @@ public class JwtTokenProvider {
     private final long refreshExpirationMs;
 
     public JwtTokenProvider(
-            @Value("${jwt.secret:dGhpcy1pcy1hLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1zaWduaW5nLWl0LXNob3VsZC1iZS1sb25nLWVub3VnaA==}") String secret,
+            @Value("${jwt.secret}") String secret,
             @Value("${jwt.access-expiration-ms:3600000}") long jwtExpirationMs,
             @Value("${jwt.refresh-expiration-ms:604800000}") long refreshExpirationMs) {
+        // Fail fast: no default secret. Deployment must set JWT_SECRET; otherwise
+        // Spring throws at startup instead of silently signing with a known value.
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("jwt.secret must be configured via JWT_SECRET");
+        }
         // Decode Base64 secret or use raw bytes if not valid Base64
         byte[] keyBytes;
         try {

@@ -41,7 +41,7 @@ spring:
           min-idle: 0
 
 jwt:
-  secret: ${JWT_SECRET:dGhpcy1pcy1hLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1zaWduaW5nLWl0LXNob3VsZC1iZS1sb25nLWVub3VnaA==}
+  secret: ${JWT_SECRET}
   access-expiration-ms: 3600000
   refresh-expiration-ms: 604800000
 

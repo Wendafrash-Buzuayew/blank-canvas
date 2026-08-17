@@ -26,7 +26,12 @@ public class QrSignatureService {
     private final String secret;
 
     public QrSignatureService(
-            @Value("${qr.signature-secret:qrserve-tamper-proof-signature-secret-change-me}") String secret) {
+            @Value("${qr.signature-secret}") String secret) {
+        // Fail fast: no default secret. Deployment must set QR_SIGNATURE_SECRET; otherwise
+        // Spring throws at startup instead of silently signing with a known value.
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("qr.signature-secret must be configured via QR_SIGNATURE_SECRET");
+        }
         this.secret = secret;
     }
 
