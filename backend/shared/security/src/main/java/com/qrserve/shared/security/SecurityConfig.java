@@ -88,6 +88,18 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/tables/all", "/api/v1/tables/all").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/tables/*", "/api/v1/tables/*").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/customer-requests", "/api/v1/customer-requests").permitAll()
+                // Signed customer service calls (call waiter / water / bill). The
+                // frontend uses this versioned endpoint rather than the unversioned
+                // one above, and it was reachable by nobody: a seated guest has no
+                // token, so it fell through to anyRequest().authenticated(). Single
+                // segment wildcard on the table id so this cannot widen.
+                //
+                // NOTE: PublicCustomerRequestController validates the QR signature
+                // only when one is supplied, so this endpoint is currently
+                // spam-able by anyone who knows a table id. Making the signature
+                // mandatory is a separate decision — it would break guests who
+                // reach the menu by direct navigation rather than by scanning.
+                .requestMatchers(HttpMethod.POST, "/api/v1/tables/*/requests").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/customer-requests/table/**", "/api/v1/customer-requests/table/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/orders", "/api/v1/orders").permitAll()
                 // Public QR-resolved menu (merchant-service PublicMenuResolution).

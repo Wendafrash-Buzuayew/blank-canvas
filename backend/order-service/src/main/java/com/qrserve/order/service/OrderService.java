@@ -38,6 +38,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -82,8 +83,15 @@ public class OrderService {
         int maxPrepTime = 10;
         List<OrderItemEntity> orderItems = new ArrayList<>();
 
+        // One menu fetch for the whole order instead of a REST call per line item.
+        // GET /api/menu/{merchantId} is already a public endpoint, so this also
+        // removes the need for order-service to authenticate against
+        // GET /api/products/{id} — a protected endpoint it was calling with no
+        // token, which is what surfaced as a 503 to the customer.
+        Map<Long, ProductInfo> menu = indexMenu(fetchMenu(table.getMerchantId()));
+
         for (CreateOrderRequest.OrderItemRequest itemReq : request.getItems()) {
-            ProductInfo product = fetchProduct(itemReq.getProductId());
+            ProductInfo product = resolveProduct(menu, itemReq.getProductId());
 
             BigDecimal itemSubtotal = product.getPrice().multiply(BigDecimal.valueOf(itemReq.getQuantity()));
             calculatedTotal = calculatedTotal.add(itemSubtotal);
@@ -265,45 +273,103 @@ public class OrderService {
         }
     }
 
-    /** See {@link #fetchTable} — same masking problem, same treatment. */
-    private ProductInfo fetchProduct(Long productId) {
-        String url = menuServiceUrl + "/api/products/" + productId;
-        Map<String, Object> body;
+    /**
+     * Fetches the merchant's full menu once per order.
+     *
+     * <p>Replaces a per-line-item {@code GET /api/products/{id}}. That endpoint is
+     * not public, and order-service forwards no token when a guest orders, so every
+     * anonymous order failed — masked as "Product not found" before, and honestly
+     * reported as 503 after the error handling was fixed. {@code GET /api/menu/{id}}
+     * is already public, so this needs no credential, and it collapses N calls into
+     * one.
+     */
+    private Map<String, Object> fetchMenu(UUID merchantId) {
+        String url = menuServiceUrl + "/api/menu/" + merchantId;
         try {
             HttpEntity<Void> requestEntity = new HttpEntity<>(getAuthHeaders());
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                     url, HttpMethod.GET, requestEntity, new ParameterizedTypeReference<Map<String, Object>>() {});
-            body = response.getBody();
+            Map<String, Object> body = response.getBody();
+            if (body == null) {
+                log.error("menu-service returned an empty body for {}", url);
+                throw new ServiceUnavailableException("menu-service returned an empty menu payload");
+            }
+            return body;
         } catch (HttpClientErrorException.NotFound e) {
-            log.warn("menu-service reports product {} does not exist ({})", productId, url);
-            throw new ResourceNotFoundException("Product not found ID: " + productId);
+            throw new ResourceNotFoundException("No menu found for merchant " + merchantId);
         } catch (HttpStatusCodeException e) {
             log.error("menu-service returned {} for {} — body: {}",
                     e.getStatusCode(), url, e.getResponseBodyAsString());
             throw new ServiceUnavailableException(
-                    "menu-service returned " + e.getStatusCode() + " while resolving a product", e);
+                    "menu-service returned " + e.getStatusCode() + " while loading the menu", e);
         } catch (RestClientException e) {
             log.error("menu-service unreachable at {}", url, e);
             throw new ServiceUnavailableException("menu-service is unreachable", e);
         }
+    }
 
-        if (body == null) {
-            log.error("menu-service returned an empty body for {}", url);
-            throw new ServiceUnavailableException("menu-service returned an empty product payload");
+    /**
+     * Flattens a MenuResponse payload into a product lookup.
+     *
+     * <p>Pure and package-visible so it can be tested without a running service.
+     * Malformed entries are skipped rather than aborting the whole order: one bad
+     * row should not stop a guest ordering the other items, and an id that ends up
+     * missing is reported precisely by {@link #resolveProduct}.
+     */
+    static Map<Long, ProductInfo> indexMenu(Map<String, Object> menuBody) {
+        Map<Long, ProductInfo> index = new HashMap<>();
+        Object categories = menuBody.get("categories");
+        if (!(categories instanceof List<?> categoryList)) {
+            return index;
         }
+        for (Object category : categoryList) {
+            if (!(category instanceof Map<?, ?> categoryMap)) {
+                continue;
+            }
+            if (!(categoryMap.get("items") instanceof List<?> items)) {
+                continue;
+            }
+            for (Object item : items) {
+                if (!(item instanceof Map<?, ?> productMap)) {
+                    continue;
+                }
+                try {
+                    Long id = ((Number) productMap.get("id")).longValue();
+                    Integer prep = productMap.get("preparationTime") != null
+                            ? ((Number) productMap.get("preparationTime")).intValue()
+                            : null;
+                    // available defaults to true: a menu payload that omits the flag
+                    // must not make the whole menu unorderable.
+                    boolean available = !(productMap.get("available") instanceof Boolean b) || b;
+                    index.put(id, new ProductInfo(
+                            id,
+                            (String) productMap.get("name"),
+                            new BigDecimal(String.valueOf(productMap.get("price"))),
+                            prep,
+                            available));
+                } catch (NullPointerException | ClassCastException | NumberFormatException e) {
+                    log.warn("Skipping malformed menu item {}", productMap, e);
+                }
+            }
+        }
+        return index;
+    }
 
-        try {
-            return new ProductInfo(
-                    ((Number) body.get("id")).longValue(),
-                    (String) body.get("name"),
-                    new BigDecimal(body.get("price").toString()),
-                    body.get("preparationTime") != null ? ((Number) body.get("preparationTime")).intValue() : 15
-            );
-        } catch (NullPointerException | ClassCastException | IllegalArgumentException e) {
-            log.error("Unexpected product payload from {}: {}", url, body, e);
-            throw new ServiceUnavailableException(
-                    "menu-service returned an unexpected product payload for ID " + productId, e);
+    /**
+     * Resolves one ordered product, distinguishing the two client errors that were
+     * previously indistinguishable — and catching sold-out items, which the old
+     * per-item fetch never checked because it ignored the {@code available} flag.
+     */
+    static ProductInfo resolveProduct(Map<Long, ProductInfo> menu, Long productId) {
+        ProductInfo product = menu.get(productId);
+        if (product == null) {
+            throw new ResourceNotFoundException("Product not found in this merchant's menu: " + productId);
         }
+        if (!product.isAvailable()) {
+            throw new BusinessException(
+                    "\"" + product.getName() + "\" is currently unavailable and cannot be ordered");
+        }
+        return product;
     }
 
     /**
@@ -391,22 +457,25 @@ public class OrderService {
         public String getTableNumber() { return tableNumber; }
     }
 
-    private static class ProductInfo {
+    static class ProductInfo {
         private final Long id;
         private final String name;
         private final BigDecimal price;
         private final Integer preparationTime;
+        private final boolean available;
 
-        ProductInfo(Long id, String name, BigDecimal price, Integer preparationTime) {
+        ProductInfo(Long id, String name, BigDecimal price, Integer preparationTime, boolean available) {
             this.id = id;
             this.name = name;
             this.price = price;
             this.preparationTime = preparationTime;
+            this.available = available;
         }
 
         public Long getId() { return id; }
         public String getName() { return name; }
         public BigDecimal getPrice() { return price; }
         public Integer getPreparationTime() { return preparationTime; }
+        public boolean isAvailable() { return available; }
     }
 }

@@ -219,11 +219,11 @@ Content-Type: application/json
   "status": "ACKNOWLEDGED"
 }
 
-# Waiter tasks
+### 7. Waiter tasks
 GET {{baseUrl}}/api/v1/waiters/tasks?merchantId=0dcb197c-2e06-4f27-a596-e6ec93a4f1c3&branchId=1&userId=c76a92d8-adf3-438b-ad1e-b4849e36cd1f
 
 
-# Order iteams
+### 8. Order iteams
 POST {{baseUrl}}/api/orders
 Content-Type: application/json
 
@@ -241,5 +241,7 @@ Content-Type: application/json
     ]
 }
 
+
+### 9.
 GET {{baseUrl}}/api/tables/5
 Authorization: Bearer {{authToken}}
