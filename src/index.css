@@ -13,6 +13,10 @@
   --color-brand-dark: #b8001f;
   --color-brand-soft: #fff1f2;
   --color-brand-fg: #ffffff;
+  /* Lighter crimson used ONLY as the mid-stop of --gradient-brand.
+     Not a semantic colour: on its own it is perceptually ~0.09 OKLab from
+     --color-brand, too close to read as a distinct state. */
+  --color-brand-glow: #f2564f;
 
   /* Neutral ramp */
   --color-ink: #0b0f19;
@@ -23,12 +27,31 @@
   --color-muted: #6b7280;
   --color-line: #e8e6e3;
 
-  /* Semantic status */
+  /*
+   * Semantic status.
+   *
+   * TEXT-CONTRAST BUDGET on --color-canvas (#f6f6f4), measured:
+   *   danger 9.26 · brand-dark 6.35 · info 4.78  -> safe as body text
+   *   brand 4.42 · success 3.24 · brand-glow 3.12 -> large text (>=18.66px bold
+   *      / 24px) only. For brand-coloured body copy — e.g. a menu price at 14px
+   *      — use --color-brand-dark, not --color-brand.
+   *   warn 2.72 -> NEVER as text on a light surface. Fill, border or icon only,
+   *      with ink text over it.
+   */
   --color-success: #0f9d58;
   --color-success-soft: #e8f7ef;
   --color-warn: #d98200;
-  --color-warn-soft: #fff5e6;
-  --color-danger: #dc2626;
+  /* Amber tint, not #fff5e6: that was 0.022 OKLab from --color-brand-soft, so a
+     warning banner and a brand banner had the same background. Pair with ink
+     text, not --color-warn text. */
+  --color-warn-soft: #fef3c7;
+  /* Deep red, NOT #dc2626. With a red brand, a bright red danger is
+     indistinguishable from it: #dc2626 sits 0.024 OKLab / 2.7 hue degrees from
+     --color-brand, so "Delete" and "Confirm" rendered as the same colour.
+     #7f1d1d is 0.214 from brand AND 0.118 from --color-brand-dark (the hover
+     state), clearing both, at 10.0:1 on surface. Separation comes from
+     lightness, not hue — hue is spoken for by the brand. */
+  --color-danger: #7f1d1d;
   --color-danger-soft: #fee2e2;
   --color-info: #2563eb;
   --color-info-soft: #eaf1ff;
@@ -40,14 +63,24 @@
   --color-kds-new: #ff2d55;
   --color-kds-prep: #ffab00;
   --color-kds-ready: #00d47e;
+  /* Foreground for text sitting ON a status fill. Must be ink, never white:
+     white measures 3.65 / 1.90 / 1.96 against new / prep / ready — all below
+     4.5:1. Ink gives 5.46 / 10.50 / 10.16. */
+  --color-kds-fg: #07090f;
 
   --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 
   --radius-xl2: 1.25rem;
+  /* Card radius lifted to match the reference design's 24px surfaces. */
+  --radius-card: 1.5rem;
 
   --shadow-card: 0 1px 2px rgb(11 15 25 / 0.04), 0 8px 24px -12px rgb(11 15 25 / 0.18);
   --shadow-lift: 0 12px 40px -14px rgb(11 15 25 / 0.35);
+  /* Brand-tinted elevation — the reference design's most distinctive move.
+     Customer/marketing surfaces only; never in the KDS, where a coloured
+     shadow competes with status fill for the same signal. */
+  --shadow-lift-brand: 0 2px 4px rgb(11 15 25 / 0.05), 0 28px 60px -24px rgb(230 0 40 / 0.32);
 
   --animate-pop: pop 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
   --animate-rise: rise 260ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -79,6 +112,33 @@
 }
 
 @layer base {
+  /* Gradients live here rather than in @theme: Tailwind v4 has no gradient
+     token namespace, so a --gradient-* entry in @theme generates no utility. */
+  :root {
+    --gradient-brand: linear-gradient(
+      135deg,
+      var(--color-brand),
+      var(--color-brand-glow) 55%,
+      var(--customer-accent-warm, #f5b544)
+    );
+    --gradient-ink: linear-gradient(160deg, var(--color-ink-2), var(--color-ink));
+  }
+
+  /*
+   * Warm amber accent from the reference design.
+   *
+   * Deliberately NOT a --color-* token in @theme. It is 0.030 OKLab from
+   * --color-kds-prep — effectively the same colour — so a global `accent-warm`
+   * utility would let someone paint it onto a kitchen ticket and silently
+   * destroy the new/preparing/ready distinction. Scoping it to the customer
+   * subtree means the utility does not exist anywhere it could collide.
+   *
+   * Usage: <div data-view="customer"> … var(--customer-accent-warm) … </div>
+   */
+  [data-view="customer"] {
+    --customer-accent-warm: #f5b544;
+  }
+
   html {
     -webkit-text-size-adjust: 100%;
     scroll-behavior: smooth;
@@ -104,4 +164,62 @@
 
 @utility safe-b {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* ------------------------------------------------------------------
+   Surface & brand utilities ported from the reference design.
+   ------------------------------------------------------------------ */
+
+/* The reference design's standard card: 24px radius, hairline border,
+   soft shadow. Use for customer menu items, waiter request cards, KDS
+   tickets — the shape is shared even though the palette is not. */
+@utility card-surface {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+@utility bg-brand-gradient {
+  background-image: var(--gradient-brand);
+}
+
+@utility bg-ink-gradient {
+  background-image: var(--gradient-ink);
+}
+
+/* Gradient wordmark/headline treatment. Always pair with a plain-colour
+   fallback for forced-colors mode, where background-clip:text disappears. */
+@utility text-brand-gradient {
+  background-image: var(--gradient-brand);
+  background-clip: text;
+  color: transparent;
+  @media (forced-colors: active) {
+    background-image: none;
+    color: var(--color-brand);
+  }
+}
+
+/* ------------------------------------------------------------------
+   KDS ticket states. The whole card carries the colour, because fill is
+   what reads first at 3m; text is the confirmation, not the signal.
+   Foreground is always ink — see --color-kds-fg for the measurements.
+   ------------------------------------------------------------------ */
+@utility kds-ticket {
+  border-radius: var(--radius-card);
+  color: var(--color-kds-fg);
+  font-variant-numeric: tabular-nums;
+}
+
+@utility kds-state-new {
+  background-color: var(--color-kds-new);
+  animation: var(--animate-flash);
+}
+
+@utility kds-state-prep {
+  background-color: var(--color-kds-prep);
+}
+
+@utility kds-state-ready {
+  background-color: var(--color-kds-ready);
 }
