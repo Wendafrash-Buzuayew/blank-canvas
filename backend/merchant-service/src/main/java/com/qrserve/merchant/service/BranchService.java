@@ -3,6 +3,8 @@ package com.qrserve.merchant.service;
 import com.qrserve.merchant.dto.CreateBranchRequest;
 import com.qrserve.merchant.entity.BranchEntity;
 import com.qrserve.merchant.repository.BranchRepository;
+import com.qrserve.shared.common.Slugs;
+import com.qrserve.shared.exceptions.BusinessException;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,9 +19,28 @@ public class BranchService {
 
     private final BranchRepository branchRepository;
 
+    /**
+     * Creates a branch under the caller's merchant.
+     *
+     * <p>The slug is taken from the request. It previously was not: the DTO has
+     * carried a {@code @NotBlank slug} field all along and this method derived one
+     * from the name instead, so a caller-supplied slug was silently discarded.
+     *
+     * <p>Branch slugs are path segments, not hostnames, so {@link Slugs#toPathSlug}
+     * applies — a branch may legitimately be called "2".
+     */
     @Transactional
     public BranchEntity createBranch(CreateBranchRequest request) {
-        String slug = request.getName().toLowerCase().replaceAll("[^a-z0-9]", "-");
+        String slug = Slugs.toPathSlug(request.getSlug());
+
+        // Checked rather than left to the database: a raw constraint violation
+        // surfaces through the catch-all handler as 500 "An unexpected server
+        // error occurred", which tells the owner nothing about what to change.
+        if (branchRepository.findByMerchantIdAndSlug(request.getMerchantId(), slug).isPresent()) {
+            throw new BusinessException(
+                    "A branch with the slug '" + slug + "' already exists for this merchant");
+        }
+
         BranchEntity branch = BranchEntity.builder()
                 .merchantId(request.getMerchantId())
                 .name(request.getName())

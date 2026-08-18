@@ -10,7 +10,14 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "branches")
+@Table(
+        name = "branches",
+        // Unique PER MERCHANT, not globally. A globally unique branch slug means
+        // the second tenant to name a branch "Main" collides with the first - and
+        // on a restaurant platform "Main" is the most likely branch name there is.
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_branches_merchant_slug",
+                columnNames = {"merchant_id", "slug"}))
 @Data
 @Builder
 @NoArgsConstructor
@@ -27,7 +34,7 @@ public class BranchEntity {
     @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String slug;
 
     @Column(nullable = false)
@@ -42,8 +49,10 @@ public class BranchEntity {
     @PrePersist
     public void prePersist() {
         if (createdAt == null) createdAt = LocalDateTime.now();
-        if (slug == null || slug.isBlank()) {
-            slug = name.toLowerCase().replaceAll("[^a-z0-9]", "-");
-        }
+        // Slug derivation deliberately removed. It lived here, in MerchantEntity and
+        // in MerchantService as three copies of the same broken expression. The slug
+        // is now normalised and validated once, in the service, via Slugs - an entity
+        // callback is the wrong place to reject caller input, because it cannot
+        // produce a useful 400.
     }
 }

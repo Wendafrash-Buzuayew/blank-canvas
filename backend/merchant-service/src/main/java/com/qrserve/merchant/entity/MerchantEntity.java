@@ -52,9 +52,9 @@ public class MerchantEntity {
     public void prePersist() {
         if (createdAt == null) createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
-        if (slug == null || slug.isBlank()) {
-            slug = name.toLowerCase().replaceAll("[^a-z0-9]", "-");
-        }
+        // Slug derivation deliberately removed - see BranchEntity for the same
+        // change. A callback cannot reject bad input with a useful 400, and the
+        // derived value here was the tenant's public hostname.
     }
 
     @PreUpdate

@@ -1,5 +1,7 @@
 package com.qrserve.merchant;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.qrserve.merchant.dto.CreateBranchRequest;
 import com.qrserve.merchant.entity.BranchEntity;
 import com.qrserve.merchant.entity.MerchantEntity;
 import com.qrserve.merchant.entity.TableEntity;
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -26,6 +29,7 @@ import org.springframework.web.context.WebApplicationContext;
 import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -66,6 +70,8 @@ class TenantIsolationIT {
 
     @Autowired
     JwtTokenProvider jwtTokenProvider;
+    @Autowired
+    ObjectMapper objectMapper;
     @Autowired
     MerchantRepository merchantRepository;
     @Autowired
@@ -216,5 +222,75 @@ class TenantIsolationIT {
     void unknownSlugIsNotFound() throws Exception {
         mockMvc.perform(get("/api/v1/public/menu/no-such-tenant/main/1"))
                 .andExpect(status().isNotFound());
+    }
+
+    // ---- branch slug: unique per merchant, taken from the request ----
+
+    private String branchJson(UUID merchantId, String name, String slug) throws Exception {
+        CreateBranchRequest request = new CreateBranchRequest();
+        request.setMerchantId(merchantId);
+        request.setName(name);
+        request.setSlug(slug);
+        request.setPhone("+251900000000");
+        request.setAddress("Bole");
+        return objectMapper.writeValueAsString(request);
+    }
+
+    @Test
+    @DisplayName("two tenants may each have a branch slug 'second'")
+    void branchSlugIsUniquePerMerchantNotGlobally() throws Exception {
+        // Seeding already created "main" for both tenants. This asserts a
+        // tenant-scoped write also succeeds rather than colliding.
+        mockMvc.perform(post("/api/branches")
+                        .header(HttpHeaders.AUTHORIZATION, tokenFor(merchantA.getId(), UserRole.MERCHANT_OWNER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(branchJson(merchantA.getId(), "Second Hall", "second")))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/branches")
+                        .header(HttpHeaders.AUTHORIZATION, tokenFor(merchantB.getId(), UserRole.MERCHANT_OWNER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(branchJson(merchantB.getId(), "Second Hall", "second")))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("a duplicate branch slug within one merchant is a 400, not a 500")
+    void duplicateBranchSlugWithinMerchantIsRejected() throws Exception {
+        // A raw constraint violation surfaces as 500 "An unexpected server error
+        // occurred", which tells the owner nothing about what to change.
+        mockMvc.perform(post("/api/branches")
+                        .header(HttpHeaders.AUTHORIZATION, tokenFor(merchantA.getId(), UserRole.MERCHANT_OWNER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(branchJson(merchantA.getId(), "Main Again", "main")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("the slug supplied in the request is honoured, not silently overridden by the name")
+    void suppliedBranchSlugIsHonoured() throws Exception {
+        mockMvc.perform(post("/api/branches")
+                        .header(HttpHeaders.AUTHORIZATION, tokenFor(merchantA.getId(), UserRole.MERCHANT_OWNER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(branchJson(merchantA.getId(), "Bole Road Terrace", "terrace")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.slug").value("terrace"));
+    }
+
+    @Test
+    @DisplayName("a branch slug is normalised, and an unusable one is a 400")
+    void branchSlugIsNormalised() throws Exception {
+        mockMvc.perform(post("/api/branches")
+                        .header(HttpHeaders.AUTHORIZATION, tokenFor(merchantA.getId(), UserRole.MERCHANT_OWNER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(branchJson(merchantA.getId(), "Upper Deck", "  Upper   Deck!  ")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.slug").value("upper-deck"));
+
+        mockMvc.perform(post("/api/branches")
+                        .header(HttpHeaders.AUTHORIZATION, tokenFor(merchantA.getId(), UserRole.MERCHANT_OWNER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(branchJson(merchantA.getId(), "Bad", "!!!")))
+                .andExpect(status().isBadRequest());
     }
 }
