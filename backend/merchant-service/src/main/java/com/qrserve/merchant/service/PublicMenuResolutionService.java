@@ -5,10 +5,12 @@ import com.qrserve.merchant.entity.MerchantEntity;
 import com.qrserve.merchant.entity.TableEntity;
 import com.qrserve.merchant.repository.TableRepository;
 import com.qrserve.shared.common.QrSignatureService;
+import com.qrserve.shared.common.TenantContext;
 import com.qrserve.shared.common.dto.PublicMenuResolutionResponse;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
 import com.qrserve.shared.exceptions.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -34,6 +36,19 @@ public class PublicMenuResolutionService {
     public PublicMenuResolutionResponse resolve(String merchantSlug, String branchSlug, String tableNumber, String signature) {
         // 1. Resolve merchant by slug
         MerchantEntity merchant = merchantService.getMerchantBySlug(merchantSlug);
+
+        // 1b. If the request arrived through a tenant host, that host must agree
+        //     with the merchant named in the path. Without this the subdomain is
+        //     decoration: a guest on sunrise.qrserve.safaricom.et could read any
+        //     other tenant's menu just by editing the path.
+        //
+        //     Absence of a host tenant is NOT an error here. This path names its
+        //     own merchant, so it needs no implicit tenant - which is what keeps the
+        //     demo route and direct-to-service access working.
+        UUID hostTenant = TenantContext.getCurrentTenant();
+        if (hostTenant != null && !hostTenant.equals(merchant.getId())) {
+            throw new AccessDeniedException("This menu belongs to a different tenant");
+        }
 
         // 2. Resolve branch scoped by merchantId + slug
         BranchEntity branch = branchService.getBranchByMerchantAndSlug(merchant.getId(), branchSlug);

@@ -5,6 +5,7 @@ import com.qrserve.merchant.entity.TableEntity;
 import com.qrserve.merchant.repository.TableRepository;
 import com.qrserve.merchant.service.CustomerRequestService;
 import com.qrserve.shared.common.QrSignatureService;
+import com.qrserve.shared.common.TenantContext;
 import com.qrserve.shared.common.dto.CustomerRequestDto;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
 import com.qrserve.shared.exceptions.UnauthorizedException;
@@ -13,7 +14,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
 
 /**
  * Public (no-JWT) endpoint for customers to create service requests
@@ -45,6 +49,16 @@ public class PublicCustomerRequestController {
         // 1. Resolve the table and scope lookups by merchantId/branchId
         TableEntity table = tableRepository.findById(tableId)
                 .orElseThrow(() -> new ResourceNotFoundException("Table not found ID: " + tableId));
+
+        // 1b. A guest on one tenant's host must not be able to fire service calls
+        //     at another tenant's tables. Table ids are sequential and therefore
+        //     trivially enumerable, so without this the only thing between a bored
+        //     guest and every kitchen on the platform is the signature check below,
+        //     which is optional.
+        UUID hostTenant = TenantContext.getCurrentTenant();
+        if (hostTenant != null && !hostTenant.equals(table.getMerchantId())) {
+            throw new AccessDeniedException("This table belongs to a different tenant");
+        }
 
         // 2. Validate QR signature over {merchantId, branchId, tableId} IF provided.
         //    Signature is optional in demo/preview mode so customers can place

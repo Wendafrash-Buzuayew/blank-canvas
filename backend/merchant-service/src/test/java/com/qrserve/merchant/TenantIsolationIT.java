@@ -326,6 +326,67 @@ class TenantIsolationIT {
                 .andExpect(status().isBadRequest());
     }
 
+    // ---- anonymous cross-tenant access on the public endpoints ----
+    //
+    // These set X-Tenant-Id directly, which MockMvc allows because it bypasses the
+    // gateway. That is exactly why the gateway's strip test is load-bearing: it is
+    // the only thing stopping a real client doing the same. The two tests are
+    // complements, not duplicates.
+
+    @Test
+    @DisplayName("a guest on tenant A's host cannot resolve tenant B's menu")
+    void hostTenantMustMatchResolvedMerchant() throws Exception {
+        // The anonymous mirror of the JWT mismatch rule. Without it the subdomain is
+        // decoration: anyone could read any tenant's menu from any host.
+        mockMvc.perform(get("/api/v1/public/menu/blue-nile/main/1")
+                        .header("X-Tenant-Id", merchantA.getId().toString()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("a guest on the matching host resolves normally")
+    void matchingHostResolvesNormally() throws Exception {
+        mockMvc.perform(get("/api/v1/public/menu/sunrise/main/1")
+                        .header("X-Tenant-Id", merchantA.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.merchantId").value(merchantA.getId().toString()));
+    }
+
+    @Test
+    @DisplayName("no host tenant still resolves, because the path names the merchant")
+    void noHostTenantStillResolves() throws Exception {
+        // The demo route and direct-to-service access. The path is self-identifying,
+        // so the absence of a host tenant grants nothing.
+        mockMvc.perform(get("/api/v1/public/menu/sunrise/main/1"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("a guest on tenant A's host cannot call a waiter at tenant B's table")
+    void hostTenantMustMatchRequestedTable() throws Exception {
+        String body = objectMapper.writeValueAsString(
+                java.util.Map.of("requestType", "CALL_WAITER", "note", "test"));
+
+        mockMvc.perform(post("/api/v1/tables/" + tableB.getId() + "/requests")
+                        .header("X-Tenant-Id", merchantA.getId().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("a guest on the matching host can call a waiter")
+    void matchingHostCanCallWaiter() throws Exception {
+        String body = objectMapper.writeValueAsString(
+                java.util.Map.of("requestType", "CALL_WAITER", "note", "test"));
+
+        mockMvc.perform(post("/api/v1/tables/" + tableA.getId() + "/requests")
+                        .header("X-Tenant-Id", merchantA.getId().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
+    }
+
     // ---- GET /api/v1/public/tenants/by-slug/{slug} — the gateway's lookup ----
 
     @Test
