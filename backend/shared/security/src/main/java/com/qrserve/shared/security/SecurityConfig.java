@@ -23,10 +23,12 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final TenantContextFilter tenantContextFilter;
 
     // Explicit constructor injection instead of Lombok @RequiredArgsConstructor
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter) {
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter, TenantContextFilter tenantContextFilter) {
         this.jwtAuthFilter = jwtAuthFilter;
+        this.tenantContextFilter = tenantContextFilter;
     }
 
     @Bean
@@ -115,7 +117,11 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             // Add JWT Filter before Spring's default username/password filter
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+            // AFTER the JWT filter: the tenant precedence check compares the
+            // gateway's host-derived tenant against the authenticated principal's,
+            // so the principal has to exist by the time it runs.
+            .addFilterAfter(tenantContextFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }
