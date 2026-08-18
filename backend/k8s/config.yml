@@ -1,0 +1,23 @@
+# QRServe non-secret configuration.
+#
+# Unlike k8s/secrets.example.yml, this one is meant to be committed and applied
+# as-is: nothing here is sensitive. It exists because every service that
+# component-scans com.qrserve.shared.common instantiates PublicMenuUrl, which
+# requires app.public-base-domain and has no default — a default would let a
+# service start while emitting QR codes that point at the wrong host, and that
+# failure is discovered by a customer holding a phone rather than by whoever ran
+# the deploy.
+#
+#   kubectl apply -f k8s/config.yml
+#
+# Changing public-base-domain changes every QR code generated from then on.
+# Codes already printed onto table stands keep pointing at the old host, so
+# treat this value as permanent once the first stand is printed.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: qrserve-config
+data:
+  # Each merchant is served at {merchantSlug}.<this value>. Requires wildcard DNS
+  # and a wildcard TLS certificate for *.<this value> (see k8s/proxy-ingress.yml).
+  public-base-domain: "qrserve.safaricom.et"

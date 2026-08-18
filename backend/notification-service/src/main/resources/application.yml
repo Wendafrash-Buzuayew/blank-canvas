@@ -34,6 +34,16 @@ jwt:
   access-expiration-ms: 3600000
   refresh-expiration-ms: 604800000
 
+# The tenant base domain. Required, with no default: PublicMenuUrl is a
+# @Component in com.qrserve.shared.common, which every one of these services
+# component-scans, and a default would let a service start while emitting QR
+# codes that point at the wrong host. A wrong-but-plausible printed QR code is
+# discovered by a customer holding a phone; a startup failure is discovered by
+# whoever ran the deploy.
+app:
+  public-base-domain: ${PUBLIC_BASE_DOMAIN}
+  public-url-scheme: ${PUBLIC_URL_SCHEME:https}
+
 qr:
   signature-secret: ${QR_SIGNATURE_SECRET}
 

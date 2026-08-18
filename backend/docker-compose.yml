@@ -33,6 +33,9 @@ services:
       - DATABASE_PASSWORD=postgres
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
       - QR_SIGNATURE_SECRET=${QR_SIGNATURE_SECRET:?QR_SIGNATURE_SECRET must be set}
+      - QR_SIGNATURE_SECRET_PREVIOUS=${QR_SIGNATURE_SECRET_PREVIOUS:-}
+      - PUBLIC_BASE_DOMAIN=${PUBLIC_BASE_DOMAIN:?PUBLIC_BASE_DOMAIN must be set}
+      - PUBLIC_URL_SCHEME=${PUBLIC_URL_SCHEME:-https}
       - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -55,6 +58,9 @@ services:
       - DATABASE_PASSWORD=postgres
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
       - QR_SIGNATURE_SECRET=${QR_SIGNATURE_SECRET:?QR_SIGNATURE_SECRET must be set}
+      - QR_SIGNATURE_SECRET_PREVIOUS=${QR_SIGNATURE_SECRET_PREVIOUS:-}
+      - PUBLIC_BASE_DOMAIN=${PUBLIC_BASE_DOMAIN:?PUBLIC_BASE_DOMAIN must be set}
+      - PUBLIC_URL_SCHEME=${PUBLIC_URL_SCHEME:-https}
       - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -77,6 +83,9 @@ services:
       - DATABASE_PASSWORD=postgres
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
       - QR_SIGNATURE_SECRET=${QR_SIGNATURE_SECRET:?QR_SIGNATURE_SECRET must be set}
+      - QR_SIGNATURE_SECRET_PREVIOUS=${QR_SIGNATURE_SECRET_PREVIOUS:-}
+      - PUBLIC_BASE_DOMAIN=${PUBLIC_BASE_DOMAIN:?PUBLIC_BASE_DOMAIN must be set}
+      - PUBLIC_URL_SCHEME=${PUBLIC_URL_SCHEME:-https}
       - REDIS_HOST=host.docker.internal
       - REDIS_PORT=6379
       - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
@@ -101,6 +110,9 @@ services:
       - DATABASE_PASSWORD=postgres
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
       - QR_SIGNATURE_SECRET=${QR_SIGNATURE_SECRET:?QR_SIGNATURE_SECRET must be set}
+      - QR_SIGNATURE_SECRET_PREVIOUS=${QR_SIGNATURE_SECRET_PREVIOUS:-}
+      - PUBLIC_BASE_DOMAIN=${PUBLIC_BASE_DOMAIN:?PUBLIC_BASE_DOMAIN must be set}
+      - PUBLIC_URL_SCHEME=${PUBLIC_URL_SCHEME:-https}
       - KAFKA_BOOTSTRAP_SERVERS=host.docker.internal:9092
       - MERCHANT_SERVICE_URL=http://merchant-service:8085
       - MENU_SERVICE_URL=http://menu-service:8086
@@ -126,6 +138,9 @@ services:
       - DATABASE_PASSWORD=postgres
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
       - QR_SIGNATURE_SECRET=${QR_SIGNATURE_SECRET:?QR_SIGNATURE_SECRET must be set}
+      - QR_SIGNATURE_SECRET_PREVIOUS=${QR_SIGNATURE_SECRET_PREVIOUS:-}
+      - PUBLIC_BASE_DOMAIN=${PUBLIC_BASE_DOMAIN:?PUBLIC_BASE_DOMAIN must be set}
+      - PUBLIC_URL_SCHEME=${PUBLIC_URL_SCHEME:-https}
       - MERCHANT_SERVICE_URL=http://merchant-service:8085
       - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
     extra_hosts:
@@ -151,6 +166,9 @@ services:
       - REDIS_PORT=6379                   
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
       - QR_SIGNATURE_SECRET=${QR_SIGNATURE_SECRET:?QR_SIGNATURE_SECRET must be set}
+      - QR_SIGNATURE_SECRET_PREVIOUS=${QR_SIGNATURE_SECRET_PREVIOUS:-}
+      - PUBLIC_BASE_DOMAIN=${PUBLIC_BASE_DOMAIN:?PUBLIC_BASE_DOMAIN must be set}
+      - PUBLIC_URL_SCHEME=${PUBLIC_URL_SCHEME:-https}
       - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -173,6 +191,9 @@ services:
       - DATABASE_PASSWORD=postgres
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
       - QR_SIGNATURE_SECRET=${QR_SIGNATURE_SECRET:?QR_SIGNATURE_SECRET must be set}
+      - QR_SIGNATURE_SECRET_PREVIOUS=${QR_SIGNATURE_SECRET_PREVIOUS:-}
+      - PUBLIC_BASE_DOMAIN=${PUBLIC_BASE_DOMAIN:?PUBLIC_BASE_DOMAIN must be set}
+      - PUBLIC_URL_SCHEME=${PUBLIC_URL_SCHEME:-https}
       - MERCHANT_SERVICE_URL=http://merchant-service:8085
       - ORDER_SERVICE_URL=http://order-service:8083
       - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
@@ -194,6 +215,9 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
       - QR_SIGNATURE_SECRET=${QR_SIGNATURE_SECRET:?QR_SIGNATURE_SECRET must be set}
+      - QR_SIGNATURE_SECRET_PREVIOUS=${QR_SIGNATURE_SECRET_PREVIOUS:-}
+      - PUBLIC_BASE_DOMAIN=${PUBLIC_BASE_DOMAIN:?PUBLIC_BASE_DOMAIN must be set}
+      - PUBLIC_URL_SCHEME=${PUBLIC_URL_SCHEME:-https}
       - REDIS_HOST=host.docker.internal
       - REDIS_PORT=6379
       - EUREKA_SERVER_URL=http://discovery-service:8761/eureka

@@ -162,6 +162,16 @@ spring:
       port: ${REDIS_PORT:6379}
       timeout: 2000ms
 
+# The tenant base domain. Required, with no default: PublicMenuUrl is a
+# @Component in com.qrserve.shared.common, which every one of these services
+# component-scans, and a default would let a service start while emitting QR
+# codes that point at the wrong host. A wrong-but-plausible printed QR code is
+# discovered by a customer holding a phone; a startup failure is discovered by
+# whoever ran the deploy.
+app:
+  public-base-domain: ${PUBLIC_BASE_DOMAIN}
+  public-url-scheme: ${PUBLIC_URL_SCHEME:https}
+
 # Required even though the gateway does no QR work itself: ApiGatewayApplication
 # component-scans com.qrserve.shared.common (and the build adds shared:common to
 # every microservice), so QrSignatureService is instantiated here and fails fast
