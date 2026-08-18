@@ -180,6 +180,27 @@ class TenantIsolationIT {
                 .andExpect(status().isForbidden());
     }
 
+    // ---- GET /api/branches/{id} — added for qr-service's branch-slug lookup ----
+
+    @Test
+    @DisplayName("an owner cannot read another merchant's branch by id")
+    void ownerCannotReadForeignBranchById() throws Exception {
+        // Branch ids are sequential and trivially enumerable, and this endpoint takes
+        // no merchant id, so the scope check has to come off the loaded row.
+        mockMvc.perform(get("/api/branches/" + branchB.getId())
+                        .header(HttpHeaders.AUTHORIZATION, tokenFor(merchantA.getId(), UserRole.MERCHANT_OWNER)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("an owner can read their own branch by id")
+    void ownerCanReadOwnBranchById() throws Exception {
+        mockMvc.perform(get("/api/branches/" + branchA.getId())
+                        .header(HttpHeaders.AUTHORIZATION, tokenFor(merchantA.getId(), UserRole.MERCHANT_OWNER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.slug").value("main"));
+    }
+
     // ---- GET /api/tables/all ----
 
     @Test

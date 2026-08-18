@@ -6,9 +6,13 @@ import com.qrserve.merchant.service.BranchService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import com.qrserve.shared.security.UserPrincipal;
+import com.qrserve.shared.security.UserRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -37,5 +41,26 @@ public class BranchController {
     @Operation(summary = "Get all branches for a merchant")
     public ResponseEntity<List<BranchEntity>> getBranchesByMerchant(@PathVariable UUID merchantId) {
         return ResponseEntity.ok(branchService.getBranchesByMerchant(merchantId));
+    }
+
+    /**
+     * Consumed by qr-service, which needs the branch SLUG to build a public menu
+     * URL. Tenant scope is checked against the loaded branch rather than a path
+     * parameter, because the caller supplies no merchant id here — the id alone
+     * would otherwise let any authenticated user enumerate every branch on the
+     * platform.
+     */
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER','WAITER','KITCHEN','CASHIER')")
+    @Operation(summary = "Get a branch by ID")
+    public ResponseEntity<BranchEntity> getBranch(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        BranchEntity branch = branchService.getBranch(id);
+        if (principal != null && principal.getRole() != UserRole.SUPER_ADMIN
+                && !branch.getMerchantId().equals(principal.getMerchantId())) {
+            throw new AccessDeniedException("Branch belongs to another merchant");
+        }
+        return ResponseEntity.ok(branch);
     }
 }

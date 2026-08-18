@@ -8,6 +8,8 @@ import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 import com.qrserve.qr.dto.QrExportRequest;
 import com.qrserve.qr.dto.QrMetadataResponse;
+import com.qrserve.shared.common.PublicMenuUrl;
+import com.qrserve.shared.common.QrSignatureService;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -40,6 +42,8 @@ public class QrGeneratorService {
     private static final int QR_SIZE = 300;
 
     private final RestTemplate restTemplate;
+    private final PublicMenuUrl publicMenuUrl;
+    private final QrSignatureService qrSignatureService;
 
     @Value("${services.merchant-service-url:http://localhost:8085}")
     private String merchantServiceUrl;
@@ -47,10 +51,9 @@ public class QrGeneratorService {
     public QrMetadataResponse getQrForTable(Long tableId) {
         TableInfo table = fetchTable(tableId);
         MerchantInfo merchant = fetchMerchant(table.getMerchantId());
+        BranchInfo branch = fetchBranch(table.getBranchId());
 
-        // Consistent URL format with TableService: https://domain.com/menu/{merchantSlug}/{branchId}/{tableId}
-        String targetUrl = String.format("https://qrserve.com/menu/%s/%d/%d", 
-                merchant.getSlug(), table.getBranchId(), table.getId());
+        String targetUrl = targetUrlFor(table, merchant, branch, publicMenuUrl, qrSignatureService);
 
         // Generate real QR code using ZXing
         String base64Png = generateQrBase64(targetUrl);
@@ -67,11 +70,24 @@ public class QrGeneratorService {
     public byte[] exportPng(QrExportRequest request) {
         TableInfo table = fetchTable(request.getTableId());
         MerchantInfo merchant = fetchMerchant(table.getMerchantId());
+        BranchInfo branch = fetchBranch(table.getBranchId());
 
-        String targetUrl = String.format("https://qrserve.com/menu/%s/%d/%d", 
-                merchant.getSlug(), table.getBranchId(), table.getId());
+        return generateQrPng(targetUrlFor(table, merchant, branch, publicMenuUrl, qrSignatureService));
+    }
 
-        return generateQrPng(targetUrl);
+    /**
+     * The single URL contract, shared with merchant-service through
+     * {@link PublicMenuUrl}. Static and package-private so the exact output can be
+     * asserted without standing up HTTP: this service and merchant-service must
+     * emit byte-identical URLs for the same table, and the two previously drifted
+     * while each carried a comment claiming it matched the other.
+     */
+    static String targetUrlFor(TableInfo table, MerchantInfo merchant, BranchInfo branch,
+                               PublicMenuUrl publicMenuUrl, QrSignatureService signatures) {
+        String signature = signatures.generateSignature(
+                merchant.getId(), branch.getId(), table.getId());
+        return publicMenuUrl.menuUrl(
+                merchant.getSlug(), branch.getSlug(), table.getTableNumber(), signature);
     }
 
     public byte[] exportPdf(QrExportRequest request) {
@@ -109,7 +125,8 @@ public class QrGeneratorService {
             return new TableInfo(
                     ((Number) body.get("id")).longValue(),
                     ((Number) body.get("branchId")).longValue(),
-                    UUID.fromString((String) body.get("merchantId"))
+                    UUID.fromString((String) body.get("merchantId")),
+                    (String) body.get("tableNumber")
             );
         } catch (Exception e) {
             log.error("Failed to fetch table {} from merchant-service", tableId, e);
@@ -140,6 +157,33 @@ public class QrGeneratorService {
         }
     }
 
+
+    /**
+     * Fetches the branch so its SLUG is available. This lookup did not exist
+     * before, because the old URL used the branch id - the id was already to hand
+     * and the slug was not, which is very likely how the wrong format came to be
+     * written.
+     */
+    private BranchInfo fetchBranch(Long branchId) {
+        try {
+            String url = merchantServiceUrl + "/api/branches/" + branchId;
+            HttpEntity<Void> requestEntity = new HttpEntity<>(getAuthHeaders());
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url, HttpMethod.GET, requestEntity, new ParameterizedTypeReference<Map<String, Object>>() {});
+
+            Map<String, Object> body = response.getBody();
+            if (body == null) {
+                throw new ResourceNotFoundException("Branch not found ID: " + branchId);
+            }
+            return new BranchInfo(
+                    ((Number) body.get("id")).longValue(),
+                    (String) body.get("slug")
+            );
+        } catch (Exception e) {
+            log.error("Failed to fetch branch {} from merchant-service", branchId, e);
+            throw new ResourceNotFoundException("Branch not found ID: " + branchId);
+        }
+    }
 
     /**
      * Extracts Authorization Header from the current request thread
@@ -181,23 +225,27 @@ public class QrGeneratorService {
         }
     }
 
-    private static class TableInfo {
+    /** Package-private so {@link #targetUrlFor} can be unit-tested. */
+    static class TableInfo {
         private final Long id;
         private final Long branchId;
         private final UUID merchantId;
+        private final String tableNumber;
 
-        TableInfo(Long id, Long branchId, UUID merchantId) {
+        TableInfo(Long id, Long branchId, UUID merchantId, String tableNumber) {
             this.id = id;
             this.branchId = branchId;
             this.merchantId = merchantId;
+            this.tableNumber = tableNumber;
         }
 
         public Long getId() { return id; }
         public Long getBranchId() { return branchId; }
         public UUID getMerchantId() { return merchantId; }
+        public String getTableNumber() { return tableNumber; }
     }
 
-    private static class MerchantInfo {
+    static class MerchantInfo {
         private final UUID id;
         private final String slug;
 
@@ -207,6 +255,20 @@ public class QrGeneratorService {
         }
 
         public UUID getId() { return id; }
+        public String getSlug() { return slug; }
+    }
+
+    /** The branch SLUG, which is what the public route actually needs. */
+    static class BranchInfo {
+        private final Long id;
+        private final String slug;
+
+        BranchInfo(Long id, String slug) {
+            this.id = id;
+            this.slug = slug;
+        }
+
+        public Long getId() { return id; }
         public String getSlug() { return slug; }
     }
 }
