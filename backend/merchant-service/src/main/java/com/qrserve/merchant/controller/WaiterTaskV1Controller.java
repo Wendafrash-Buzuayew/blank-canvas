@@ -18,7 +18,11 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import com.qrserve.shared.exceptions.UnauthorizedException;
+import com.qrserve.shared.security.UserPrincipal;
+import com.qrserve.shared.security.UserRole;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -46,13 +50,21 @@ public class WaiterTaskV1Controller {
     private final TableRepository tableRepository;
 
     @GetMapping("/waiters/tasks")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER','WAITER')")
+    // KITCHEN included deliberately: KitchenLivePage renders the pending customer
+    // calls from this payload, so excluding the role broke the kitchen display with
+    // "Access Denied". A KITCHEN user has no WaiterEntity, which resolveWaiter
+    // handles by returning null — they get an empty assignment list and the
+    // branch's pending requests, which is exactly what that screen shows.
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER','WAITER','KITCHEN')")
     @Operation(summary = "Active tasks for a waiter: assigned tables and pending customer requests")
     public ResponseEntity<WaiterTasksResponse> getTasks(
             @RequestParam UUID merchantId,
             @RequestParam Long branchId,
             @RequestParam(required = false) Long waiterId,
-            @RequestParam(required = false) UUID userId) {
+            @RequestParam(required = false) UUID userId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+
+        requireOwnTenant(merchantId, principal);
 
         WaiterEntity waiter = resolveWaiter(merchantId, branchId, waiterId, userId);
 
@@ -97,7 +109,8 @@ public class WaiterTaskV1Controller {
     }
 
     @PatchMapping("/requests/{requestId}/resolve")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER','WAITER')")
+    // Same reason: the kitchen display offers a Done button on these requests.
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER','WAITER','KITCHEN')")
     @Operation(summary = "Acknowledge or complete a customer service request")
     public ResponseEntity<CustomerRequestEntity> resolveRequest(
             @PathVariable Long requestId,
@@ -109,6 +122,25 @@ public class WaiterTaskV1Controller {
             throw new IllegalArgumentException("Invalid resolution status: " + status);
         }
         return ResponseEntity.ok(requestService.updateRequestStatus(requestId, status, merchantId));
+    }
+
+    /**
+     * Rejects a merchantId that is not the caller's own.
+     *
+     * <p>The role check alone was not enough: merchantId is a query parameter, so
+     * any permitted role could read another merchant's pending customer requests
+     * simply by supplying that merchant's id.
+     */
+    private void requireOwnTenant(UUID merchantId, UserPrincipal principal) {
+        if (principal == null) {
+            throw new UnauthorizedException("Authentication required");
+        }
+        if (principal.getRole() == UserRole.SUPER_ADMIN) {
+            return;
+        }
+        if (!merchantId.equals(principal.getMerchantId())) {
+            throw new UnauthorizedException("Not authorized for merchant " + merchantId);
+        }
     }
 
     private WaiterEntity resolveWaiter(UUID merchantId, Long branchId, Long waiterId, UUID userId) {

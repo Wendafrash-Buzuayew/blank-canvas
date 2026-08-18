@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -77,6 +79,41 @@ public class GlobalExceptionHandler {
         response.put("errors", fieldErrors);
         response.put("timestamp", LocalDateTime.now());
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * Authorization failure — 403, not 500.
+     *
+     * <p>Without this handler, {@code @PreAuthorize} rejections (which arrive as
+     * {@link AuthorizationDeniedException}, a subclass) fell through to the
+     * catch-all and were returned as {@code 500 "Access Denied"}. That is wrong
+     * twice over: a client cannot tell "you may not do this" from "the server is
+     * broken", and it made a deliberate policy decision look like an outage.
+     *
+     * <p>The message is fixed rather than {@code ex.getMessage()} so it does not
+     * disclose which rule denied the request.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
+        log.warn("Authorization denied: {}", ex.getMessage());
+        ErrorResponse response = new ErrorResponse(
+                HttpStatus.FORBIDDEN.value(),
+                "You do not have permission to perform this action.",
+                LocalDateTime.now()
+        );
+        return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
+    }
+
+    /** Missing or invalid credentials — 401, distinct from 403 above. */
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthentication(AuthenticationException ex) {
+        log.warn("Authentication failed: {}", ex.getMessage());
+        ErrorResponse response = new ErrorResponse(
+                HttpStatus.UNAUTHORIZED.value(),
+                "Authentication is required.",
+                LocalDateTime.now()
+        );
+        return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
     }
 
     @ExceptionHandler(ServiceUnavailableException.class)

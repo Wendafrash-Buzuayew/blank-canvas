@@ -105,6 +105,13 @@ project(':shared:exceptions') {
         implementation 'org.springframework:spring-web'
         implementation 'org.springframework:spring-context'
         implementation 'org.springframework.boot:spring-boot-starter-validation'
+        // compileOnly: GlobalExceptionHandler needs Spring Security's
+        // AccessDeniedException to map authorization failures to 403 instead of
+        // letting them fall through to the catch-all as a 500. Every microservice
+        // that consumes shared:exceptions also consumes shared:security (see the
+        // `configure(microservices)` block), so the class is always present at
+        // runtime — this module just must not force security onto anything else.
+        compileOnly 'org.springframework.boot:spring-boot-starter-security'
     }
 }
 
