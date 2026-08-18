@@ -26,7 +26,7 @@ management:
       show-details: when_authorized
   tracing:
     sampling:
-      probability: 1.0 # Sample 100% in dev/staging; lower to 0.1 in high-traffic production
+      probability: ${TRACE_SAMPLE_RATE:0.1} # Override via TRACE_SAMPLE_RATE (e.g. 1.0 locally); keep low in production
 
 logging:
   pattern:

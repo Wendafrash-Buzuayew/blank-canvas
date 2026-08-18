@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,6 +24,9 @@ public class TableAssignmentController {
     private final TableAssignmentService assignmentService;
 
     @PostMapping
+    // merchantId comes from the request body, so the tenant is checked here.
+    @PreAuthorize("hasRole('SUPER_ADMIN') or (hasAnyRole('MERCHANT_OWNER','BRANCH_MANAGER') "
+            + "and #request.merchantId == authentication.principal.merchantId)")
     @Operation(summary = "Assign a waiter to a table")
     public ResponseEntity<TableAssignmentEntity> assignTable(@Valid @RequestBody AssignTableRequest request) {
         TableAssignmentEntity assignment = assignmentService.assignWaiterToTable(
@@ -35,12 +39,14 @@ public class TableAssignmentController {
     }
 
     @GetMapping("/table/{tableId}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
     @Operation(summary = "Get assignments for a table (including current active assignment)")
     public ResponseEntity<List<TableAssignmentEntity>> getByTable(@PathVariable Long tableId) {
         return ResponseEntity.ok(assignmentService.getAssignmentsForTable(tableId));
     }
 
     @GetMapping("/table/{tableId}/active")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
     @Operation(summary = "Get the current active waiter assignment for a table")
     public ResponseEntity<TableAssignmentEntity> getActiveByTable(@PathVariable Long tableId) {
         TableAssignmentEntity assignment = assignmentService.getActiveAssignmentForTable(tableId);
@@ -48,18 +54,22 @@ public class TableAssignmentController {
     }
 
     @GetMapping("/waiter/{waiterId}/active")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
     @Operation(summary = "Get all active assignments for a waiter")
     public ResponseEntity<List<TableAssignmentEntity>> getActiveByWaiter(@PathVariable Long waiterId) {
         return ResponseEntity.ok(assignmentService.getActiveAssignmentsForWaiter(waiterId));
     }
 
     @GetMapping("/merchant/{merchantId}")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or #merchantId == authentication.principal.merchantId")
     @Operation(summary = "Get all assignments for a merchant (tenant-scoped)")
     public ResponseEntity<List<TableAssignmentEntity>> getByMerchant(@PathVariable UUID merchantId) {
         return ResponseEntity.ok(assignmentService.getAssignmentsByMerchant(merchantId));
     }
 
     @PutMapping("/{id}/end")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or (hasAnyRole('MERCHANT_OWNER','BRANCH_MANAGER') "
+            + "and #merchantId == authentication.principal.merchantId)")
     @Operation(summary = "End an active assignment")
     public ResponseEntity<TableAssignmentEntity> endAssignment(@PathVariable Long id, @RequestParam UUID merchantId) {
         return ResponseEntity.ok(assignmentService.endAssignment(id, merchantId));

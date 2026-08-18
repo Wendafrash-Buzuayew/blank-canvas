@@ -10,10 +10,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/qr")
+// QR provisioning is a staff operation; SecurityConfig does not make /api/qr
+// public, and these endpoints expose table tokens used to build menu URLs.
+@PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
 @RequiredArgsConstructor
 @Tag(name = "QR Stand & Code Generator", description = "High-Res PNG, SVG & PDF Printable Table Stand Export APIs")
 public class QrController {

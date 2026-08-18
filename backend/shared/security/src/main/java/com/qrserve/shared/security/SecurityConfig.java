@@ -44,43 +44,62 @@ public class SecurityConfig {
             .sessionManagement(session -> 
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
+            // Rules are evaluated FIRST-MATCH-WINS. Every narrow rule must therefore
+            // appear above any broader pattern that would also match it. The previous
+            // version declared a blanket permitAll on "/api/menu/**" and "/api/auth/**"
+            // above the narrow rules, which made every menu write endpoint and
+            // /api/auth/users publicly reachable.
             .authorizeHttpRequests(auth -> auth
                 // 1. ALWAYS allow CORS preflight requests from browsers
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // 2. Permit WebSocket / SockJS endpoints
+                // 2. WebSocket / SockJS handshake. Frame-level authorization is
+                //    enforced by StompAuthInterceptor, not here.
                 .requestMatchers("/ws/**", "/ws/info/**", "/ws/info").permitAll()
 
-                // 3. System & Swagger endpoints
+                // 3. System & docs. Deliberately NOT "/actuator/**" — that also
+                //    exposes /actuator/env, /configprops and /beans, which leak
+                //    configuration (including secret property names).
                 .requestMatchers(
-                    "/actuator/**",
+                    "/actuator/health",
+                    "/actuator/health/**",
+                    "/actuator/info",
+                    "/actuator/prometheus",
                     "/error",
                     "/v3/api-docs/**",
                     "/swagger-ui/**",
                     "/swagger-ui.html"
                 ).permitAll()
 
-                // 4. Public API endpoints (Including both versioned and unversioned)
-                .requestMatchers(
-                    "/api/auth/**",
-                    "/api/v1/auth/**",
-                    "/api/menu/**",
-                    "/api/v1/menu/**",
-                    "/api/v1/public/**"
-                ).permitAll()
+                // 4. Public authentication endpoints, enumerated. "/api/auth/**"
+                //    would also expose POST /api/auth/users (user creation) and
+                //    GET /api/auth/me (which NPEs on a null principal).
+                .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/v1/auth/login").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/refresh", "/api/v1/auth/refresh").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/logout", "/api/v1/auth/logout").permitAll()
 
-                // Narrow rules must come BEFORE the broad permitAll
+                // 5. Public customer-facing reads/writes, narrowly scoped.
+                //    GET /api/menu/{merchantId} is the only public menu endpoint;
+                //    the wildcard is a single segment so it cannot match writes.
+                .requestMatchers(HttpMethod.GET, "/api/menu/*").permitAll()
+                // "/api/tables/all" MUST be declared above "/api/tables/*" — the
+                // single-segment wildcard also matches "all", which would otherwise
+                // expose every table of every merchant to anonymous callers.
+                .requestMatchers(HttpMethod.GET, "/api/tables/all", "/api/v1/tables/all").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/tables/*", "/api/v1/tables/*").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/customer-requests", "/api/v1/customer-requests").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/customer-requests/table/**", "/api/v1/customer-requests/table/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/orders", "/api/v1/orders").permitAll()
+                // Public QR-resolved menu (merchant-service PublicMenuResolution).
+                .requestMatchers("/api/v1/public/**").permitAll()
+
+                // 6. Explicitly authenticated. Role checks live on the controllers
+                //    via @PreAuthorize; this only guarantees a valid JWT.
                 .requestMatchers(HttpMethod.GET, "/api/customer-requests", "/api/v1/customer-requests").authenticated()
                 .requestMatchers(HttpMethod.PUT, "/api/customer-requests/**", "/api/v1/customer-requests/**").authenticated()
-                .requestMatchers(HttpMethod.POST, "/api/orders", "/api/v1/orders").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/tables/*", "/api/v1/tables/*").permitAll()
-
-                // 6. Explicit Waiter & Orders requirements (Ensure authenticated JWT required)
                 .requestMatchers("/api/v1/waiters/**", "/api/v1/orders/**").authenticated()
 
-                // All other requests require JWT authentication
+                // 7. Everything else requires a JWT.
                 .anyRequest().authenticated()
             )
             // Add JWT Filter before Spring's default username/password filter

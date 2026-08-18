@@ -31,7 +31,8 @@ services:
       - DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/qrserve_auth
       - DATABASE_USERNAME=postgres
       - DATABASE_PASSWORD=postgres
-      - JWT_SECRET=${JWT_SECRET:-dGhpcy1pcy1hLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1zaWduaW5nLWl0LXNob3VsZC1iZS1sb25nLWVub3VnaA==}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
+      - QR_SIGNATURE_SECRET=${QR_SIGNATURE_SECRET:?QR_SIGNATURE_SECRET must be set}
       - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -52,7 +53,8 @@ services:
       - DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/qrserve_merchant
       - DATABASE_USERNAME=postgres
       - DATABASE_PASSWORD=postgres
-      - JWT_SECRET=${JWT_SECRET:-dGhpcy1pcy1hLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1zaWduaW5nLWl0LXNob3VsZC1iZS1sb25nLWVub3VnaA==}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
+      - QR_SIGNATURE_SECRET=${QR_SIGNATURE_SECRET:?QR_SIGNATURE_SECRET must be set}
       - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -73,7 +75,8 @@ services:
       - DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/qrserve_menu
       - DATABASE_USERNAME=postgres
       - DATABASE_PASSWORD=postgres
-      - JWT_SECRET=${JWT_SECRET:-dGhpcy1pcy1hLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1zaWduaW5nLWl0LXNob3VsZC1iZS1sb25nLWVub3VnaA==}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
+      - QR_SIGNATURE_SECRET=${QR_SIGNATURE_SECRET:?QR_SIGNATURE_SECRET must be set}
       - REDIS_HOST=host.docker.internal
       - REDIS_PORT=6379
       - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
@@ -96,7 +99,8 @@ services:
       - DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/qrserve_order
       - DATABASE_USERNAME=postgres
       - DATABASE_PASSWORD=postgres
-      - JWT_SECRET=${JWT_SECRET:-dGhpcy1pcy1hLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1zaWduaW5nLWl0LXNob3VsZC1iZS1sb25nLWVub3VnaA==}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
+      - QR_SIGNATURE_SECRET=${QR_SIGNATURE_SECRET:?QR_SIGNATURE_SECRET must be set}
       - KAFKA_BOOTSTRAP_SERVERS=host.docker.internal:9092
       - MERCHANT_SERVICE_URL=http://merchant-service:8085
       - MENU_SERVICE_URL=http://menu-service:8086
@@ -120,7 +124,8 @@ services:
       - DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/qrserve_qr
       - DATABASE_USERNAME=postgres
       - DATABASE_PASSWORD=postgres
-      - JWT_SECRET=${JWT_SECRET:-dGhpcy1pcy1hLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1zaWduaW5nLWl0LXNob3VsZC1iZS1sb25nLWVub3VnaA==}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
+      - QR_SIGNATURE_SECRET=${QR_SIGNATURE_SECRET:?QR_SIGNATURE_SECRET must be set}
       - MERCHANT_SERVICE_URL=http://merchant-service:8085
       - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
     extra_hosts:
@@ -144,7 +149,8 @@ services:
       - DATABASE_PASSWORD=postgres
       - REDIS_HOST=host.docker.internal  
       - REDIS_PORT=6379                   
-      - JWT_SECRET=${JWT_SECRET:-dGhpcy1pcy1hLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1zaWduaW5nLWl0LXNob3VsZC1iZS1sb25nLWVub3VnaA==}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
+      - QR_SIGNATURE_SECRET=${QR_SIGNATURE_SECRET:?QR_SIGNATURE_SECRET must be set}
       - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -165,7 +171,8 @@ services:
       - DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/qrserve_analytics
       - DATABASE_USERNAME=postgres
       - DATABASE_PASSWORD=postgres
-      - JWT_SECRET=${JWT_SECRET:-dGhpcy1pcy1hLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1zaWduaW5nLWl0LXNob3VsZC1iZS1sb25nLWVub3VnaA==}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
+      - QR_SIGNATURE_SECRET=${QR_SIGNATURE_SECRET:?QR_SIGNATURE_SECRET must be set}
       - MERCHANT_SERVICE_URL=http://merchant-service:8085
       - ORDER_SERVICE_URL=http://order-service:8083
       - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
@@ -185,7 +192,8 @@ services:
       - "8081:8081"
     environment:
       - SPRING_PROFILES_ACTIVE=prod
-      - JWT_SECRET=${JWT_SECRET:-dGhpcy1pcy1hLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1zaWduaW5nLWl0LXNob3VsZC1iZS1sb25nLWVub3VnaA==}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
+      - QR_SIGNATURE_SECRET=${QR_SIGNATURE_SECRET:?QR_SIGNATURE_SECRET must be set}
       - REDIS_HOST=host.docker.internal
       - REDIS_PORT=6379
       - EUREKA_SERVER_URL=http://discovery-service:8761/eureka

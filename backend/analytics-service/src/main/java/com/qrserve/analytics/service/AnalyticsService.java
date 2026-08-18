@@ -12,7 +12,9 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import com.qrserve.shared.exceptions.ServiceUnavailableException;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.request.RequestContextHolder; // Web context
 import org.springframework.web.context.request.ServletRequestAttributes; // Web context attributes
@@ -38,8 +40,9 @@ public class AnalyticsService {
     private String orderServiceUrl;
 
     public TodayAnalyticsResponse getTodayMetrics(UUID merchantId) {
-        // Fetch orders from order-service
-        List<Map<String, Object>> orders = fetchOrders();
+        // merchantId is now actually used: it is forwarded to both downstream
+        // services so each merchant sees only their own revenue and occupancy.
+        List<Map<String, Object>> orders = fetchOrders(merchantId);
 
         BigDecimal todayRev = orders.stream()
                 .map(o -> new BigDecimal(o.getOrDefault("totalAmount", "0").toString()))
@@ -52,8 +55,8 @@ public class AnalyticsService {
         BigDecimal avgOrderVal = orders.isEmpty() ? BigDecimal.ZERO : 
                 todayRev.divide(BigDecimal.valueOf(orders.size()), 2, RoundingMode.HALF_UP);
 
-        // Fetch tables from merchant-service 
-        List<Map<String, Object>> tables = fetchTables();
+        // Fetch tables from merchant-service
+        List<Map<String, Object>> tables = fetchTables(merchantId);
 
         long occupied = tables.stream()
                 .filter(t -> "OCCUPIED".equalsIgnoreCase(t.getOrDefault("status", "").toString()))
@@ -72,6 +75,13 @@ public class AnalyticsService {
                 .build();
     }
 
+    /**
+     * PLACEHOLDER — the three historical data points below are hardcoded, not
+     * aggregated. Only the final point (today) reflects real data. Do not present
+     * this as a sales trend to users without implementing real aggregation from an
+     * order read model or Kafka projection; that work is tracked as deferred in
+     * docs/superpowers/plans/2026-08-18-codebase-review-remediation.md.
+     */
     public RevenueAnalyticsResponse getRevenueAnalytics(UUID merchantId) {
         TodayAnalyticsResponse today = getTodayMetrics(merchantId);
         List<RevenueAnalyticsResponse.DailySalesPoint> points = List.of(
@@ -87,6 +97,11 @@ public class AnalyticsService {
                 .build();
     }
 
+    /**
+     * PLACEHOLDER — returns three fixed demo items with stock photo URLs, ignoring
+     * merchantId entirely. This is not real bestseller data. Tracked as deferred
+     * work alongside {@link #getRevenueAnalytics}.
+     */
     public List<PopularItemDto> getPopularItems(UUID merchantId) {
         return List.of(
                 PopularItemDto.builder()
@@ -113,31 +128,49 @@ public class AnalyticsService {
         );
     }
 
-    private List<Map<String, Object>> fetchOrders() {
+    /**
+     * Fetches orders for a single merchant.
+     *
+     * <p>The merchantId is now forwarded so filtering happens in order-service.
+     * Previously this fetched every order in the system and the caller's
+     * merchantId was discarded, so every merchant saw global revenue.
+     *
+     * @throws ServiceUnavailableException if order-service cannot be reached — the
+     *         previous behaviour returned an empty list, which is indistinguishable
+     *         from "no sales today" on the dashboard.
+     */
+    private List<Map<String, Object>> fetchOrders(UUID merchantId) {
+        String url = orderServiceUrl + "/api/orders"
+                + (merchantId != null ? "?merchantId=" + merchantId : "");
         try {
-            String url = orderServiceUrl + "/api/orders";
-            // Build headers containing the security token
             HttpEntity<Void> requestEntity = new HttpEntity<>(getAuthHeaders());
             ResponseEntity<List<Map<String, Object>>> response = restTemplate.exchange(
                     url, HttpMethod.GET, requestEntity, new ParameterizedTypeReference<List<Map<String, Object>>>() {});
             return response.getBody() != null ? response.getBody() : List.of();
-        } catch (Exception e) {
-            log.warn("Failed to fetch orders from order-service: {}", e.getMessage());
-            return List.of();
+        } catch (RestClientException e) {
+            log.error("Failed to fetch orders from order-service at {}", url, e);
+            throw new ServiceUnavailableException("order-service is unavailable", e);
         }
     }
 
-    private List<Map<String, Object>> fetchTables() {
+    /**
+     * Fetches tables for a single merchant.
+     *
+     * <p>NOTE the path is {@code /api/tables/all}. The previous {@code /api/tables}
+     * had no controller mapping, so every call 404'd; the exception was swallowed
+     * and the dashboard silently reported zero tables and 0% occupancy.
+     */
+    private List<Map<String, Object>> fetchTables(UUID merchantId) {
+        String url = merchantServiceUrl + "/api/tables/all"
+                + (merchantId != null ? "?merchantId=" + merchantId : "");
         try {
-            String url = merchantServiceUrl + "/api/tables";
-                // Build headers containing the security token
             HttpEntity<Void> requestEntity = new HttpEntity<>(getAuthHeaders());
             ResponseEntity<List<Map<String, Object>>> response = restTemplate.exchange(
                     url, HttpMethod.GET, requestEntity, new ParameterizedTypeReference<List<Map<String, Object>>>() {});
             return response.getBody() != null ? response.getBody() : List.of();
-        } catch (Exception e) {
-            log.warn("Failed to fetch tables from merchant-service: {}", e.getMessage());
-            return List.of();
+        } catch (RestClientException e) {
+            log.error("Failed to fetch tables from merchant-service at {}", url, e);
+            throw new ServiceUnavailableException("merchant-service is unavailable", e);
         }
     }
 

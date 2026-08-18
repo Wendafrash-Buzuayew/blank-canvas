@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,6 +24,7 @@ public class ProductController {
     private final MenuService menuService;
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
     @Operation(summary = "Create product item")
     public ResponseEntity<ProductEntity> createProduct(@Valid @RequestBody CreateProductRequest request) {
         return ResponseEntity.ok(menuService.createProduct(request));
@@ -42,6 +44,7 @@ public class ProductController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
     @Operation(summary = "Update product item")
     public ResponseEntity<ProductEntity> updateProduct(@PathVariable Long id,
                                                         @Valid @RequestBody UpdateProductRequest request) {
@@ -49,6 +52,7 @@ public class ProductController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
     @Operation(summary = "Delete product item")
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
         menuService.deleteProduct(id);

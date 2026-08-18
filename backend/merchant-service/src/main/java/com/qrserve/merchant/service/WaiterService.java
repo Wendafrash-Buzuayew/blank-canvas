@@ -70,7 +70,10 @@ public class WaiterService {
     public WaiterEntity getWaiter(Long id, UUID merchantId) {
         WaiterEntity waiter = waiterRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Waiter not found ID: " + id));
-        // Tenant isolation: check merchant ownership
+        // Tenant isolation. A null merchantId deliberately means "any tenant" and is
+        // reserved for SUPER_ADMIN: WaiterController.resolveScope() guarantees a
+        // non-null value for every other role and throws otherwise. Do not call this
+        // with a caller-supplied merchantId without that check, or the guard is skipped.
         if (merchantId != null && !merchantId.equals(waiter.getMerchantId())) {
             throw new ResourceNotFoundException("Waiter not found ID: " + id);
         }

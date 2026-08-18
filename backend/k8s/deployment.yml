@@ -18,7 +18,7 @@ spec:
         image: ubuntu/kafka:3.7-22.04_beta
         ports:
         - containerPort: 9092
-        environment:
+        env:
         - name: KAFKA_NODE_ID
           value: "1"
         - name: KAFKA_PROCESS_ROLES
@@ -65,7 +65,7 @@ spec:
         image: qrserve-auth-service:latest
         ports:
         - containerPort: 8087
-        environment:
+        env:
         - name: SPRING_PROFILES_ACTIVE
           value: "prod"
         - name: DATABASE_URL
@@ -73,9 +73,20 @@ spec:
         - name: DATABASE_USERNAME
           value: "postgres"
         - name: DATABASE_PASSWORD
-          value: "postgres"
+          valueFrom:
+            secretKeyRef:
+              name: qrserve-secrets
+              key: db-password
         - name: JWT_SECRET
-          value: "dGhpcy1pcy1hLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1zaWduaW5nLWl0LXNob3VsZC1iZS1sb25nLWVub3VnaA=="
+          valueFrom:
+            secretKeyRef:
+              name: qrserve-secrets
+              key: jwt-secret
+        - name: QR_SIGNATURE_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: qrserve-secrets
+              key: qr-signature-secret
         livenessProbe:
           httpGet:
             path: /actuator/health/liveness
@@ -120,7 +131,7 @@ spec:
         image: qrserve-merchant-service:latest
         ports:
         - containerPort: 8085
-        environment:
+        env:
         - name: SPRING_PROFILES_ACTIVE
           value: "prod"
         - name: DATABASE_URL
@@ -128,7 +139,20 @@ spec:
         - name: DATABASE_USERNAME
           value: "postgres"
         - name: DATABASE_PASSWORD
-          value: "postgres"
+          valueFrom:
+            secretKeyRef:
+              name: qrserve-secrets
+              key: db-password
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: qrserve-secrets
+              key: jwt-secret
+        - name: QR_SIGNATURE_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: qrserve-secrets
+              key: qr-signature-secret
         livenessProbe:
           httpGet:
             path: /actuator/health/liveness
@@ -173,7 +197,7 @@ spec:
         image: qrserve-order-service:latest
         ports:
         - containerPort: 8083
-        environment:
+        env:
         - name: SPRING_PROFILES_ACTIVE
           value: "prod"
         - name: DATABASE_URL
@@ -181,7 +205,20 @@ spec:
         - name: DATABASE_USERNAME
           value: "postgres"
         - name: DATABASE_PASSWORD
-          value: "postgres"
+          valueFrom:
+            secretKeyRef:
+              name: qrserve-secrets
+              key: db-password
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: qrserve-secrets
+              key: jwt-secret
+        - name: QR_SIGNATURE_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: qrserve-secrets
+              key: qr-signature-secret
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: "kafka-service:9092"
         - name: MERCHANT_SERVICE_URL
@@ -219,7 +256,7 @@ spec:
         image: qrserve-api-gateway:latest
         ports:
         - containerPort: 8081
-        environment:
+        env:
         - name: SPRING_PROFILES_ACTIVE
           value: "prod"
         - name: REDIS_HOST
@@ -227,7 +264,15 @@ spec:
         - name: REDIS_PORT
           value: "6379"
         - name: JWT_SECRET
-          value: "dGhpcy1pcy1hLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1zaWduaW5nLWl0LXNob3VsZC1iZS1sb25nLWVub3VnaA=="
+          valueFrom:
+            secretKeyRef:
+              name: qrserve-secrets
+              key: jwt-secret
+        - name: QR_SIGNATURE_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: qrserve-secrets
+              key: qr-signature-secret
         livenessProbe:
           httpGet:
             path: /actuator/health/liveness

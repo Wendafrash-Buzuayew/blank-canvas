@@ -2,6 +2,7 @@ package com.qrserve.shared.exceptions;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -13,6 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     @Data
@@ -77,11 +79,28 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(ServiceUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleServiceUnavailableException(ServiceUnavailableException ex) {
+        // Log the real cause; return a stable message. The client only needs to know
+        // it should retry, not which upstream host failed.
+        log.error("Downstream dependency unavailable", ex);
+        ErrorResponse response = new ErrorResponse(
+                HttpStatus.SERVICE_UNAVAILABLE.value(),
+                "A required service is temporarily unavailable. Please retry.",
+                LocalDateTime.now()
+        );
+        return new ResponseEntity<>(response, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneralException(Exception ex) {
+        // Never return ex.getMessage() for an unhandled exception: it leaks SQL
+        // fragments, downstream URLs, and stack hints to the client. Log the real
+        // cause server-side and return a fixed, generic message instead.
+        log.error("Unhandled exception", ex);
         ErrorResponse response = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                ex.getMessage() != null ? ex.getMessage() : "An unexpected server error occurred",
+                "An unexpected server error occurred",
                 LocalDateTime.now()
         );
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);

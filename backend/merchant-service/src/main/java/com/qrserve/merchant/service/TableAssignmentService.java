@@ -6,6 +6,7 @@ import com.qrserve.merchant.entity.TableEntity;
 import com.qrserve.merchant.repository.TableAssignmentRepository;
 import com.qrserve.merchant.repository.WaiterRepository;
 import com.qrserve.merchant.repository.TableRepository;
+import com.qrserve.shared.exceptions.BusinessException;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -43,6 +44,21 @@ public class TableAssignmentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Table not found ID: " + tableId));
         if (!table.getMerchantId().equals(merchantId)) {
             throw new ResourceNotFoundException("Table not found ID: " + tableId);
+        }
+
+        // The caller-supplied branchId was previously stored without ever being
+        // compared to the table or the waiter, so an assignment could bind a waiter
+        // to a table in a different branch.
+        if (branchId == null) {
+            throw new BusinessException("branchId is required to assign a waiter to a table");
+        }
+        if (!branchId.equals(table.getBranchId())) {
+            throw new BusinessException(
+                    "Table " + tableId + " does not belong to branch " + branchId);
+        }
+        if (!branchId.equals(waiter.getBranchId())) {
+            throw new BusinessException(
+                    "Waiter " + waiterId + " does not belong to branch " + branchId);
         }
 
         // End any existing active assignment for this table

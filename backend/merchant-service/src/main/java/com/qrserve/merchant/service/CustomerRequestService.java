@@ -3,6 +3,7 @@ package com.qrserve.merchant.service;
 import com.qrserve.merchant.entity.CustomerRequestEntity;
 import com.qrserve.merchant.repository.CustomerRequestRepository;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
+import com.qrserve.shared.exceptions.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -70,8 +71,16 @@ public class CustomerRequestService {
     public CustomerRequestEntity updateRequestStatus(Long requestId, String status, UUID merchantId) {
         CustomerRequestEntity request = requestRepository.findById(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer request not found ID: " + requestId));
-        // Tenant isolation
-        if (merchantId != null && !merchantId.equals(request.getMerchantId())) {
+
+        // Tenant isolation. The merchantId is REQUIRED: the previous
+        // `merchantId != null &&` guard skipped the check entirely when the caller
+        // omitted the parameter, letting any authenticated user update any
+        // merchant's requests. Not-found (rather than forbidden) is returned so the
+        // response does not confirm that another tenant's record exists.
+        if (merchantId == null) {
+            throw new UnauthorizedException("merchantId is required to update a customer request");
+        }
+        if (!merchantId.equals(request.getMerchantId())) {
             throw new ResourceNotFoundException("Customer request not found ID: " + requestId);
         }
         request.setStatus(status.toUpperCase());

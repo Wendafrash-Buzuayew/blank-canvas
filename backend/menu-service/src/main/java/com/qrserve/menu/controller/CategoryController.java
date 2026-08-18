@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,6 +24,7 @@ public class CategoryController {
     private final MenuService menuService;
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
     @Operation(summary = "Create menu category")
     public ResponseEntity<CategoryEntity> createCategory(@Valid @RequestBody CreateCategoryRequest request) {
         return ResponseEntity.ok(menuService.createCategory(request));
@@ -35,6 +37,7 @@ public class CategoryController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
     @Operation(summary = "Update menu category")
     public ResponseEntity<CategoryEntity> updateCategory(@PathVariable Long id,
                                                           @Valid @RequestBody UpdateCategoryRequest request) {
@@ -42,6 +45,7 @@ public class CategoryController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
     @Operation(summary = "Delete menu category (cascades products)")
     public ResponseEntity<Void> deleteCategory(@PathVariable Long id) {
         menuService.deleteCategory(id);

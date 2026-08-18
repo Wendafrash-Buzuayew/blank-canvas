@@ -26,42 +26,127 @@ spring:
                 allowedHeaders: "*"
                 allowCredentials: true
 
+          # NOTE: resilience filters are applied per-route below rather than via
+          # default-filters, because the notification-service /ws/** route must
+          # NOT be wrapped — a CircuitBreaker around a long-lived WebSocket, and
+          # a Retry on the upgrade GET, both break the connection.
           routes:
-            # Auth Service Route
+            # Auth Service Route.
+            # /api/v1/auth/** is listed explicitly and FIRST so it cannot be
+            # swallowed by the merchant route's /api/v1/** catch-all below
+            # (routes match in declaration order).
             - id: auth-service
               uri: lb://auth-service
               predicates:
-                - Path=/api/auth/**
+                - Path=/api/auth/**, /api/v1/auth/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: default
+                    fallbackUri: forward:/fallback
+                - name: Retry
+                  args:
+                    retries: 2
+                    methods: GET
+                    backoff:
+                      firstBackoff: 50ms
+                      maxBackoff: 500ms
+                      factor: 2
 
             # Merchant Service Route (includes v1 public/waiter/table endpoints)
             - id: merchant-service
               uri: lb://merchant-service
               predicates:
                 - Path=/api/merchants/**, /api/branches/**, /api/tables/**, /api/waiters/**, /api/table-assignments/**, /api/customer-requests/**, /api/v1/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: default
+                    fallbackUri: forward:/fallback
+                - name: Retry
+                  args:
+                    retries: 2
+                    methods: GET
+                    backoff:
+                      firstBackoff: 50ms
+                      maxBackoff: 500ms
+                      factor: 2
 
             # Order Service Route
             - id: order-service
               uri: lb://order-service
               predicates:
                 - Path=/api/orders/**, /api/kitchen/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: default
+                    fallbackUri: forward:/fallback
+                - name: Retry
+                  args:
+                    retries: 2
+                    methods: GET
+                    backoff:
+                      firstBackoff: 50ms
+                      maxBackoff: 500ms
+                      factor: 2
 
             # Menu Service Route
             - id: menu-service
               uri: lb://menu-service
               predicates:
                 - Path=/api/categories/**, /api/products/**, /api/menu/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: default
+                    fallbackUri: forward:/fallback
+                - name: Retry
+                  args:
+                    retries: 2
+                    methods: GET
+                    backoff:
+                      firstBackoff: 50ms
+                      maxBackoff: 500ms
+                      factor: 2
 
             # QR Service Route
             - id: qr-service
               uri: lb://qr-service
               predicates:
                 - Path=/api/qr/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: default
+                    fallbackUri: forward:/fallback
+                - name: Retry
+                  args:
+                    retries: 2
+                    methods: GET
+                    backoff:
+                      firstBackoff: 50ms
+                      maxBackoff: 500ms
+                      factor: 2
 
             # Analytics Service Route
             - id: analytics-service
               uri: lb://analytics-service
               predicates:
                 - Path=/api/analytics/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: default
+                    fallbackUri: forward:/fallback
+                - name: Retry
+                  args:
+                    retries: 2
+                    methods: GET
+                    backoff:
+                      firstBackoff: 50ms
+                      maxBackoff: 500ms
+                      factor: 2
 
             # Notification Service Route (WebSocket)
             - id: notification-service
@@ -76,6 +161,13 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       timeout: 2000ms
+
+# Required even though the gateway does no QR work itself: ApiGatewayApplication
+# component-scans com.qrserve.shared.common (and the build adds shared:common to
+# every microservice), so QrSignatureService is instantiated here and fails fast
+# without this property.
+qr:
+  signature-secret: ${QR_SIGNATURE_SECRET}
 
 eureka:
   client:
@@ -104,12 +196,12 @@ management:
       show-details: when_authorized
   tracing:
     sampling:
-      probability: 1.0
+      probability: ${TRACE_SAMPLE_RATE:0.1}
 
 logging:
   pattern:
     level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
   level:
-    org.springframework.cloud.gateway: TRACE
-    org.springframework.security: TRACE
-    reactor.netty: DEBUG
+    org.springframework.cloud.gateway: ${GATEWAY_LOG_LEVEL:INFO}
+    org.springframework.security: ${SECURITY_LOG_LEVEL:INFO}
+    reactor.netty: ${NETTY_LOG_LEVEL:INFO}

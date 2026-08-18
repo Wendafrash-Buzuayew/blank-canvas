@@ -61,8 +61,18 @@ public class TableService {
                 .orElseThrow(() -> new ResourceNotFoundException("Table not found ID: " + id));
     }
 
-    public java.util.List<TableEntity> getAllTables() {
-        return tableRepository.findAll();
+    /**
+     * Lists tables, scoped to a merchant when one is supplied.
+     *
+     * <p>A null merchantId returns every table and is reserved for SUPER_ADMIN —
+     * the controller is responsible for pinning other roles to their own tenant.
+     * Filtering happens in the query rather than in the caller so another tenant's
+     * rows never leave the database.
+     */
+    public java.util.List<TableEntity> getAllTables(UUID merchantId) {
+        return merchantId != null
+                ? tableRepository.findByMerchantId(merchantId)
+                : tableRepository.findAll();
     }
 
     @Transactional

@@ -25,7 +25,10 @@ spec:
             - name: POSTGRES_USER
               value: "qrserve_user"
             - name: POSTGRES_PASSWORD
-              value: "qrserve_password"
+              valueFrom:
+                secretKeyRef:
+                  name: qrserve-secrets
+                  key: db-password
           volumeMounts:
             - name: init-scripts
               mountPath: /docker-entrypoint-initdb.d

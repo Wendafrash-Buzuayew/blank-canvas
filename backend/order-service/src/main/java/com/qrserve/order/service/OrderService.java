@@ -155,8 +155,18 @@ public class OrderService {
         return updated;
     }
 
-    public List<OrderEntity> getAllOrders() {
-        return orderRepository.findAll();
+    /**
+     * Lists orders, scoped to a merchant when one is supplied.
+     *
+     * <p>A null merchantId returns every order and is reserved for SUPER_ADMIN.
+     * Filtering is done in the query so another tenant's rows never leave the
+     * database — analytics-service previously fetched all orders and computed
+     * global revenue for every merchant.
+     */
+    public List<OrderEntity> getAllOrders(UUID merchantId) {
+        return merchantId != null
+                ? orderRepository.findByMerchantId(merchantId)
+                : orderRepository.findAll();
     }
 
     public OrderEntity getOrder(UUID orderId) {
