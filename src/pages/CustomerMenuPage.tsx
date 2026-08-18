@@ -18,6 +18,7 @@ import { CartSheet, type CartLine } from '../components/customer/CartSheet';
 import { OrderProgress } from '../components/customer/OrderProgress';
 import { ServiceDock } from '../components/customer/ServiceDock';
 import type { WaiterRequestType } from '../lib/api';
+import { currentTenantSlug, resolveMenuTarget } from '../lib/tenant';
 
 const MenuSkeleton: React.FC = () => (
   <div className="space-y-3" aria-hidden>
@@ -35,25 +36,34 @@ const MenuSkeleton: React.FC = () => (
 );
 
 export const CustomerMenuPage: React.FC = () => {
-  const { merchantSlug, branchSlug, tableNumber } = useParams<{
-    merchantSlug: string;
+  const params = useParams<{
+    merchantSlug?: string;
     branchSlug?: string;
-    tableNumber: string;
+    tableNumber?: string;
   }>();
   const [searchParams] = useSearchParams();
   const signature = searchParams.get('signature') || undefined;
   const isQrDemo = searchParams.get('demo') === 'qr';
   const [showQrOverlay, setShowQrOverlay] = useState(isQrDemo);
 
-  // Legacy QR links omit the branch slug; the backend contract expects one.
-  const effectiveBranchSlug = branchSlug || 'main';
+  /**
+   * The host label wins over the path parameter. On a tenant host the canonical
+   * URL is /menu/{branchSlug}/{tableNumber}, which React Router matches against
+   * /menu/:merchantSlug/:tableNumber - so without this the page would ask the
+   * backend to resolve a merchant named after the branch.
+   *
+   * Legacy path-form links omit the branch slug; resolveMenuTarget defaults it.
+   */
+  const hostSlug = currentTenantSlug();
+  const target = resolveMenuTarget(params, hostSlug);
+  const effectiveBranchSlug = target?.branchSlug ?? 'main';
 
   const {
     data: resolution,
     isLoading: resolving,
     error: resolveError,
     refetch: refetchResolution,
-  } = usePublicMenuResolution(merchantSlug, effectiveBranchSlug, tableNumber, signature);
+  } = usePublicMenuResolution(target?.merchantSlug, effectiveBranchSlug, target?.tableNumber, signature);
 
   const {
     data: menu,
@@ -181,6 +191,22 @@ export const CustomerMenuPage: React.FC = () => {
 
   /* ---------------- states ---------------- */
 
+  if (target?.hostMismatch) {
+    // The link named one restaurant and the address bar another. Serving the host
+    // silently would show the guest a different menu than the link promised, and
+    // the backend 403s the request anyway.
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-canvas p-6">
+        <div className="w-full max-w-sm rounded-3xl bg-surface p-8 text-center shadow-card">
+          <h1 className="text-lg font-semibold">This link is for a different restaurant</h1>
+          <p className="mt-2 text-sm text-muted">
+            Please scan the QR code on your table again.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (resolving) {
     return (
       <div className="min-h-screen bg-canvas px-5 pt-16">
@@ -202,7 +228,7 @@ export const CustomerMenuPage: React.FC = () => {
           </div>
           <h1 className="mt-4 font-display text-xl font-extrabold">We couldn’t open this table</h1>
           <p className="mt-2 text-sm text-muted">
-            The QR code for <strong className="text-ink">table {tableNumber}</strong> didn’t resolve. It may have been
+            The QR code for <strong className="text-ink">table {target?.tableNumber ?? '?'}</strong> didn’t resolve. It may have been
             replaced or the link is incomplete.
           </p>
           <button
@@ -233,7 +259,7 @@ export const CustomerMenuPage: React.FC = () => {
           <div className="rounded-3xl bg-white/5 p-4 text-left ring-1 ring-white/10">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/40">Detected</p>
             <p className="mt-1 font-display text-lg font-extrabold text-white">
-              {resolution.merchantName || merchantSlug}
+              {resolution.merchantName || target?.merchantSlug}
             </p>
             <p className="text-xs text-white/50">
               {resolution.branchName || effectiveBranchSlug} · Table {resolution.tableNumber}
@@ -263,7 +289,7 @@ export const CustomerMenuPage: React.FC = () => {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h1 className="truncate font-display text-2xl font-extrabold">
-                {resolution.merchantName || merchantSlug}
+                {resolution.merchantName || target?.merchantSlug}
               </h1>
               <p className="mt-1 flex items-center gap-1.5 text-xs text-white/60">
                 <MapPin className="h-3.5 w-3.5" aria-hidden />
