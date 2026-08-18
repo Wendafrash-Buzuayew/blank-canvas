@@ -43,6 +43,10 @@ app:
 
 qr:
   signature-secret: ${QR_SIGNATURE_SECRET}
+  # Verify-only. Set to the OUTGOING secret during a rotation so QR codes
+  # already printed onto table stands keep validating; clear it once
+  # reprinting is done. Signing always uses signature-secret above.
+  signature-secret-previous: ${QR_SIGNATURE_SECRET_PREVIOUS:}
 
 management:
   endpoints:
