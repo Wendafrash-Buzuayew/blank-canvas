@@ -69,11 +69,16 @@ export const CustomerMenuPage: React.FC = () => {
   const [bumpKey, setBumpKey] = useState(0);
   const [placedOrderId, setPlacedOrderId] = useState<string | null>(null);
   const [placedOrderNumber, setPlacedOrderNumber] = useState<string | null>(null);
+  /**
+   * Anonymous token returned with the order. A guest has no JWT, so the realtime
+   * handshake is rejected without this and the tracker below never goes live.
+   */
+  const [orderStreamToken, setOrderStreamToken] = useState<string | null>(null);
   const [requestSent, setRequestSent] = useState<WaiterRequestType | null>(null);
 
   const createOrder = useCreateOrder();
   const createRequest = useCreateTableRequest();
-  const { status: liveStatus, connection } = useOrderStream(placedOrderId);
+  const { status: liveStatus, connection } = useOrderStream(placedOrderId, orderStreamToken);
 
   const currency = resolution?.currency || 'ETB';
   const sectionRefs = useRef<Record<number, HTMLElement | null>>({});
@@ -141,6 +146,7 @@ export const CustomerMenuPage: React.FC = () => {
         onSuccess: (res) => {
           setPlacedOrderId(res.id);
           setPlacedOrderNumber(res.orderNumber);
+          setOrderStreamToken(res.streamToken ?? null);
           setCart([]);
           setCartOpen(false);
           window.scrollTo({ top: 0, behavior: 'smooth' });

@@ -10,6 +10,7 @@ import com.qrserve.order.repository.OrderRepository;
 import com.qrserve.shared.events.OrderCreatedEvent;
 import com.qrserve.shared.events.OrderStatusUpdatedEvent;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
+import com.qrserve.shared.security.JwtTokenProvider;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +44,7 @@ public class OrderService {
     private final OrderItemRepository orderItemRepository;
     private final OrderEventPublisher eventPublisher;
     private final RestTemplate restTemplate;
+    private final JwtTokenProvider tokenProvider;
 
     @Value("${services.merchant-service-url:http://localhost:8085}")
     private String merchantServiceUrl;
@@ -124,6 +126,10 @@ public class OrderService {
                 .status(savedOrder.getStatus())
                 .estimatedTime(maxPrepTime)
                 .totalAmount(calculatedTotal)
+                // Issued to every caller, authenticated or not: the guest who placed
+                // the order needs it to watch /topic/orders/{id}, and it grants
+                // nothing beyond that one order.
+                .streamToken(tokenProvider.generateOrderStreamToken(savedOrder.getId()))
                 .build();
     }
 

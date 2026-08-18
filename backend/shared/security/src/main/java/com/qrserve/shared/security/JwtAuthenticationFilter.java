@@ -34,7 +34,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = parseJwt(request);
 
-        if (token != null && jwtTokenProvider.validateToken(token)) {
+        // Only ACCESS tokens authenticate a REST request. A refresh token or an
+        // anonymous order-stream token is cryptographically valid but carries no
+        // authority, so it must not establish a SecurityContext — otherwise a
+        // guest's order-stream token would authenticate API calls. Leaving the
+        // context empty yields a normal 401/403 rather than an exception.
+        if (token != null && jwtTokenProvider.validateToken(token) && jwtTokenProvider.isAccessToken(token)) {
             String email = jwtTokenProvider.getUsernameFromToken(token);
             UserRole role = jwtTokenProvider.getRoleFromToken(token);
             UUID userId = jwtTokenProvider.getUserIdFromToken(token);

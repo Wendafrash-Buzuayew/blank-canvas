@@ -111,6 +111,12 @@ export interface CreateOrderResponse {
   status: string;
   estimatedTime: number;
   totalAmount: number;
+  /**
+   * Anonymous, short-lived token scoped to this one order. Pass it to
+   * useOrderStream so a guest with no account can subscribe to
+   * /topic/orders/{id}. Not an API credential.
+   */
+  streamToken?: string;
 }
 
 export interface TodayAnalyticsResponse {

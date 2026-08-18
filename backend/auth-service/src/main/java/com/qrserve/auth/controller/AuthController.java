@@ -13,7 +13,9 @@ import org.springframework.web.bind.annotation.*;
 import com.qrserve.auth.entity.UserEntity;
 import com.qrserve.auth.dto.CreateUserRequest;
 import com.qrserve.auth.dto.UserInfoResponse;
+import com.qrserve.shared.exceptions.UnauthorizedException;
 import com.qrserve.shared.security.UserPrincipal;
+import com.qrserve.shared.security.UserRole;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 
@@ -51,8 +53,10 @@ public class AuthController {
     @PostMapping("/users")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MERCHANT_OWNER')")
     @Operation(summary = "Admin/Owner creates a new user (Waiter, Kitchen, Branch Manager, etc.)")
-    public ResponseEntity<Map<String, Object>> createUser(@Valid @RequestBody CreateUserRequest request) {
-        UserEntity createdUser = authService.createUser(request);
+    public ResponseEntity<Map<String, Object>> createUser(
+            @Valid @RequestBody CreateUserRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        UserEntity createdUser = authService.createUser(request, principal);
         
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
             "message", "User created successfully",
@@ -68,10 +72,22 @@ public class AuthController {
     public ResponseEntity<List<UserInfoResponse>> listUsers(
             @RequestParam(required = false) UUID merchantId,
             @AuthenticationPrincipal UserPrincipal principal) {
-        // Non super-admins are always scoped to their own tenant.
-        UUID scope = principal != null && principal.getMerchantId() != null
-                ? principal.getMerchantId()
-                : merchantId;
+        if (principal == null) {
+            throw new UnauthorizedException("Authentication required");
+        }
+        // Only SUPER_ADMIN may choose a scope (including "all users"). The previous
+        // ternary fell through to the caller-supplied merchantId whenever the JWT
+        // had no merchantId, letting an owner list any merchant's users — and
+        // listUsers(null) returns findAll().
+        UUID scope;
+        if (principal.getRole() == UserRole.SUPER_ADMIN) {
+            scope = merchantId;
+        } else {
+            scope = principal.getMerchantId();
+            if (scope == null) {
+                throw new UnauthorizedException("Caller has no merchant scope");
+            }
+        }
         return ResponseEntity.ok(authService.listUsers(scope));
     }
 

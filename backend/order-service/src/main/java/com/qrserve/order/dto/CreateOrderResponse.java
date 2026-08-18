@@ -18,4 +18,11 @@ public class CreateOrderResponse {
     private String status;
     private Integer estimatedTime; // minutes
     private BigDecimal totalAmount;
+    /**
+     * Short-lived, anonymous token whose only capability is subscribing to
+     * {@code /topic/orders/{id}} for this order. A guest who scanned a QR code has
+     * no account, so without this they cannot receive live status updates at all.
+     * Not an API credential — see JwtTokenProvider.TYPE_ORDER_STREAM.
+     */
+    private String streamToken;
 }

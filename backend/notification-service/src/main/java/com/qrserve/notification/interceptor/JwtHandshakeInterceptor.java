@@ -12,6 +12,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Extracts and validates the JWT during the WebSocket handshake.
@@ -31,6 +32,8 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
     public static final String ATTR_USERNAME = "ws.username";
     public static final String ATTR_MERCHANT_ID = "ws.merchantId";
     public static final String ATTR_ROLE = "ws.role";
+    /** Set only for anonymous guest sessions; scopes the session to one order. */
+    public static final String ATTR_ORDER_ID = "ws.orderId";
 
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -42,7 +45,26 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
 
         String token = resolveToken(request);
         if (token == null || !jwtTokenProvider.validateToken(token)) {
-            log.warn("Rejected WebSocket handshake: missing or invalid JWT");
+            log.warn("Rejected WebSocket handshake: missing or invalid token");
+            return false;
+        }
+
+        // Anonymous guest tracking one order. Carries no role and no merchant, so
+        // StompAuthInterceptor will permit only /topic/orders/{that id}.
+        if (jwtTokenProvider.isOrderStreamToken(token)) {
+            UUID orderId = jwtTokenProvider.getOrderIdFromToken(token);
+            if (orderId == null) {
+                log.warn("Rejected WebSocket handshake: order-stream token without an orderId");
+                return false;
+            }
+            attributes.put(ATTR_USERNAME, "order:" + orderId);
+            attributes.put(ATTR_ORDER_ID, orderId.toString());
+            return true;
+        }
+
+        // Staff session. Refresh tokens are explicitly not accepted here.
+        if (!jwtTokenProvider.isAccessToken(token)) {
+            log.warn("Rejected WebSocket handshake: token type is not ACCESS");
             return false;
         }
 

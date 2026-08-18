@@ -11,6 +11,7 @@ import com.qrserve.shared.exceptions.ResourceNotFoundException;
 import com.qrserve.shared.exceptions.UnauthorizedException;
 import com.qrserve.shared.security.JwtTokenProvider;
 import com.qrserve.shared.security.UserPrincipal;
+import com.qrserve.shared.security.UserRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -53,13 +54,18 @@ public class AuthService {
         return LoginResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
-                .expiresIn(3600)
+                .expiresIn(tokenProvider.getAccessExpirationSeconds())
                 .build();
     }
 
     public LoginResponse refreshToken(RefreshRequest request) {
         if (!tokenProvider.validateToken(request.getRefreshToken())) {
             throw new UnauthorizedException("Invalid or expired refresh token");
+        }
+        // An access token was previously accepted here as a refresh token, so a
+        // stolen access token could be traded for a fresh pair indefinitely.
+        if (!tokenProvider.isRefreshToken(request.getRefreshToken())) {
+            throw new UnauthorizedException("Provided token is not a refresh token");
         }
 
         String email = tokenProvider.getUsernameFromToken(request.getRefreshToken());
@@ -79,14 +85,64 @@ public class AuthService {
         return LoginResponse.builder()
                 .accessToken(newAccessToken)
                 .refreshToken(newRefreshToken)
-                .expiresIn(3600)
+                .expiresIn(tokenProvider.getAccessExpirationSeconds())
                 .build();
     }
 
+    /** Lower rank = more privilege. */
+    private static int rankOf(UserRole role) {
+        return switch (role) {
+            case SUPER_ADMIN -> 0;
+            case MERCHANT_OWNER -> 1;
+            case BRANCH_MANAGER -> 2;
+            case WAITER, KITCHEN, CASHIER -> 3;
+            case CUSTOMER -> 4;
+        };
+    }
+
+    /**
+     * Whether {@code caller} may create a user holding {@code target}.
+     *
+     * <p>A caller may only create roles strictly less privileged than their own —
+     * not even a peer. Without this, {@code POST /api/auth/users} let any
+     * MERCHANT_OWNER mint a SUPER_ADMIN, i.e. full privilege escalation from the
+     * lowest role that can reach the endpoint.
+     *
+     * <p>Package-private so it can be unit-tested without a Spring context.
+     */
+    static boolean canAssignRole(UserRole caller, UserRole target) {
+        if (caller == null || target == null) {
+            return false;
+        }
+        if (caller == UserRole.SUPER_ADMIN) {
+            return true;
+        }
+        return rankOf(target) > rankOf(caller);
+    }
+
     @Transactional
-    public UserEntity createUser(CreateUserRequest request) {
+    public UserEntity createUser(CreateUserRequest request, UserPrincipal caller) {
+        if (caller == null || caller.getRole() == null) {
+            throw new UnauthorizedException("Authentication is required to create a user");
+        }
+        if (!canAssignRole(caller.getRole(), request.getRole())) {
+            throw new UnauthorizedException("Role " + caller.getRole()
+                    + " may not create a user with role " + request.getRole());
+        }
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new IllegalArgumentException("User with email " + request.getEmail() + " already exists.");
+        }
+
+        // Non-super-admins may only create users inside their own tenant; the
+        // caller-supplied merchantId is ignored for them.
+        UUID merchantId;
+        if (caller.getRole() == UserRole.SUPER_ADMIN) {
+            merchantId = request.getMerchantId();
+        } else {
+            merchantId = caller.getMerchantId();
+            if (merchantId == null) {
+                throw new UnauthorizedException("Caller has no merchant scope; cannot create users");
+            }
         }
 
         UserEntity user = UserEntity.builder()
@@ -94,7 +150,7 @@ public class AuthService {
                 .email(request.getEmail())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .role(request.getRole())
-                .merchantId(request.getMerchantId())
+                .merchantId(merchantId)
                 .enabled(true)
                 .build();
 
