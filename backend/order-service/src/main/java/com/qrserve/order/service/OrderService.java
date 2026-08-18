@@ -23,6 +23,10 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.qrserve.shared.exceptions.ServiceUnavailableException;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -180,53 +184,101 @@ public class OrderService {
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found ID: " + orderId));
     }
 
+    /**
+     * Fetches a table from merchant-service.
+     *
+     * <p>Every distinct failure used to collapse into {@code ResourceNotFoundException
+     * ("Table not found ID: n")} — a genuine 404, a connection refused, a 403, a 500
+     * and a response-mapping bug were indistinguishable to the caller, and the text
+     * was byte-identical to what merchant-service itself emits for a real 404. That
+     * made the failure undiagnosable from the API response alone.
+     *
+     * <p>Now: 404 means absent, 4xx/5xx and transport errors mean unavailable, and a
+     * malformed payload says so. The downstream URL and status are logged in all
+     * cases and the cause is preserved.
+     */
     private TableInfo fetchTable(Long tableId) {
+        String url = merchantServiceUrl + "/api/tables/" + tableId;
+        Map<String, Object> body;
         try {
-            String url = merchantServiceUrl + "/api/tables/" + tableId;
-             // Build headers containing the security token
             HttpEntity<Void> requestEntity = new HttpEntity<>(getAuthHeaders());
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                     url, HttpMethod.GET, requestEntity, new ParameterizedTypeReference<Map<String, Object>>() {});
-            
-            Map<String, Object> body = response.getBody();
-            if (body == null) {
-                throw new ResourceNotFoundException("Table not found ID: " + tableId);
-            }
-            
+            body = response.getBody();
+        } catch (HttpClientErrorException.NotFound e) {
+            log.warn("merchant-service reports table {} does not exist ({})", tableId, url);
+            throw new ResourceNotFoundException("Table not found ID: " + tableId);
+        } catch (HttpStatusCodeException e) {
+            // 401/403 here almost always means the inbound end-user token was absent
+            // or unprivileged — an anonymous order placement forwards no token.
+            log.error("merchant-service returned {} for {} — body: {}",
+                    e.getStatusCode(), url, e.getResponseBodyAsString());
+            throw new ServiceUnavailableException(
+                    "merchant-service returned " + e.getStatusCode() + " while resolving the table", e);
+        } catch (RestClientException e) {
+            log.error("merchant-service unreachable at {}", url, e);
+            throw new ServiceUnavailableException("merchant-service is unreachable", e);
+        }
+
+        if (body == null) {
+            log.error("merchant-service returned an empty body for {}", url);
+            throw new ServiceUnavailableException("merchant-service returned an empty table payload");
+        }
+
+        try {
             return new TableInfo(
                     ((Number) body.get("id")).longValue(),
                     ((Number) body.get("branchId")).longValue(),
                     UUID.fromString((String) body.get("merchantId")),
                     (String) body.get("tableNumber")
             );
-        } catch (Exception e) {
-            log.error("Failed to fetch table {} from merchant-service", tableId, e);
-            throw new ResourceNotFoundException("Table not found ID: " + tableId);
+        } catch (NullPointerException | ClassCastException | IllegalArgumentException e) {
+            // A row with a null branch_id / merchant_id, or a contract change, used to
+            // surface as "table not found" — which sent you looking in the wrong place.
+            log.error("Unexpected table payload from {}: {}", url, body, e);
+            throw new ServiceUnavailableException(
+                    "merchant-service returned an unexpected table payload for ID " + tableId, e);
         }
     }
 
+    /** See {@link #fetchTable} — same masking problem, same treatment. */
     private ProductInfo fetchProduct(Long productId) {
+        String url = menuServiceUrl + "/api/products/" + productId;
+        Map<String, Object> body;
         try {
-            String url = menuServiceUrl + "/api/products/" + productId;
-             // Build headers containing the security token
             HttpEntity<Void> requestEntity = new HttpEntity<>(getAuthHeaders());
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                     url, HttpMethod.GET, requestEntity, new ParameterizedTypeReference<Map<String, Object>>() {});
-            
-            Map<String, Object> body = response.getBody();
-            if (body == null) {
-                throw new ResourceNotFoundException("Product not found ID: " + productId);
-            }
-            
+            body = response.getBody();
+        } catch (HttpClientErrorException.NotFound e) {
+            log.warn("menu-service reports product {} does not exist ({})", productId, url);
+            throw new ResourceNotFoundException("Product not found ID: " + productId);
+        } catch (HttpStatusCodeException e) {
+            log.error("menu-service returned {} for {} — body: {}",
+                    e.getStatusCode(), url, e.getResponseBodyAsString());
+            throw new ServiceUnavailableException(
+                    "menu-service returned " + e.getStatusCode() + " while resolving a product", e);
+        } catch (RestClientException e) {
+            log.error("menu-service unreachable at {}", url, e);
+            throw new ServiceUnavailableException("menu-service is unreachable", e);
+        }
+
+        if (body == null) {
+            log.error("menu-service returned an empty body for {}", url);
+            throw new ServiceUnavailableException("menu-service returned an empty product payload");
+        }
+
+        try {
             return new ProductInfo(
                     ((Number) body.get("id")).longValue(),
                     (String) body.get("name"),
                     new BigDecimal(body.get("price").toString()),
                     body.get("preparationTime") != null ? ((Number) body.get("preparationTime")).intValue() : 15
             );
-        } catch (Exception e) {
-            log.error("Failed to fetch product {} from menu-service", productId, e);
-            throw new ResourceNotFoundException("Product not found ID: " + productId);
+        } catch (NullPointerException | ClassCastException | IllegalArgumentException e) {
+            log.error("Unexpected product payload from {}: {}", url, body, e);
+            throw new ServiceUnavailableException(
+                    "menu-service returned an unexpected product payload for ID " + productId, e);
         }
     }
 
