@@ -168,6 +168,12 @@ spring:
 # codes that point at the wrong host. A wrong-but-plausible printed QR code is
 # discovered by a customer holding a phone; a startup failure is discovered by
 # whoever ran the deploy.
+# Used by TenantSlugResolver for slug -> merchantId lookups on a cache miss. A
+# configured URL rather than lb:// so tenant resolution, which runs ahead of
+# routing on every cache-missing request, does not depend on load-balancer state.
+services:
+  merchant-service-url: ${MERCHANT_SERVICE_URL:http://localhost:8085}
+
 app:
   public-base-domain: ${PUBLIC_BASE_DOMAIN}
   public-url-scheme: ${PUBLIC_URL_SCHEME:https}

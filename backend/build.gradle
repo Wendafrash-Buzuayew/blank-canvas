@@ -232,6 +232,12 @@ project(':api-gateway') {
         implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
         implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
         implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-reactor-resilience4j'
+
+        // The tenant filter tests use MockServerWebExchange and MockServerHttpRequest.
+        // Those live in spring-test, which spring-boot-starter-test already provides
+        // via the subprojects block, but they operate on WebFlux server types that
+        // must be present at test compile time too.
+        testImplementation 'org.springframework.boot:spring-boot-starter-webflux'
     }
 
     // Explicitly prevent Spring MVC from entering the Gateway classpath. Both

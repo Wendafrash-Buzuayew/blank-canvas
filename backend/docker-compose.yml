@@ -218,6 +218,7 @@ services:
       - QR_SIGNATURE_SECRET_PREVIOUS=${QR_SIGNATURE_SECRET_PREVIOUS:-}
       - PUBLIC_BASE_DOMAIN=${PUBLIC_BASE_DOMAIN:?PUBLIC_BASE_DOMAIN must be set}
       - PUBLIC_URL_SCHEME=${PUBLIC_URL_SCHEME:-https}
+      - MERCHANT_SERVICE_URL=http://merchant-service:8085
       - REDIS_HOST=host.docker.internal
       - REDIS_PORT=6379
       - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
