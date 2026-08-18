@@ -253,7 +253,10 @@ export const CustomerMenuPage: React.FC = () => {
   /* ---------------- menu ---------------- */
 
   return (
-    <div className="min-h-screen bg-canvas pb-36">
+    // data-view="customer" activates --customer-accent-warm, which is the third
+    // stop of --gradient-brand. It is scoped rather than global because the value
+    // is perceptually identical to --color-kds-prep.
+    <div data-view="customer" className="min-h-screen bg-canvas pb-36">
       {/* Header */}
       <header className="bg-ink px-5 pb-8 pt-7 text-white">
         <div className="mx-auto max-w-2xl">
@@ -380,7 +383,7 @@ export const CustomerMenuPage: React.FC = () => {
                   return (
                     <article
                       key={item.id}
-                      className={`flex gap-3 rounded-3xl bg-surface p-3 shadow-card transition-shadow ${
+                      className={`card-surface flex gap-3 p-3 transition-shadow ${
                         soldOut ? 'opacity-90' : ''
                       }`}
                     >
@@ -406,13 +409,13 @@ export const CustomerMenuPage: React.FC = () => {
 
                       <div className="flex min-w-0 flex-1 flex-col justify-between">
                         <div>
-                          <h3 className="text-[15px] font-bold leading-tight">{item.name}</h3>
+                          <h3 className="text-base font-bold leading-tight">{item.name}</h3>
                           {item.description && (
                             <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted">{item.description}</p>
                           )}
                         </div>
                         <div className="mt-2 flex items-end justify-between gap-2">
-                          <span className="font-display text-base font-extrabold tabular-nums">
+                          <span className="font-display text-base font-extrabold text-brand-dark tabular-nums">
                             {Number(item.price).toLocaleString()}{' '}
                             <span className="text-xs font-semibold text-muted">{currency}</span>
                           </span>
