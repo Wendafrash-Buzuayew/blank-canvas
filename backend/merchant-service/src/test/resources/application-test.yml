@@ -1,0 +1,50 @@
+spring:
+  datasource:
+    # H2 in PostgreSQL compatibility mode: the entities use PostgreSQL naming and a
+    # UUID primary key, and "tables" is a reserved word that needs the non-keyword
+    # setting to be creatable at all.
+    url: jdbc:h2:mem:merchant-it;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=TABLES,USER,VALUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ''
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+    show-sql: false
+  flyway:
+    enabled: false
+  cloud:
+    discovery:
+      enabled: false
+
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+
+jwt:
+  secret: dGVzdC1zZWNyZXQtdmFsdWUtd2l0aC1lbm91Z2gtbGVuZ3RoLWZvci1oczI1Ng==
+  access-expiration-ms: 3600000
+  refresh-expiration-ms: 604800000
+
+qr:
+  signature-secret: test-qr-master-secret
+  signature-secret-previous: ''
+
+app:
+  public-base-domain: qrserve.test
+  public-url-scheme: https
+
+management:
+  tracing:
+    sampling:
+      probability: 0.0
+
+logging:
+  level:
+    org.springframework.web: WARN
+    org.hibernate: WARN

@@ -1055,6 +1055,8 @@ This task establishes the harness. Tasks 5, 6 and 12 extend it.
 
 **Boot notes for the implementer.** merchant-service pulls in Eureka, Kafka and Redis. The test profile disables Eureka, and `MerchantEventPublisher` is replaced with a mock because `KafkaTemplate.send` would otherwise block trying to reach a broker that is not running. Redis auto-configuration creates its connection factory lazily and is never touched by these endpoints, so it needs no stub.
 
+**Why `MockMvc` is built by hand.** Spring Boot 4 split `@AutoConfigureMockMvc` out into a `spring-boot-webmvc-test-autoconfigure` module that this project does not depend on — `spring-boot-starter-security-test` brings `spring-boot-security-test`, which is not the same thing. Rather than add a dependency, build `MockMvc` from the `WebApplicationContext` with `SecurityMockMvcConfigurers.springSecurity()`, which needs only `spring-test` and `spring-security-test`. Both are already on the test path. The `springSecurity()` call is not optional: without it the filter chain is absent, every request runs unauthorized, and the cross-tenant assertions pass for the wrong reason.
+
 - [ ] **Step 1: Write the test profile**
 
 Create `backend/merchant-service/src/test/resources/application-test.yml`:
@@ -1128,9 +1130,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
+import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 import java.util.UUID;
 
@@ -1151,15 +1156,28 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * merchant B's data". New tenant-scoped endpoints belong here.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
-@org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 @ActiveProfiles("test")
 class TenantIsolationIT {
 
     static final String MERCHANT_A_NAME = "Sunrise Coffee";
     static final String MERCHANT_B_NAME = "Blue Nile Restaurant";
 
+    /**
+     * MockMvc is built by hand rather than injected via {@code @AutoConfigureMockMvc}.
+     * Spring Boot 4 moved that annotation into a separate
+     * {@code spring-boot-webmvc-test-autoconfigure} module which this project does
+     * not depend on, and building it here needs only {@code spring-test} plus
+     * {@code spring-security-test}, both already present.
+     *
+     * <p>It also makes the important part explicit: {@code springSecurity()} installs
+     * the real filter chain. Without it every assertion below would exercise the
+     * controller with no authorization at all and pass for the wrong reason.
+     */
     @Autowired
+    WebApplicationContext webApplicationContext;
+
     MockMvc mockMvc;
+
     @Autowired
     JwtTokenProvider jwtTokenProvider;
     @Autowired
@@ -1185,6 +1203,10 @@ class TenantIsolationIT {
 
     @BeforeEach
     void seed() {
+        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
+                .apply(SecurityMockMvcConfigurers.springSecurity())
+                .build();
+
         tableRepository.deleteAll();
         branchRepository.deleteAll();
         merchantRepository.deleteAll();
