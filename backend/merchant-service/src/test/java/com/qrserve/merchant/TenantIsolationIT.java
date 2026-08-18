@@ -3,6 +3,7 @@ package com.qrserve.merchant;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.qrserve.merchant.dto.CreateBranchRequest;
 import com.qrserve.merchant.dto.CreateMerchantRequest;
+import com.qrserve.merchant.dto.CreateTableRequest;
 import com.qrserve.merchant.entity.BranchEntity;
 import com.qrserve.merchant.entity.MerchantEntity;
 import com.qrserve.merchant.entity.TableEntity;
@@ -294,6 +295,39 @@ class TenantIsolationIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(branchJson(merchantA.getId(), "Bad", "!!!")))
                 .andExpect(status().isBadRequest());
+    }
+
+    // ---- the generated QR URL must resolve through the endpoint it points at ----
+
+    @Test
+    @DisplayName("a generated QR URL resolves through the public endpoint it points at")
+    void generatedQrUrlResolves() throws Exception {
+        CreateTableRequest req = new CreateTableRequest();
+        req.setBranchId(branchA.getId());
+        req.setTableNumber("9");
+        req.setCapacity(2);
+
+        String body = mockMvc.perform(post("/api/tables")
+                        .header(HttpHeaders.AUTHORIZATION, tokenFor(merchantA.getId(), UserRole.MERCHANT_OWNER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        String qrUrl = objectMapper.readTree(body).get("qrUrl").asText();
+        java.net.URI uri = java.net.URI.create(qrUrl);
+        String signature = uri.getQuery().substring("signature=".length());
+
+        // Feed the generated URL's own path and signature straight back into the
+        // resolver. This is the assertion that would have caught defect 1, and it is
+        // worth more than the unit test because it crosses the generator/resolver
+        // boundary - the exact seam the two copies of the format drifted across.
+        mockMvc.perform(get("/api/v1/public/menu/" + merchantA.getSlug()
+                        + uri.getPath().substring("/menu".length()))
+                        .param("signature", signature))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.merchantId").value(merchantA.getId().toString()))
+                .andExpect(jsonPath("$.tableNumber").value("9"));
     }
 
     // ---- merchant slug: owner-supplied, validated, permanent ----
