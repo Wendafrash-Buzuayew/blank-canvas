@@ -11,6 +11,7 @@ import com.qrserve.merchant.repository.BranchRepository;
 import com.qrserve.merchant.repository.MerchantRepository;
 import com.qrserve.merchant.repository.TableRepository;
 import com.qrserve.merchant.service.MerchantEventPublisher;
+import com.qrserve.merchant.service.TenantCacheInvalidator;
 import com.qrserve.shared.security.JwtTokenProvider;
 import com.qrserve.shared.security.UserPrincipal;
 import com.qrserve.shared.security.UserRole;
@@ -88,6 +89,13 @@ class TenantIsolationIT {
      */
     @MockitoBean
     MerchantEventPublisher merchantEventPublisher;
+
+    /**
+     * Redis is not running under test. The invalidator swallows the failure, but
+     * without this mock every merchant creation still pays a socket timeout first.
+     */
+    @MockitoBean
+    TenantCacheInvalidator tenantCacheInvalidator;
 
     MerchantEntity merchantA;
     MerchantEntity merchantB;
@@ -316,6 +324,43 @@ class TenantIsolationIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(branchJson(merchantA.getId(), "Bad", "!!!")))
                 .andExpect(status().isBadRequest());
+    }
+
+    // ---- GET /api/v1/public/tenants/by-slug/{slug} — the gateway's lookup ----
+
+    @Test
+    @DisplayName("a known slug resolves to its merchant id without a token")
+    void slugResolvesAnonymously() throws Exception {
+        // The gateway calls this before it has seen any JWT, so it must be public.
+        mockMvc.perform(get("/api/v1/public/tenants/by-slug/sunrise"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.merchantId").value(merchantA.getId().toString()))
+                .andExpect(jsonPath("$.slug").value("sunrise"))
+                .andExpect(jsonPath("$.name").value(MERCHANT_A_NAME));
+    }
+
+    @Test
+    @DisplayName("an unknown slug is 404 and never falls back to a default tenant")
+    void unknownSlugResolutionIsNotFound() throws Exception {
+        mockMvc.perform(get("/api/v1/public/tenants/by-slug/no-such-tenant"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("a reserved label is 404, so admin. can never resolve as a tenant")
+    void reservedLabelDoesNotResolve() throws Exception {
+        // Belt and braces: merchant creation already rejects the slug "admin", and
+        // this stops the label resolving even if such a row existed already.
+        mockMvc.perform(get("/api/v1/public/tenants/by-slug/admin"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("resolution is case-insensitive, because hostnames are")
+    void resolutionIsCaseInsensitive() throws Exception {
+        mockMvc.perform(get("/api/v1/public/tenants/by-slug/SUNRISE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.slug").value("sunrise"));
     }
 
     // ---- the generated QR URL must resolve through the endpoint it points at ----

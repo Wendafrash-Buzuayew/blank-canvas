@@ -18,6 +18,7 @@ import java.util.UUID;
 public class MerchantService {
 
     private final MerchantRepository merchantRepository;
+    private final TenantCacheInvalidator tenantCacheInvalidator;
 
     /**
      * Highest suffix tried before giving up. Ten near-identical names is a strong
@@ -41,7 +42,13 @@ public class MerchantService {
                 .category(request.getCategory())
                 .build();
 
-        return merchantRepository.save(merchant);
+        MerchantEntity saved = merchantRepository.save(merchant);
+
+        // A bot probing this subdomain before the tenant existed leaves a negative
+        // cache entry that would otherwise 404 the new owner's first visit to
+        // their own site.
+        tenantCacheInvalidator.invalidate(saved.getSlug());
+        return saved;
     }
 
     /**
@@ -100,6 +107,10 @@ public class MerchantService {
         merchant.setCity(request.getCity());
         merchant.setAddress(request.getAddress());
         merchant.setCategory(request.getCategory());
+
+        // No cache invalidation here: the slug is the only field the gateway caches
+        // and it is immutable (see the guard above). If renames are ever allowed,
+        // this is one of the two places that has to change.
         return merchantRepository.save(merchant);
     }
 
