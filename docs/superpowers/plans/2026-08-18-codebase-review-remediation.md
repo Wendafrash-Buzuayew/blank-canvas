@@ -60,11 +60,28 @@ compile of all 131 backend sources (0 errors) plus `npx tsc --noEmit` (0 errors)
 | A | STOMP destination authz, guest order-stream tokens, token type claims, role hierarchy | `07334ed` |
 | B | Reconnect resync, event dedupe, narrower invalidation | `07334ed` |
 | D1 | KDS rebuilt for distance reading; fixed permanently-empty Incoming column | `06e286e` |
+| D2 | Waiter views on the design system; oldest-first triage + age-driven urgency; third `CREATED` status bug fixed | `2986089` |
+| D3 | Customer menu refinements; `data-view` scope activated; dead component island removed | `2986089` |
 | E | Runtime smoke harness written (`backend/scripts/smoke-tenant-isolation.sh`) — NOT yet executed | `52e2eef` |
 
-**Still open:** Phase D2 (waiter dashboard restyle), D3 (customer menu restyle), and
-executing Phase E against a running stack. Everything else in the "Not yet
-implemented" list above remains accurate.
+**Still open:**
+- Executing Phase E against a running stack (needs Postgres + Kafka + Redis; Gradle
+  cannot start in the authoring environment).
+- **`#E60028` is hardcoded ~130 times across ~30 files** (admin, merchant, landing,
+  auth, nav, sidebar, ui). These bypass `--color-brand` entirely, so a brand change
+  would not propagate, and several pair it with raw `red-*` tints that no longer
+  match `--color-danger` after the collision fix. A mechanical migration to
+  `text-brand` / `bg-brand` / `ring-brand`, but it touches ~30 files and deserves
+  its own review.
+- `src/pages/WaiterDashboard.tsx` is dead code (nothing imports it) and duplicates
+  `WaiterDashboardPage.tsx` with the old hardcoded palette. Left in place because
+  deleting a page is the owner's call.
+- Task 8.2 status-enum validation is now more valuable than when it was written:
+  three separate places were found using status names the backend never emits
+  (`CREATED`, `SERVED`). Binding to an enum would have caught all three at compile
+  or request time.
+
+Everything else in the "Not yet implemented" list above remains accurate.
 
 ### Findings discovered during execution that were NOT in the review
 
