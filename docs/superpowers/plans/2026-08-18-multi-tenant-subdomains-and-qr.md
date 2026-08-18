@@ -10,6 +10,71 @@
 
 **Spec:** [`docs/superpowers/specs/2026-08-18-multi-tenant-subdomain-qr-design.md`](../specs/2026-08-18-multi-tenant-subdomain-qr-design.md)
 
+## Execution status
+
+**All 14 tasks implemented and committed** on `fix/codebase-review-remediation`,
+2026-08-19. Commits `5907b3a` through `ad1df77`.
+
+### Verification actually performed
+
+`./gradlew` **cannot run in the environment this was executed in**: the daemon
+fails with `IOException: Unable to establish loopback connection`, and
+`--no-daemon` still forks one. Every variant was tried. The user has previously
+run `./gradlew build` successfully on their own machine, so this is
+environment-specific.
+
+Verification therefore used a hand-built harness — `javac` plus a JUnit Platform
+launcher over a classpath assembled from the populated Gradle dependency cache,
+filtered to the newest version of each artifact so the Boot 4.1 / Spring 7 /
+JUnit 6.0.3 generation wins rather than the Boot 3.4 jars also present.
+
+| Suite | Result |
+|---|---|
+| `shared:common` — `SlugsTest`, `PublicMenuUrlTest`, `QrSignatureServiceTest` | 33/33 |
+| `shared:security` — `TenantContextFilterTest`, `JwtTokenProviderTokenTypeTest` | 18/18 |
+| `api-gateway` — `TenantHostTest`, `TenantResolutionGlobalFilterTest` | 18/18 |
+| `merchant-service` — `TenantIsolationIT`, `TableQrUrlTest` | 34/34 |
+| `qr-service` — `QrTargetUrlTest` | 4/4 |
+| frontend — `npm run test:unit` | 14/14 |
+| frontend — `tsc --noEmit`, `npm run build` | clean |
+
+All four non-vacuity checks in the Verification summary were performed and each
+named test failed with the protection removed, then passed once restored.
+
+**`./gradlew build` has NOT been run and remains the user's step.** The harness
+imposes its own dependency resolution, so it cannot catch dependency-alignment
+problems — exactly the class of failure that broke `:shared:security:test`
+earlier on this branch.
+
+### Deviations from the plan as written
+
+1. **`MockMvc` is built by hand** in `TenantIsolationIT` rather than injected via
+   `@AutoConfigureMockMvc`. Boot 4 moved that annotation into a
+   `spring-boot-webmvc-test-autoconfigure` module this project does not depend on.
+   Building it from the `WebApplicationContext` with
+   `SecurityMockMvcConfigurers.springSecurity()` needs only `spring-test` and
+   `spring-security-test`, both already present. Task 4 was updated to match.
+2. **`k8s/config.yml` added** (not in the plan). Task 2 referenced a
+   `qrserve-config` ConfigMap that did not exist; without it the pods fail with
+   `CreateContainerConfigError`.
+3. **`TenantSlugResolver.lookup` uses `exchangeToMono`** rather than
+   `.retrieve().body(...)`, which the plan flagged as needing confirmation against
+   the actual Spring version. `exchangeToMono` compiles on 6.x and 7.x alike and
+   lets a 404 be treated as the ordinary "no such tenant" answer.
+4. **`PUBLIC_URL_SCHEME` and `QR_SIGNATURE_SECRET_PREVIOUS`** were plumbed into
+   `.env.example` / compose in the Task 2 commit rather than Task 3, because they
+   share the same anchor lines.
+5. **`src/lib/tenant.ts` guards `import.meta.env`.** It is imported by
+   `tenant.test.ts` under plain node via `tsx`, where `import.meta.env` is
+   undefined and reading it unguarded throws at import time.
+
+### Still open
+
+Unchanged from "What this plan deliberately does not do" and "Open items carried
+from the spec" below. Nothing there was silently absorbed.
+
+---
+
 ## Global Constraints
 
 - **Host pattern:** `{merchantSlug}.qrserve.safaricom.et`. The domain is never hardcoded — it comes from `app.public-base-domain` / env `PUBLIC_BASE_DOMAIN`.
@@ -73,7 +138,7 @@
 
 `IllegalArgumentException` is deliberate: `GlobalExceptionHandler` already maps it to **400** carrying the exception's own message, and `shared:common` cannot depend on `shared:exceptions` (that dependency runs the other way).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `backend/shared/common/src/test/java/com/qrserve/shared/common/SlugsTest.java`:
 
@@ -191,7 +256,7 @@ class SlugsTest {
 }
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 ```bash
 cd backend && ./gradlew :shared:common:test --tests 'com.qrserve.shared.common.SlugsTest'
@@ -199,7 +264,7 @@ cd backend && ./gradlew :shared:common:test --tests 'com.qrserve.shared.common.S
 
 Expected: compilation failure — `cannot find symbol: class Slugs`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `backend/shared/common/src/main/java/com/qrserve/shared/common/Slugs.java`:
 
@@ -352,7 +417,7 @@ public final class Slugs {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 ```bash
 cd backend && ./gradlew :shared:common:test --tests 'com.qrserve.shared.common.SlugsTest'
@@ -360,7 +425,7 @@ cd backend && ./gradlew :shared:common:test --tests 'com.qrserve.shared.common.S
 
 Expected: `BUILD SUCCESSFUL`, 13 tests passing.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/shared/common/src/main/java/com/qrserve/shared/common/Slugs.java backend/shared/common/src/test/java/com/qrserve/shared/common/SlugsTest.java
@@ -390,7 +455,7 @@ git commit -m "feat(tenancy): add Slugs, the single DNS-label-safe slug normalis
 
 **Why `app.public-base-domain` has no default:** a default would silently produce wrong QR codes, which is precisely defect 1 and 2 recurring. It follows the fail-fast convention already established for `jwt.secret` and `qr.signature-secret`. Because `PublicMenuUrl` is a `@Component` in `com.qrserve.shared.common`, all 8 component-scanning services instantiate it — so the property must land in all 8 YAML files in this same commit or those services will not start. `discovery-service` does not component-scan `shared.common` and needs nothing.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `backend/shared/common/src/test/java/com/qrserve/shared/common/PublicMenuUrlTest.java`:
 
@@ -481,7 +546,7 @@ class PublicMenuUrlTest {
 }
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 ```bash
 cd backend && ./gradlew :shared:common:test --tests 'com.qrserve.shared.common.PublicMenuUrlTest'
@@ -489,7 +554,7 @@ cd backend && ./gradlew :shared:common:test --tests 'com.qrserve.shared.common.P
 
 Expected: compilation failure — `cannot find symbol: class PublicMenuUrl`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `backend/shared/common/src/main/java/com/qrserve/shared/common/PublicMenuUrl.java`:
 
@@ -598,7 +663,7 @@ public class PublicMenuUrl {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 ```bash
 cd backend && ./gradlew :shared:common:test --tests 'com.qrserve.shared.common.PublicMenuUrlTest'
@@ -606,7 +671,7 @@ cd backend && ./gradlew :shared:common:test --tests 'com.qrserve.shared.common.P
 
 Expected: `BUILD SUCCESSFUL`, 9 tests passing.
 
-- [ ] **Step 5: Add the property to all 8 component-scanning services**
+- [x] **Step 5: Add the property to all 8 component-scanning services**
 
 In each of these files, add the `app` block immediately above the existing `qr:` block:
 
@@ -631,7 +696,7 @@ app:
   public-url-scheme: ${PUBLIC_URL_SCHEME:https}
 ```
 
-- [ ] **Step 6: Add the variable to the three deployment surfaces**
+- [x] **Step 6: Add the variable to the three deployment surfaces**
 
 In `backend/.env.example`, after the `QR_SIGNATURE_SECRET=` line:
 
@@ -663,7 +728,7 @@ In `backend/k8s/deployment.yml`, add to the `env:` list of every container that 
               key: PUBLIC_BASE_DOMAIN
 ```
 
-- [ ] **Step 7: Verify every YAML file still parses**
+- [x] **Step 7: Verify every YAML file still parses**
 
 ```bash
 cd backend && python -c "
@@ -676,7 +741,7 @@ for f in glob.glob('*/src/main/resources/application.yml') + ['docker-compose.ym
 
 Expected: `ok` for every file. A YAML indentation slip here is otherwise only discovered at deploy time.
 
-- [ ] **Step 8: Confirm the property is present in exactly the services that need it**
+- [x] **Step 8: Confirm the property is present in exactly the services that need it**
 
 ```bash
 cd backend && grep -l "public-base-domain" */src/main/resources/application.yml | wc -l
@@ -684,7 +749,7 @@ cd backend && grep -l "public-base-domain" */src/main/resources/application.yml 
 
 Expected: `8`. If it prints 9, `discovery-service` was edited unnecessarily; if fewer, a service will fail to start.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add backend/shared/common/src/main/java/com/qrserve/shared/common/PublicMenuUrl.java \
@@ -720,7 +785,7 @@ Existing callers (`PublicMenuResolutionService:51`, `PublicCustomerRequestContro
 
 **Note on the migration:** signatures generated before this change will no longer validate. That is acceptable and costs nothing — no QR code in existence carries a signature at all. `grep -rn "generateSignature"` finds **no production caller**; the signature was validate-only, which is why the endpoints remained effectively unsigned. Task 7 is what starts emitting them.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `backend/shared/common/src/test/java/com/qrserve/shared/common/QrSignatureServiceTest.java`:
 
@@ -837,7 +902,7 @@ class QrSignatureServiceTest {
 }
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 ```bash
 cd backend && ./gradlew :shared:common:test --tests 'com.qrserve.shared.common.QrSignatureServiceTest'
@@ -845,7 +910,7 @@ cd backend && ./gradlew :shared:common:test --tests 'com.qrserve.shared.common.Q
 
 Expected: compilation failure — the constructor takes one argument, not two.
 
-- [ ] **Step 3: Rewrite `QrSignatureService`**
+- [x] **Step 3: Rewrite `QrSignatureService`**
 
 Replace `backend/shared/common/src/main/java/com/qrserve/shared/common/QrSignatureService.java` entirely:
 
@@ -983,7 +1048,7 @@ public class QrSignatureService {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 ```bash
 cd backend && ./gradlew :shared:common:test
@@ -991,7 +1056,7 @@ cd backend && ./gradlew :shared:common:test
 
 Expected: `BUILD SUCCESSFUL`. All three `shared:common` test classes pass (33 tests total).
 
-- [ ] **Step 5: Add the rotation property to the 8 services and `.env.example`**
+- [x] **Step 5: Add the rotation property to the 8 services and `.env.example`**
 
 In each of the 8 `application.yml` files, extend the existing `qr:` block:
 
@@ -1011,7 +1076,7 @@ In `backend/.env.example`:
 QR_SIGNATURE_SECRET_PREVIOUS=
 ```
 
-- [ ] **Step 6: Verify the YAML and confirm the rotation path is wired**
+- [x] **Step 6: Verify the YAML and confirm the rotation path is wired**
 
 ```bash
 cd backend && python -c "
@@ -1024,7 +1089,7 @@ print('yaml ok')
 
 Expected: `yaml ok`, then 8 lines each ending `:1`.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add backend/shared/common/src/main/java/com/qrserve/shared/common/QrSignatureService.java \
@@ -1057,7 +1122,7 @@ This task establishes the harness. Tasks 5, 6 and 12 extend it.
 
 **Why `MockMvc` is built by hand.** Spring Boot 4 split `@AutoConfigureMockMvc` out into a `spring-boot-webmvc-test-autoconfigure` module that this project does not depend on — `spring-boot-starter-security-test` brings `spring-boot-security-test`, which is not the same thing. Rather than add a dependency, build `MockMvc` from the `WebApplicationContext` with `SecurityMockMvcConfigurers.springSecurity()`, which needs only `spring-test` and `spring-security-test`. Both are already on the test path. The `springSecurity()` call is not optional: without it the filter chain is absent, every request runs unauthorized, and the cross-tenant assertions pass for the wrong reason.
 
-- [ ] **Step 1: Write the test profile**
+- [x] **Step 1: Write the test profile**
 
 Create `backend/merchant-service/src/test/resources/application-test.yml`:
 
@@ -1107,7 +1172,7 @@ logging:
     org.springframework.web: WARN
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `backend/merchant-service/src/test/java/com/qrserve/merchant/TenantIsolationIT.java`:
 
@@ -1334,7 +1399,7 @@ class TenantIsolationIT {
 }
 ```
 
-- [ ] **Step 3: Run the test**
+- [x] **Step 3: Run the test**
 
 ```bash
 cd backend && ./gradlew :merchant-service:test --tests 'com.qrserve.merchant.TenantIsolationIT'
@@ -1344,7 +1409,7 @@ Expected: **the seeding fails** — `branchB` violates the global unique constra
 
 If any *other* assertion also fails, stop and report it: that is a live cross-tenant hole and it is more urgent than the rest of this plan.
 
-- [ ] **Step 4: Commit the failing gate**
+- [x] **Step 4: Commit the failing gate**
 
 Commit it red, with the reason in the message, so the next task's fix has something to turn green.
 
@@ -1375,7 +1440,7 @@ to name a branch 'Main' collides with the first. Task 5 fixes the schema."
 - Consumes: `Slugs.toPathSlug(String)` from Task 1.
 - Produces: `BranchService.createBranch(CreateBranchRequest)` — unchanged signature, now honours `request.getSlug()` and normalises it; throws `IllegalArgumentException` (400) on an unusable slug and `BusinessException` (400) on a duplicate within the merchant.
 
-- [ ] **Step 1: Add the failing tests to the isolation gate**
+- [x] **Step 1: Add the failing tests to the isolation gate**
 
 Append these to `TenantIsolationIT` (they need the imports `com.qrserve.merchant.dto.CreateBranchRequest`, `com.fasterxml.jackson.databind.ObjectMapper` — note merchant-service is on Jackson 2 for `spring-boot-starter-webmvc`; if the import fails, use `tools.jackson.databind.ObjectMapper`, and `org.springframework.http.MediaType`, plus `post` from `MockMvcRequestBuilders`):
 
@@ -1452,7 +1517,7 @@ Append these to `TenantIsolationIT` (they need the imports `com.qrserve.merchant
     }
 ```
 
-- [ ] **Step 2: Run to verify the new tests fail**
+- [x] **Step 2: Run to verify the new tests fail**
 
 ```bash
 cd backend && ./gradlew :merchant-service:test --tests 'com.qrserve.merchant.TenantIsolationIT'
@@ -1460,7 +1525,7 @@ cd backend && ./gradlew :merchant-service:test --tests 'com.qrserve.merchant.Ten
 
 Expected: seeding still fails on the global unique constraint, so every test errors.
 
-- [ ] **Step 3: Change the schema on the entity**
+- [x] **Step 3: Change the schema on the entity**
 
 In `backend/merchant-service/src/main/java/com/qrserve/merchant/entity/BranchEntity.java`, replace the `@Table` annotation and the `slug` column, and remove the slug derivation from `@PrePersist`:
 
@@ -1498,7 +1563,7 @@ public class BranchEntity {
     }
 ```
 
-- [ ] **Step 4: Honour and validate the supplied slug in `BranchService`**
+- [x] **Step 4: Honour and validate the supplied slug in `BranchService`**
 
 Replace `createBranch` in `backend/merchant-service/src/main/java/com/qrserve/merchant/service/BranchService.java`, and add the imports `com.qrserve.shared.common.Slugs`, `com.qrserve.shared.exceptions.BusinessException`:
 
@@ -1536,7 +1601,7 @@ Replace `createBranch` in `backend/merchant-service/src/main/java/com/qrserve/me
     }
 ```
 
-- [ ] **Step 5: Write the manual migration**
+- [x] **Step 5: Write the manual migration**
 
 `spring.flyway.enabled` is `false` and `ddl-auto` is `update`, which **adds** constraints but never drops the existing global unique index. An already-deployed database therefore keeps the old constraint until this runs. (Introducing Flyway baselines is tracked separately in `docs/superpowers/plans/2026-08-18-codebase-review-remediation.md`, item 7.5.)
 
@@ -1562,7 +1627,7 @@ ALTER TABLE branches
     ADD CONSTRAINT uk_branches_merchant_slug UNIQUE (merchant_id, slug);
 ```
 
-- [ ] **Step 6: Run the full isolation gate**
+- [x] **Step 6: Run the full isolation gate**
 
 ```bash
 cd backend && ./gradlew :merchant-service:test --tests 'com.qrserve.merchant.TenantIsolationIT'
@@ -1570,7 +1635,7 @@ cd backend && ./gradlew :merchant-service:test --tests 'com.qrserve.merchant.Ten
 
 Expected: `BUILD SUCCESSFUL`, every test in the class green. Seeding now succeeds because both tenants can hold `main`.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add backend/merchant-service/src/main/java/com/qrserve/merchant/entity/BranchEntity.java \
@@ -1602,7 +1667,7 @@ The Amharic case resolves here: `ከፈ አበባ` yields no usable slug, so the
   - `MerchantService.updateMerchant(UUID, CreateMerchantRequest) -> MerchantEntity` — throws `BusinessException` if the request's slug differs from the stored one
   - `MerchantService.getMerchantBySlug(String) -> MerchantEntity` — unchanged, consumed by Task 9
 
-- [ ] **Step 1: Add the failing tests**
+- [x] **Step 1: Add the failing tests**
 
 Append to `TenantIsolationIT` (needs `com.qrserve.merchant.dto.CreateMerchantRequest` and `put` from `MockMvcRequestBuilders`):
 
@@ -1693,7 +1758,7 @@ Append to `TenantIsolationIT` (needs `com.qrserve.merchant.dto.CreateMerchantReq
     }
 ```
 
-- [ ] **Step 2: Run to verify the new tests fail**
+- [x] **Step 2: Run to verify the new tests fail**
 
 ```bash
 cd backend && ./gradlew :merchant-service:test --tests 'com.qrserve.merchant.TenantIsolationIT'
@@ -1701,7 +1766,7 @@ cd backend && ./gradlew :merchant-service:test --tests 'com.qrserve.merchant.Ten
 
 Expected: compilation failure — `CreateMerchantRequest` has no `setSlug`.
 
-- [ ] **Step 3: Add the slug field to the DTO**
+- [x] **Step 3: Add the slug field to the DTO**
 
 In `backend/merchant-service/src/main/java/com/qrserve/merchant/dto/CreateMerchantRequest.java`:
 
@@ -1718,7 +1783,7 @@ In `backend/merchant-service/src/main/java/com/qrserve/merchant/dto/CreateMercha
     private String slug;
 ```
 
-- [ ] **Step 4: Rewrite `MerchantService`**
+- [x] **Step 4: Rewrite `MerchantService`**
 
 Replace `createMerchant` and `updateMerchant` in `backend/merchant-service/src/main/java/com/qrserve/merchant/service/MerchantService.java`, adding imports `com.qrserve.shared.common.Slugs` and `com.qrserve.shared.exceptions.BusinessException`:
 
@@ -1798,7 +1863,7 @@ Replace `createMerchant` and `updateMerchant` in `backend/merchant-service/src/m
     }
 ```
 
-- [ ] **Step 5: Remove the derivation from `MerchantEntity`**
+- [x] **Step 5: Remove the derivation from `MerchantEntity`**
 
 In `backend/merchant-service/src/main/java/com/qrserve/merchant/entity/MerchantEntity.java`:
 
@@ -1813,7 +1878,7 @@ In `backend/merchant-service/src/main/java/com/qrserve/merchant/entity/MerchantE
     }
 ```
 
-- [ ] **Step 6: Run the gate**
+- [x] **Step 6: Run the gate**
 
 ```bash
 cd backend && ./gradlew :merchant-service:test --tests 'com.qrserve.merchant.TenantIsolationIT'
@@ -1821,7 +1886,7 @@ cd backend && ./gradlew :merchant-service:test --tests 'com.qrserve.merchant.Ten
 
 Expected: `BUILD SUCCESSFUL`, every test in the class green.
 
-- [ ] **Step 7: Confirm the broken expression is gone from the codebase**
+- [x] **Step 7: Confirm the broken expression is gone from the codebase**
 
 ```bash
 cd backend && grep -rn 'replaceAll("\[\^a-z0-9\]"' --include=*.java . | grep -v /build/ | grep -v /bin/
@@ -1829,7 +1894,7 @@ cd backend && grep -rn 'replaceAll("\[\^a-z0-9\]"' --include=*.java . | grep -v 
 
 Expected: **no output**. All three duplicated copies are now `Slugs`.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add backend/merchant-service/src/main/java/com/qrserve/merchant/dto/CreateMerchantRequest.java \
@@ -1853,7 +1918,7 @@ git commit -m "feat(tenancy): owner-supplied, validated, permanent merchant slug
 - Consumes: `PublicMenuUrl.menuUrl(String, String, String, String)` (Task 2), `QrSignatureService.generateSignature(UUID, Long, Long)` (Task 3).
 - Produces: `TableService.createTable(CreateTableRequest) -> CreateTableResponse` with a `qrUrl` of the form `https://{merchantSlug}.{baseDomain}/menu/{branchSlug}/{tableNumber}?signature={sig}`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `backend/merchant-service/src/test/java/com/qrserve/merchant/service/TableQrUrlTest.java`:
 
@@ -1983,7 +2048,7 @@ class TableQrUrlTest {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 ```bash
 cd backend && ./gradlew :merchant-service:test --tests 'com.qrserve.merchant.service.TableQrUrlTest'
@@ -1991,7 +2056,7 @@ cd backend && ./gradlew :merchant-service:test --tests 'com.qrserve.merchant.ser
 
 Expected: compilation failure — `TableService` has a three-argument constructor.
 
-- [ ] **Step 3: Rewrite the URL construction in `TableService`**
+- [x] **Step 3: Rewrite the URL construction in `TableService`**
 
 In `backend/merchant-service/src/main/java/com/qrserve/merchant/service/TableService.java`, add the two dependencies (`@RequiredArgsConstructor` generates the constructor in field order, so declare them **after** the three repositories to match the test), the imports `com.qrserve.shared.common.PublicMenuUrl` and `com.qrserve.shared.common.QrSignatureService`, and replace the URL line:
 
@@ -2023,7 +2088,7 @@ In `backend/merchant-service/src/main/java/com/qrserve/merchant/service/TableSer
                 merchant.getSlug(), branch.getSlug(), saved.getTableNumber(), signature);
 ```
 
-- [ ] **Step 4: Run to verify it passes**
+- [x] **Step 4: Run to verify it passes**
 
 ```bash
 cd backend && ./gradlew :merchant-service:test
@@ -2031,7 +2096,7 @@ cd backend && ./gradlew :merchant-service:test
 
 Expected: `BUILD SUCCESSFUL` — `TableQrUrlTest` and `TenantIsolationIT` both fully green.
 
-- [ ] **Step 5: Prove the generated URL round-trips through the resolver**
+- [x] **Step 5: Prove the generated URL round-trips through the resolver**
 
 Add to `TenantIsolationIT` — this is the assertion that would have caught defect 1, and it is worth more than the unit test because it crosses the generator/resolver boundary:
 
@@ -2068,7 +2133,7 @@ Add to `TenantIsolationIT` — this is the assertion that would have caught defe
 
 Needs the import `com.qrserve.merchant.dto.CreateTableRequest`.
 
-- [ ] **Step 6: Run and commit**
+- [x] **Step 6: Run and commit**
 
 ```bash
 cd backend && ./gradlew :merchant-service:test
@@ -2094,7 +2159,7 @@ git commit -m "fix(qr): emit a signed QR URL that resolves - host, branch slug, 
 - Consumes: `PublicMenuUrl` (Task 2), `QrSignatureService` (Task 3).
 - Produces: `QrGeneratorService.targetUrlFor(TableInfo, MerchantInfo, BranchInfo, PublicMenuUrl, QrSignatureService) -> String` — extracted as a **package-private static** method so the URL contract is testable without HTTP; `TableInfo`, `MerchantInfo` and the new `BranchInfo` are promoted from `private static class` to `static class`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `backend/qr-service/src/test/java/com/qrserve/qr/service/QrTargetUrlTest.java`:
 
@@ -2164,7 +2229,7 @@ class QrTargetUrlTest {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 ```bash
 cd backend && ./gradlew :qr-service:test --tests 'com.qrserve.qr.service.QrTargetUrlTest'
@@ -2172,7 +2237,7 @@ cd backend && ./gradlew :qr-service:test --tests 'com.qrserve.qr.service.QrTarge
 
 Expected: compilation failure — `targetUrlFor` and `BranchInfo` do not exist and the info classes are private.
 
-- [ ] **Step 3: Modify `QrGeneratorService`**
+- [x] **Step 3: Modify `QrGeneratorService`**
 
 In `backend/qr-service/src/main/java/com/qrserve/qr/service/QrGeneratorService.java`:
 
@@ -2325,7 +2390,7 @@ Finally, update `fetchTable` to read the table number:
             );
 ```
 
-- [ ] **Step 4: Add the `GET /api/branches/{id}` endpoint `fetchBranch` depends on**
+- [x] **Step 4: Add the `GET /api/branches/{id}` endpoint `fetchBranch` depends on**
 
 `BranchController` exposes only `POST /api/branches` and `GET /api/branches/merchant/{merchantId}`. `BranchService.getBranch(Long)` already exists but has no route. Add to `backend/merchant-service/src/main/java/com/qrserve/merchant/controller/BranchController.java`:
 
@@ -2352,7 +2417,7 @@ Finally, update `fetchTable` to read the table number:
 
 Imports to add: `org.springframework.security.access.AccessDeniedException`, `org.springframework.security.core.annotation.AuthenticationPrincipal`, `com.qrserve.shared.security.UserPrincipal`, `com.qrserve.shared.security.UserRole`.
 
-- [ ] **Step 5: Add the cross-tenant test for the new endpoint**
+- [x] **Step 5: Add the cross-tenant test for the new endpoint**
 
 Append to `TenantIsolationIT`:
 
@@ -2375,7 +2440,7 @@ Append to `TenantIsolationIT`:
     }
 ```
 
-- [ ] **Step 6: Run and confirm no hardcoded host remains**
+- [x] **Step 6: Run and confirm no hardcoded host remains**
 
 ```bash
 cd backend && ./gradlew :qr-service:test :merchant-service:test
@@ -2387,7 +2452,7 @@ cd backend && grep -rn "qrserve\.com" --include=*.java . | grep -v /build/ | gre
 
 Expected: `BUILD SUCCESSFUL`, then **no output** from the grep.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add backend/qr-service/src/ backend/merchant-service/src/
@@ -2421,7 +2486,7 @@ The route already falls under `SecurityConfig`'s `.requestMatchers("/api/v1/publ
 
 **Why invalidation is needed at all, given renames are blocked.** The hit TTL never matters — a merchant's slug cannot change, so a cached hit cannot go stale. The *miss* TTL does: if anything probed `kaffa.qrserve.safaricom.et` in the 60 seconds before that tenant was created, the negative entry outlives the creation and the new tenant's own owner gets a 404 on their first visit to their own site. That is a bad first impression for a one-line fix, and it is the case the spec calls out.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `TenantIsolationIT`:
 
@@ -2461,7 +2526,7 @@ Append to `TenantIsolationIT`:
     }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 ```bash
 cd backend && ./gradlew :merchant-service:test --tests 'com.qrserve.merchant.TenantIsolationIT'
@@ -2469,7 +2534,7 @@ cd backend && ./gradlew :merchant-service:test --tests 'com.qrserve.merchant.Ten
 
 Expected: the four new tests fail with 404 on the route itself (no handler mapped).
 
-- [ ] **Step 3: Create the response DTO**
+- [x] **Step 3: Create the response DTO**
 
 Create `backend/shared/common/src/main/java/com/qrserve/shared/common/dto/TenantResolutionResponse.java`:
 
@@ -2502,7 +2567,7 @@ public class TenantResolutionResponse {
 }
 ```
 
-- [ ] **Step 4: Create the controller**
+- [x] **Step 4: Create the controller**
 
 Create `backend/merchant-service/src/main/java/com/qrserve/merchant/controller/PublicTenantController.java`:
 
@@ -2571,7 +2636,7 @@ public class PublicTenantController {
 }
 ```
 
-- [ ] **Step 5: Put the cache key format in one place**
+- [x] **Step 5: Put the cache key format in one place**
 
 The gateway writes these keys and merchant-service deletes them. Two hand-written prefixes stop matching the first time either changes, and the failure mode is invisible: the cache keeps working while invalidation silently stops.
 
@@ -2616,7 +2681,7 @@ public final class TenantCacheKeys {
 }
 ```
 
-- [ ] **Step 6: Invalidate on merchant create**
+- [x] **Step 6: Invalidate on merchant create**
 
 Create `backend/merchant-service/src/main/java/com/qrserve/merchant/service/TenantCacheInvalidator.java`:
 
@@ -2688,7 +2753,7 @@ In `backend/merchant-service/src/main/java/com/qrserve/merchant/service/Merchant
         return merchantRepository.save(merchant);
 ```
 
-- [ ] **Step 7: Keep Redis out of the test**
+- [x] **Step 7: Keep Redis out of the test**
 
 Add to `TenantIsolationIT`, beside the existing `MerchantEventPublisher` mock:
 
@@ -2703,7 +2768,7 @@ Add to `TenantIsolationIT`, beside the existing `MerchantEventPublisher` mock:
 
 Needs the import `com.qrserve.merchant.service.TenantCacheInvalidator`.
 
-- [ ] **Step 8: Run and commit**
+- [x] **Step 8: Run and commit**
 
 ```bash
 cd backend && ./gradlew :merchant-service:test --tests 'com.qrserve.merchant.TenantIsolationIT'
@@ -2745,7 +2810,7 @@ git commit -m "feat(tenancy): add public slug-to-merchant resolution and cache i
 
 **Why `TenantHost` is separate:** host parsing has the most edge cases (ports, IPv6 brackets, the bare apex, multi-level labels, reserved labels) and needs none of Redis, WebFlux or Spring. Keeping it a pure static function makes those cases cheap to test exhaustively.
 
-- [ ] **Step 1: Write the failing host-parsing test**
+- [x] **Step 1: Write the failing host-parsing test**
 
 Create `backend/api-gateway/src/test/java/com/qrserve/gateway/tenant/TenantHostTest.java`:
 
@@ -2840,7 +2905,7 @@ class TenantHostTest {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 ```bash
 cd backend && ./gradlew :api-gateway:test --tests 'com.qrserve.gateway.tenant.TenantHostTest'
@@ -2848,7 +2913,7 @@ cd backend && ./gradlew :api-gateway:test --tests 'com.qrserve.gateway.tenant.Te
 
 Expected: compilation failure — `cannot find symbol: class TenantHost`.
 
-- [ ] **Step 3: Implement `TenantHost`**
+- [x] **Step 3: Implement `TenantHost`**
 
 Create `backend/api-gateway/src/main/java/com/qrserve/gateway/tenant/TenantHost.java`:
 
@@ -2944,7 +3009,7 @@ public final class TenantHost {
 }
 ```
 
-- [ ] **Step 4: Run to verify it passes**
+- [x] **Step 4: Run to verify it passes**
 
 ```bash
 cd backend && ./gradlew :api-gateway:test --tests 'com.qrserve.gateway.tenant.TenantHostTest'
@@ -2952,7 +3017,7 @@ cd backend && ./gradlew :api-gateway:test --tests 'com.qrserve.gateway.tenant.Te
 
 Expected: `BUILD SUCCESSFUL`, 10 tests passing.
 
-- [ ] **Step 5: Implement `TenantSlugResolver`**
+- [x] **Step 5: Implement `TenantSlugResolver`**
 
 Create `backend/api-gateway/src/main/java/com/qrserve/gateway/tenant/TenantSlugResolver.java`:
 
@@ -3070,7 +3135,7 @@ becomes
 ```
 Try `bodyToMono` on `.retrieve()` first; if that does not compile, `.exchangeToMono(r -> r.bodyToMono(TenantResolutionResponse.class))` works on every 6.x and 7.x version. Confirm which compiles before moving on — do not leave both.
 
-- [ ] **Step 6: Write the failing filter test**
+- [x] **Step 6: Write the failing filter test**
 
 Create `backend/api-gateway/src/test/java/com/qrserve/gateway/tenant/TenantResolutionGlobalFilterTest.java`:
 
@@ -3221,7 +3286,7 @@ class TenantResolutionGlobalFilterTest {
 }
 ```
 
-- [ ] **Step 7: Add the gateway test dependency**
+- [x] **Step 7: Add the gateway test dependency**
 
 `api-gateway` is excluded from `standardBusinessServices`, so it has no test dependencies beyond the base `spring-boot-starter-test`. `MockServerWebExchange` lives in `spring-test`, which that starter provides, but Mockito's `mock` also needs to be on the path — it is, via the same starter. In `backend/build.gradle`, inside `project(':api-gateway')`, add:
 
@@ -3233,7 +3298,7 @@ class TenantResolutionGlobalFilterTest {
         testImplementation 'org.springframework.boot:spring-boot-starter-webflux'
 ```
 
-- [ ] **Step 8: Implement the filter**
+- [x] **Step 8: Implement the filter**
 
 Create `backend/api-gateway/src/main/java/com/qrserve/gateway/tenant/TenantResolutionGlobalFilter.java`:
 
@@ -3349,7 +3414,7 @@ public class TenantResolutionGlobalFilter implements GlobalFilter, Ordered {
 }
 ```
 
-- [ ] **Step 9: Configure the merchant-service URL for the gateway**
+- [x] **Step 9: Configure the merchant-service URL for the gateway**
 
 In `backend/api-gateway/src/main/resources/application.yml`, add near the `app:` block from Task 2:
 
@@ -3367,7 +3432,7 @@ And in `backend/docker-compose.yml` under the `api-gateway` service, plus `backe
       - MERCHANT_SERVICE_URL=http://merchant-service:8085
 ```
 
-- [ ] **Step 10: Run the gateway tests**
+- [x] **Step 10: Run the gateway tests**
 
 ```bash
 cd backend && ./gradlew :api-gateway:test
@@ -3375,7 +3440,7 @@ cd backend && ./gradlew :api-gateway:test
 
 Expected: `BUILD SUCCESSFUL`, 17 tests passing across the two classes.
 
-- [ ] **Step 11: Prove the strip test is not vacuous**
+- [x] **Step 11: Prove the strip test is not vacuous**
 
 Temporarily comment out the two `headers.remove(...)` lines in `withoutTenantHeaders`, re-run, and confirm `stripsForgedHeaderOnNonTenantHost` **fails**. Restore the lines. A test that passes with the protection removed is worse than no test, and this is the one assertion that must not be decorative.
 
@@ -3383,7 +3448,7 @@ Temporarily comment out the two `headers.remove(...)` lines in `withoutTenantHea
 cd backend && ./gradlew :api-gateway:test --tests '*TenantResolutionGlobalFilterTest'
 ```
 
-- [ ] **Step 12: Commit**
+- [x] **Step 12: Commit**
 
 ```bash
 git add backend/api-gateway/src/ backend/build.gradle backend/docker-compose.yml backend/k8s/deployment.yml
@@ -3410,7 +3475,7 @@ resolved one, so downstream trust in the header is actually earned."
 - Consumes: `TenantContext.setCurrentTenant(UUID)` / `getCurrentTenant()` / `clear()` (exists), `TenantResolutionGlobalFilter.TENANT_ID_HEADER` — **re-declared** here as a local constant, because `shared:security` must not depend on `api-gateway`.
 - Produces: `TenantContextFilter.TENANT_ID_HEADER` = `"X-Tenant-Id"`, `TENANT_SLUG_HEADER` = `"X-Tenant-Slug"`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `backend/shared/security/src/test/java/com/qrserve/shared/security/TenantContextFilterTest.java`:
 
@@ -3569,7 +3634,7 @@ class TenantContextFilterTest {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 ```bash
 cd backend && ./gradlew :shared:security:test --tests 'com.qrserve.shared.security.TenantContextFilterTest'
@@ -3577,7 +3642,7 @@ cd backend && ./gradlew :shared:security:test --tests 'com.qrserve.shared.securi
 
 Expected: compilation failure — `cannot find symbol: class TenantContextFilter`.
 
-- [ ] **Step 3: Implement the filter**
+- [x] **Step 3: Implement the filter**
 
 Create `backend/shared/security/src/main/java/com/qrserve/shared/security/TenantContextFilter.java`:
 
@@ -3724,7 +3789,7 @@ public class TenantContextFilter extends OncePerRequestFilter {
 }
 ```
 
-- [ ] **Step 4: Register the filter in `SecurityConfig`**
+- [x] **Step 4: Register the filter in `SecurityConfig`**
 
 In `backend/shared/security/src/main/java/com/qrserve/shared/security/SecurityConfig.java`, take the filter as a constructor dependency and add it **after** `JwtAuthenticationFilter` — it reads the principal that filter establishes, so the order matters:
 
@@ -3750,7 +3815,7 @@ In `backend/shared/security/src/main/java/com/qrserve/shared/security/SecurityCo
 
 Add the import `org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer` is already present; no new imports are needed.
 
-- [ ] **Step 5: Run the tests**
+- [x] **Step 5: Run the tests**
 
 ```bash
 cd backend && ./gradlew :shared:security:test
@@ -3758,11 +3823,11 @@ cd backend && ./gradlew :shared:security:test
 
 Expected: `BUILD SUCCESSFUL`. `TenantContextFilterTest` 8 tests plus the existing `JwtTokenProviderTokenTypeTest` 10.
 
-- [ ] **Step 6: Prove the mismatch test is not vacuous**
+- [x] **Step 6: Prove the mismatch test is not vacuous**
 
 Temporarily change the mismatch condition to `if (false)`, re-run, and confirm `mismatchIsForbidden` **fails**. Restore it. Also temporarily remove the `finally` and confirm `clearsThreadLocalOnException` fails. Both protections are invisible in normal operation and catastrophic if absent, so each needs to be shown to be doing work.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add backend/shared/security/src/
@@ -3790,7 +3855,7 @@ The resolution: both public endpoints **name their tenant explicitly in the path
 - Consumes: `TenantContext.getCurrentTenant()` (populated by Task 11).
 - Produces: no new public API. Both endpoints now throw `AccessDeniedException` (→ 403 via `GlobalExceptionHandler`) when the host tenant disagrees with the addressed resource.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `TenantIsolationIT`:
 
@@ -3850,7 +3915,7 @@ Append to `TenantIsolationIT`:
     }
 ```
 
-- [ ] **Step 2: Run to verify the two mismatch tests fail**
+- [x] **Step 2: Run to verify the two mismatch tests fail**
 
 ```bash
 cd backend && ./gradlew :merchant-service:test --tests 'com.qrserve.merchant.TenantIsolationIT'
@@ -3858,7 +3923,7 @@ cd backend && ./gradlew :merchant-service:test --tests 'com.qrserve.merchant.Ten
 
 Expected: `hostTenantMustMatchResolvedMerchant` and `hostTenantMustMatchRequestedTable` return 200 instead of 403.
 
-- [ ] **Step 3: Enforce it in `PublicMenuResolutionService`**
+- [x] **Step 3: Enforce it in `PublicMenuResolutionService`**
 
 In `backend/merchant-service/src/main/java/com/qrserve/merchant/service/PublicMenuResolutionService.java`, add the imports `com.qrserve.shared.common.TenantContext` and `org.springframework.security.access.AccessDeniedException`, and insert the check immediately after the merchant is resolved:
 
@@ -3880,7 +3945,7 @@ In `backend/merchant-service/src/main/java/com/qrserve/merchant/service/PublicMe
         }
 ```
 
-- [ ] **Step 4: Enforce it in `PublicCustomerRequestController`**
+- [x] **Step 4: Enforce it in `PublicCustomerRequestController`**
 
 In `backend/merchant-service/src/main/java/com/qrserve/merchant/controller/PublicCustomerRequestController.java`, add the imports `com.qrserve.shared.common.TenantContext`, `org.springframework.security.access.AccessDeniedException`, `java.util.UUID`, and insert after the table lookup:
 
@@ -3900,7 +3965,7 @@ In `backend/merchant-service/src/main/java/com/qrserve/merchant/controller/Publi
         }
 ```
 
-- [ ] **Step 5: Run the gate**
+- [x] **Step 5: Run the gate**
 
 ```bash
 cd backend && ./gradlew :merchant-service:test
@@ -3910,7 +3975,7 @@ Expected: `BUILD SUCCESSFUL` — every test in `TenantIsolationIT` and `TableQrU
 
 **Note on why these tests can set `X-Tenant-Id` directly:** `MockMvc` bypasses the gateway, so the header is simulated. That is exactly what makes Task 10's strip test load-bearing — it is the only thing that stops a real client doing the same. The two tests are complements, not duplicates.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add backend/merchant-service/src/
@@ -3942,7 +4007,7 @@ The rule from the spec: **the host label when present, the path parameter otherw
   - `PUBLIC_BASE_DOMAIN: string` — from `import.meta.env.VITE_PUBLIC_BASE_DOMAIN`
   - `currentTenantSlug(): string | null` — reads `window.location.hostname`
 
-- [ ] **Step 1: Add a test script**
+- [x] **Step 1: Add a test script**
 
 There is no test runner in this project. Rather than add vitest for two pure functions, use `tsx` (already a devDependency) with Node's assertion module. In `package.json`:
 
@@ -3950,7 +4015,7 @@ There is no test runner in this project. Rather than add vitest for two pure fun
     "test:unit": "tsx src/lib/tenant.test.ts",
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `src/lib/tenant.test.ts`:
 
@@ -4074,7 +4139,7 @@ if (failures > 0) {
 console.log('\nall tenant tests passed');
 ```
 
-- [ ] **Step 3: Run to verify it fails**
+- [x] **Step 3: Run to verify it fails**
 
 ```bash
 npm run test:unit
@@ -4082,7 +4147,7 @@ npm run test:unit
 
 Expected: `Cannot find module './tenant'`.
 
-- [ ] **Step 4: Implement `src/lib/tenant.ts`**
+- [x] **Step 4: Implement `src/lib/tenant.ts`**
 
 ```ts
 /**
@@ -4220,7 +4285,7 @@ export function resolveMenuTarget(params: MenuRouteParams, hostSlug: string | nu
 }
 ```
 
-- [ ] **Step 5: Run to verify it passes**
+- [x] **Step 5: Run to verify it passes**
 
 ```bash
 npm run test:unit
@@ -4228,7 +4293,7 @@ npm run test:unit
 
 Expected: 14 `ok` lines and `all tenant tests passed`.
 
-- [ ] **Step 6: Use it in `CustomerMenuPage`**
+- [x] **Step 6: Use it in `CustomerMenuPage`**
 
 In `src/pages/CustomerMenuPage.tsx`, replace the param destructuring and the `effectiveBranchSlug` line:
 
@@ -4282,7 +4347,7 @@ Then, immediately before the existing loading/error rendering, add the mismatch 
 
 Verify the `text-muted` utility exists in `src/index.css`; if not, use `text-slate-500`.
 
-- [ ] **Step 7: Preserve the `Host` header through the dev proxy**
+- [x] **Step 7: Preserve the `Host` header through the dev proxy**
 
 This is the step that makes local subdomain development actually work. In `vite.config.ts`:
 
@@ -4311,7 +4376,7 @@ This is the step that makes local subdomain development actually work. In `vite.
     },
 ```
 
-- [ ] **Step 8: Verify the frontend compiles and builds**
+- [x] **Step 8: Verify the frontend compiles and builds**
 
 ```bash
 npm run lint && npm run build
@@ -4319,7 +4384,7 @@ npm run lint && npm run build
 
 Expected: `tsc --noEmit` clean, then a successful production build.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/lib/tenant.ts src/lib/tenant.test.ts src/pages/CustomerMenuPage.tsx vite.config.ts package.json
@@ -4340,7 +4405,7 @@ tenant label before the gateway sees it."
 
 **Dependency, stated plainly:** `backend/k8s/deployment.yml` describes only four of nine services. The `environment:`-instead-of-`env:` bug was fixed in `2739dcb`, so what is there now works, but the manifests are incomplete. **The ingress change below is correct and cannot be exercised until the manifests deploy the services they claim to.** Completing them is out of scope for this plan; do not treat a green `kubectl apply` on the ingress as evidence the routing works.
 
-- [ ] **Step 1: Add the wildcard host rule**
+- [x] **Step 1: Add the wildcard host rule**
 
 Replace `backend/k8s/proxy-ingress.yml`:
 
@@ -4397,7 +4462,7 @@ spec:
                   number: 8081
 ```
 
-- [ ] **Step 2: Validate the manifest**
+- [x] **Step 2: Validate the manifest**
 
 ```bash
 cd backend && python -c "
@@ -4413,7 +4478,7 @@ If a cluster is reachable, also:
 kubectl apply --dry-run=client -f backend/k8s/proxy-ingress.yml
 ```
 
-- [ ] **Step 3: Document how to run this locally**
+- [x] **Step 3: Document how to run this locally**
 
 Append to `backend/README.md`:
 
@@ -4470,7 +4535,7 @@ so a compromise is confined to one restaurant's codes rather than the whole
 platform's.
 ```
 
-- [ ] **Step 4: Run the whole backend and frontend build**
+- [x] **Step 4: Run the whole backend and frontend build**
 
 ```bash
 cd backend && ./gradlew build
@@ -4483,7 +4548,7 @@ npm run lint && npm run test:unit && npm run build
 Expected: both green. If `./gradlew build` fails on a module untouched by this
 plan, report it rather than fixing it here.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/k8s/proxy-ingress.yml backend/README.md docs/superpowers/plans/2026-08-18-multi-tenant-subdomains-and-qr.md

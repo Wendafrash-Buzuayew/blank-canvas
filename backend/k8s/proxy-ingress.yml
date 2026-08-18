@@ -4,19 +4,46 @@ metadata:
   name: qrserve-ingress
   namespace: default
   annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "false" # Set true if configuring SSL certificates
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "15"
+    # Long read timeout for the STOMP WebSocket on /ws/**; the default would cut an
+    # idle kitchen display's connection.
     nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    # The gateway derives the tenant from the Host header, so it must arrive
+    # unmodified. nginx-ingress preserves it by default; stating it explicitly means
+    # a future edit cannot quietly break tenant resolution.
+    nginx.ingress.kubernetes.io/upstream-vhost: "$host"
 spec:
-  ingressClassName: nginx # Ensures mapping to your active Nginx controller deployment
+  ingressClassName: nginx
+  tls:
+    # One wildcard certificate covers every tenant. Single-label only: a certificate
+    # for *.qrserve.safaricom.et does NOT cover a.b.qrserve.safaricom.et, which is
+    # why branches are path segments rather than second-level subdomains.
+    - hosts:
+        - "*.qrserve.safaricom.et"
+        - "qrserve.safaricom.et"
+      secretName: qrserve-wildcard-tls
   rules:
-  - host: api.qrserve.local # Replace with your destination testing domain name
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: api-gateway-service
-            port: 
-              number: 8081
+    # Every tenant subdomain, plus the reserved admin. host. All of them route to
+    # the same gateway; the gateway decides which tenant the request belongs to.
+    - host: "*.qrserve.safaricom.et"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api-gateway-service
+                port:
+                  number: 8081
+    # The apex, for the landing page and the path-based demo route.
+    - host: "qrserve.safaricom.et"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api-gateway-service
+                port:
+                  number: 8081

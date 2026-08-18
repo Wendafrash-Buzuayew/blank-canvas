@@ -164,6 +164,116 @@ kubectl apply -f backend/k8s/qrserve-backend-app.yaml
 
 ---
 
+## 🏢 Multi-tenancy: subdomains, QR codes, secrets
+
+Every merchant is served at `{merchantSlug}.{PUBLIC_BASE_DOMAIN}`. One deployment
+serves all tenants, separated by `merchantId`.
+
+### Tenant subdomains in local development
+
+Subdomains do not resolve against `localhost`, and asking every developer to edit
+`/etc/hosts` per tenant is friction that gets bypassed — which leaves the
+subdomain code path exercised only in staging.
+
+Instead use a public wildcard that resolves to loopback. `localtest.me` and
+`sslip.io` both do, with no setup at all:
+
+```bash
+PUBLIC_BASE_DOMAIN=localtest.me:3000
+PUBLIC_URL_SCHEME=http
+```
+
+Then `http://sunrise.localtest.me:3000/menu/main/1` reaches the Vite dev server,
+which proxies to the gateway with the `Host` header intact, and the real tenant
+resolution path runs locally.
+
+Two settings make that work and are easy to break:
+
+- `vite.config.ts` sets **`changeOrigin: false`** on both proxies. With
+  `changeOrigin: true` the `Host` header is rewritten to the proxy target and the
+  tenant label is gone before the gateway sees it — tenant resolution silently
+  never fires.
+- `server.allowedHosts` includes `.localtest.me`. Vite 6 blocks unrecognised
+  `Host` headers.
+
+The path form still works on a bare host: `http://localhost:3000/menu/demo/main/1`
+is the landing page's demo link and needs no subdomain.
+
+### Reserved subdomains
+
+`admin`, `api`, `app`, `www`, `static`, `assets`, `ws`, `mail` and `status` never
+resolve as a tenant and are rejected at merchant creation.
+`admin.qrserve.safaricom.et` is reserved for `SUPER_ADMIN` cross-tenant work,
+which asserts no tenant.
+
+An unresolvable label under the base domain returns **404** — never a fallback to
+some default tenant, because on a wildcard domain that would turn every mistyped
+subdomain into a cross-tenant read.
+
+### Merchant slugs are permanent
+
+The slug is a hostname and gets printed onto physical table stands, so
+`PUT /api/merchants/{id}` rejects any attempt to change it. Allowing renames needs
+an alias table so old hostnames keep resolving; that is deliberately not built
+yet, and the rejection is the guard that makes deferring it safe.
+
+### Required environment
+
+Every service fails to start without these — deliberately. See `.env.example`.
+
+| Variable | Why it has no default |
+|---|---|
+| `JWT_SECRET` | A default means anyone can forge tokens |
+| `QR_SIGNATURE_SECRET` | A default means anyone can forge QR signatures |
+| `PUBLIC_BASE_DOMAIN` | A default emits QR codes pointing at the wrong host — a printed sheet of paper that does not work, discovered by a customer |
+
+### Rotating the QR signing secret
+
+QR codes are printed onto physical table stands, so rotating
+`QR_SIGNATURE_SECRET` must not invalidate them all at once:
+
+1. Set `QR_SIGNATURE_SECRET_PREVIOUS` to the current value.
+2. Set `QR_SIGNATURE_SECRET` to the new value.
+3. Deploy. Codes already printed still validate; new ones are signed with the new
+   secret.
+4. Reprint at leisure, then clear `QR_SIGNATURE_SECRET_PREVIOUS`.
+
+The signing key is derived per tenant as `HMAC-SHA256(masterSecret, merchantId)`,
+so a compromise is confined to one restaurant's codes rather than the whole
+platform's.
+
+### Kubernetes
+
+```bash
+kubectl apply -f backend/k8s/config.yml          # PUBLIC_BASE_DOMAIN
+kubectl apply -f backend/k8s/proxy-ingress.yml   # wildcard host + TLS
+```
+
+The ingress needs wildcard DNS for `*.qrserve.safaricom.et` and a wildcard
+certificate in the `qrserve-wildcard-tls` secret. The wildcard is **single-label**:
+a certificate for `*.qrserve.safaricom.et` does not cover
+`a.b.qrserve.safaricom.et`, which is why branches are path segments rather than
+second-level subdomains.
+
+> **Caveat:** `backend/k8s/deployment.yml` describes only four of the nine
+> services. The ingress above is correct but cannot be exercised until the
+> manifests deploy the services they claim to. A green `kubectl apply` on the
+> ingress is not evidence that routing works.
+
+### Tenant isolation is a CI gate
+
+`backend/merchant-service/src/test/java/com/qrserve/merchant/TenantIsolationIT.java`
+seeds two merchants and asserts that merchant A's credential cannot reach
+merchant B's data. In a shared deployment an isolation defect is one restaurant
+reading another's revenue, so **new tenant-scoped endpoints belong in that file**.
+
+```bash
+cd backend && ./gradlew :merchant-service:test
+```
+
+
+---
+
 ## 💳 Bonus Extensions (Phase 2 Integrations)
 - **EthIO-Payment Connectors**: Telebirr, M-PESA, ETHQR & CBE Birr gateway webhooks
 - **Inventory & Stock Management**: Real-time ingredient deductions per dish order
