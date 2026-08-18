@@ -38,8 +38,8 @@ compile of all 131 backend sources (0 errors) plus `npx tsc --noEmit` (0 errors)
 
 ### Not yet implemented (remaining work, all "this sprint" or lower)
 
-- **3.3** Role hierarchy on user creation (`canAssignRole`) — `MERCHANT_OWNER` can still create a `SUPER_ADMIN`. **Highest-value remaining item.**
-- **5.2** STOMP destination-level authorization — `StompDestinations.java` holds the topic patterns to match against.
+- ~~**3.3** Role hierarchy on user creation~~ — **DONE** in `07334ed`; covered by `AuthServiceRoleHierarchyTest` (6 tests).
+- ~~**5.2** STOMP destination-level authorization~~ — **DONE** in `07334ed`, deny-by-default; covered by `StompAuthInterceptorTest` (12 tests, confirmed to fail with the authz call disabled).
 - **6.1 (rest)** 404-vs-5xx in `OrderService.fetchTable/fetchProduct` and `QrGeneratorService.fetchMerchant`.
 - **6.3** Retry/alert on table-status update failure.
 - **7.1–7.4** N+1 fixes (menu, kitchen, waiter tasks) and moving REST/Kafka out of `OrderService.createOrder`'s transaction.
@@ -47,10 +47,24 @@ compile of all 131 backend sources (0 errors) plus `npx tsc --noEmit` (0 errors)
 - **8.1** Phantom frontend endpoints (`PUT/DELETE /api/branches|tables/{id}`, `DELETE /api/merchants/{id}`).
 - **8.2** Status-enum validation and legal transition guard.
 - **8.4** Drop ignored `merchantId` param on `getWaiters`.
-- **9.3** Refresh-token `type` claim, strict role claim, configured `expiresIn`.
+- ~~**9.3** Refresh-token `type` claim, strict role claim, configured `expiresIn`~~ — **DONE** in `07334ed`; covered by `JwtTokenProviderTokenTypeTest` (10 tests). Note the BREAKING session invalidation.
 - **9.4** QR PDF via OpenPDF. Note `BusinessException` has no `(String, Throwable)` constructor — add one first.
 - **9.5** Dependency pin audit.
 - **10.1** Frontend re-verification + dead `CustomerMenuView.tsx` removal.
+
+### Also completed after this plan was written (design + realtime roadmap)
+
+| Phase | Work | Commit |
+|---|---|---|
+| C | Design tokens ported; brand/danger and warn-soft colour collisions fixed | `ad97ef9` |
+| A | STOMP destination authz, guest order-stream tokens, token type claims, role hierarchy | `07334ed` |
+| B | Reconnect resync, event dedupe, narrower invalidation | `07334ed` |
+| D1 | KDS rebuilt for distance reading; fixed permanently-empty Incoming column | `06e286e` |
+| E | Runtime smoke harness written (`backend/scripts/smoke-tenant-isolation.sh`) — NOT yet executed | `52e2eef` |
+
+**Still open:** Phase D2 (waiter dashboard restyle), D3 (customer menu restyle), and
+executing Phase E against a running stack. Everything else in the "Not yet
+implemented" list above remains accurate.
 
 ### Findings discovered during execution that were NOT in the review
 
