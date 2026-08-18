@@ -2,6 +2,7 @@ package com.qrserve.merchant;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.qrserve.merchant.dto.CreateBranchRequest;
+import com.qrserve.merchant.dto.CreateMerchantRequest;
 import com.qrserve.merchant.entity.BranchEntity;
 import com.qrserve.merchant.entity.MerchantEntity;
 import com.qrserve.merchant.entity.TableEntity;
@@ -30,6 +31,7 @@ import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -292,5 +294,94 @@ class TenantIsolationIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(branchJson(merchantA.getId(), "Bad", "!!!")))
                 .andExpect(status().isBadRequest());
+    }
+
+    // ---- merchant slug: owner-supplied, validated, permanent ----
+
+    private String merchantJson(String name, String slug) throws Exception {
+        CreateMerchantRequest request = new CreateMerchantRequest();
+        request.setName(name);
+        request.setSlug(slug);
+        request.setPhone("+251900000000");
+        request.setCity("Addis Ababa");
+        request.setAddress("Bole");
+        request.setCategory("CAFE");
+        return objectMapper.writeValueAsString(request);
+    }
+
+    private String superAdminToken() {
+        return tokenFor(null, UserRole.SUPER_ADMIN);
+    }
+
+    @Test
+    @DisplayName("a merchant is created with the slug the owner supplied")
+    void merchantSlugIsOwnerSupplied() throws Exception {
+        mockMvc.perform(post("/api/merchants")
+                        .header(HttpHeaders.AUTHORIZATION, superAdminToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(merchantJson("Kaffa Roasters", "kaffa")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.slug").value("kaffa"))
+                .andExpect(jsonPath("$.name").value("Kaffa Roasters"));
+    }
+
+    @Test
+    @DisplayName("a reserved slug is rejected so no tenant can claim admin.")
+    void reservedMerchantSlugIsRejected() throws Exception {
+        mockMvc.perform(post("/api/merchants")
+                        .header(HttpHeaders.AUTHORIZATION, superAdminToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(merchantJson("Admin Cafe", "admin")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("a colliding slug gets a deterministic suffix rather than a constraint violation")
+    void collidingMerchantSlugGetsSuffix() throws Exception {
+        // "sunrise" is taken by merchantA in seed().
+        mockMvc.perform(post("/api/merchants")
+                        .header(HttpHeaders.AUTHORIZATION, superAdminToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(merchantJson("Sunrise Bakery", "sunrise")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.slug").value("sunrise-2"));
+    }
+
+    @Test
+    @DisplayName("an unusable slug is a 400 that names what to fix")
+    void unusableMerchantSlugIsRejected() throws Exception {
+        mockMvc.perform(post("/api/merchants")
+                        .header(HttpHeaders.AUTHORIZATION, superAdminToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(merchantJson("ካፈ አበባ", "ካፈ አበባ")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Latin")));
+    }
+
+    @Test
+    @DisplayName("the slug is permanent: an update that changes it is rejected")
+    void merchantSlugCannotBeRenamed() throws Exception {
+        // Renames are blocked until the alias table exists. Without this guard the
+        // rename silently does nothing, which is worse than a clear refusal.
+        mockMvc.perform(put("/api/merchants/" + merchantA.getId())
+                        .header(HttpHeaders.AUTHORIZATION, tokenFor(merchantA.getId(), UserRole.MERCHANT_OWNER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(merchantJson(MERCHANT_A_NAME, "sunrise-rebrand")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("permanent")));
+    }
+
+    @Test
+    @DisplayName("an update that keeps the slug succeeds and can still change the display name")
+    void merchantUpdateKeepingSlugSucceeds() throws Exception {
+        // The Amharic case: the display name may be in any script, because the
+        // hostname label is carried separately.
+        mockMvc.perform(put("/api/merchants/" + merchantA.getId())
+                        .header(HttpHeaders.AUTHORIZATION, tokenFor(merchantA.getId(), UserRole.MERCHANT_OWNER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(merchantJson("ካፈ አበባ", "sunrise")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("ካፈ አበባ"))
+                .andExpect(jsonPath("$.slug").value("sunrise"));
     }
 }
