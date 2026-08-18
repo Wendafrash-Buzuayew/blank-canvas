@@ -9,9 +9,8 @@ import {
   Category,
   MenuItem,
   Order,
-  OrderStatus,
-  TableStatus
 } from '../types';
+import type { OrderStatus } from './orderStatus';
 
 // Environment-based API base URL
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -628,7 +627,7 @@ export const orderApi = {
   getOrder: (id: string) =>
     request<OrderEntity>(`/orders/${id}`),
 
-  updateOrderStatus: (id: string, status: string) =>
+  updateOrderStatus: (id: string, status: OrderStatus) =>
     request<OrderEntity>(`/orders/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
@@ -710,9 +709,11 @@ export const waiterApi = {
       body: JSON.stringify(data),
     }),
 
-  getWaiters: (params: { merchantId?: string; branchId?: number } = {}) => {
+  // merchantId is intentionally absent: WaiterController derives the tenant from
+  // the JWT and ignored the parameter, so sending it implied a control the caller
+  // does not have.
+  getWaiters: (params: { branchId?: number } = {}) => {
     const query = new URLSearchParams();
-    if (params.merchantId) query.set('merchantId', params.merchantId);
     if (params.branchId != null) query.set('branchId', String(params.branchId));
     const qs = query.toString();
     return request<WaiterEntity[]>(`/waiters${qs ? `?${qs}` : ''}`);

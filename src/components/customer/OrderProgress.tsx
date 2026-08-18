@@ -5,13 +5,15 @@ const STEPS = [
   { key: 'RECEIVED', label: 'Received', icon: ClipboardCheck },
   { key: 'PREPARING', label: 'Cooking', icon: CookingPot },
   { key: 'READY', label: 'Ready', icon: BellRing },
-  { key: 'SERVED', label: 'Served', icon: Check },
+  { key: 'DELIVERED', label: 'Served', icon: Check },
 ] as const;
 
 /** Map any backend status string onto the 4-step guest-facing journey. */
 function stepIndex(status?: string | null): number {
   const s = (status || '').toUpperCase();
-  if (s.includes('SERVED') || s.includes('COMPLETE') || s.includes('PAID')) return 3;
+  // DELIVERED and PAID are the real terminal-ish states; SERVED/COMPLETE were
+  // never emitted by the backend, so this step could not activate.
+  if (s.includes('DELIVERED') || s.includes('PAID')) return 3;
   if (s.includes('READY')) return 2;
   if (s.includes('PREPAR') || s.includes('ACCEPT') || s.includes('COOK')) return 1;
   return 0;

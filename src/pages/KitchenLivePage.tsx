@@ -5,6 +5,7 @@ import { Spinner, ErrorState } from '../components/ui/States';
 import { useAuth } from '../context/AuthContext';
 import { useKitchenOrders, useUpdateOrderStatus, useBranches, useWaiterTasks, useResolveRequest } from '../hooks/useApiData';
 import { useKitchenStream } from '../hooks/useRealtime';
+import { ORDER_STATUS, type OrderStatus } from '../lib/orderStatus';
 
 /**
  * Kitchen Display System.
@@ -22,17 +23,17 @@ import { useKitchenStream } from '../hooks/useRealtime';
  * wrote a status the backend does not recognise.
  */
 const COLUMNS: {
-  key: string;
+  key: OrderStatus;
   /** Extra statuses that belong in this column. */
-  also?: string[];
+  also?: OrderStatus[];
   label: string;
-  next?: string;
+  next?: OrderStatus;
   nextLabel?: string;
   fill: string;
 }[] = [
-  { key: 'PENDING', also: ['ACCEPTED'], label: 'Incoming', next: 'PREPARING', nextLabel: 'Start', fill: 'kds-state-new' },
-  { key: 'PREPARING', label: 'Preparing', next: 'READY', nextLabel: 'Ready', fill: 'kds-state-prep' },
-  { key: 'READY', label: 'Ready', next: 'DELIVERED', nextLabel: 'Served', fill: 'kds-state-ready' },
+  { key: ORDER_STATUS.PENDING, also: [ORDER_STATUS.ACCEPTED], label: 'Incoming', next: ORDER_STATUS.PREPARING, nextLabel: 'Start', fill: 'kds-state-new' },
+  { key: ORDER_STATUS.PREPARING, label: 'Preparing', next: ORDER_STATUS.READY, nextLabel: 'Ready', fill: 'kds-state-prep' },
+  { key: ORDER_STATUS.READY, label: 'Ready', next: ORDER_STATUS.DELIVERED, nextLabel: 'Served', fill: 'kds-state-ready' },
 ];
 
 export const KitchenLivePage: React.FC = () => {
@@ -67,7 +68,12 @@ export const KitchenLivePage: React.FC = () => {
     const map: Record<string, typeof orders> = {};
     COLUMNS.forEach((c) => (map[c.key] = []));
     (orders || []).forEach((o) => {
-      const col = COLUMNS.find((c) => c.key === o.status || c.also?.includes(o.status));
+      // o.status arrives as a plain string from the API, so widen for the check
+      // rather than asserting it is already a valid OrderStatus — an unknown
+      // value should fall through to no column, not crash.
+      const col = COLUMNS.find(
+        (c) => c.key === o.status || (c.also as readonly string[] | undefined)?.includes(o.status)
+      );
       if (col) map[col.key]!.push(o);
     });
     return map;

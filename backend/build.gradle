@@ -72,13 +72,21 @@ def standardBusinessServices = subprojects.findAll {
 
 configure(standardBusinessServices) {
     dependencies {
-        // Boot 4.x: use default embedded Tomcat (Undertow starter has no stable 4.x release)
-        api 'org.springframework.boot:spring-boot-starter-web'
+        // Boot 4.x: use default embedded Tomcat (Undertow starter has no stable 4.x release).
+        // starter-webmvc is the Boot 4 name for the servlet MVC stack; verified to be a
+        // superset of the old starter-web (same spring-boot-starter-tomcat, plus
+        // spring-boot-starter), so the embedded container is unchanged.
+        api 'org.springframework.boot:spring-boot-starter-webmvc'
         api 'org.springframework.boot:spring-boot-starter-data-jpa'
         api 'org.springframework.boot:spring-boot-starter-security'
         api 'org.springframework.boot:spring-boot-starter-websocket'
         api 'org.springframework.boot:spring-boot-starter-actuator'
         api 'org.springframework.boot:spring-boot-starter-data-redis'
+        // Deliberately NOT swapped for spring-boot-starter-kafka. This already
+        // resolves to the BOM-managed spring-kafka 4.1.0, the starter adds nothing
+        // functional (Kafka auto-configuration lives in spring-boot-autoconfigure),
+        // and its transitive set could not be verified offline. Not worth an
+        // unverifiable change on the event pipeline for naming consistency.
         api 'org.springframework.kafka:spring-kafka'
         api 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
 
@@ -88,7 +96,7 @@ configure(standardBusinessServices) {
 
         runtimeOnly 'com.h2database:h2'
         runtimeOnly 'org.postgresql:postgresql'
-        testImplementation 'org.springframework.security:spring-security-test'
+        testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
     }
 }
 
@@ -119,7 +127,7 @@ project(':shared:security') {
     dependencies {
         implementation project(':shared:common')
         implementation 'org.springframework.boot:spring-boot-starter-security'
-        implementation 'org.springframework.boot:spring-boot-starter-web'
+        implementation 'org.springframework.boot:spring-boot-starter-webmvc'
         compileOnly 'jakarta.servlet:jakarta.servlet-api'
     }
 }
@@ -226,9 +234,14 @@ project(':api-gateway') {
         implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-reactor-resilience4j'
     }
 
-    // Explicitly prevent Spring MVC from entering Gateway classpath
+    // Explicitly prevent Spring MVC from entering the Gateway classpath. Both
+    // starter names are excluded: Boot 4 renamed starter-web to starter-webmvc, so
+    // excluding only the old name would leave this guard silently ineffective and
+    // let a servlet stack onto a WebFlux classpath.
     configurations.all {
         exclude group: 'org.springframework.boot', module: 'spring-boot-starter-web'
+        exclude group: 'org.springframework.boot', module: 'spring-boot-starter-webmvc'
+        exclude group: 'org.springframework.boot', module: 'spring-boot-webmvc'
         exclude group: 'org.springframework', module: 'spring-webmvc'
     }
 

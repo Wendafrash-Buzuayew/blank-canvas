@@ -7,8 +7,11 @@ import com.qrserve.order.entity.OrderEntity;
 import com.qrserve.order.entity.OrderItemEntity;
 import com.qrserve.order.repository.OrderItemRepository;
 import com.qrserve.order.repository.OrderRepository;
+import com.qrserve.shared.common.OrderStatus;
+import com.qrserve.shared.common.TableStatus;
 import com.qrserve.shared.events.OrderCreatedEvent;
 import com.qrserve.shared.events.OrderStatusUpdatedEvent;
+import com.qrserve.shared.exceptions.BusinessException;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
 import com.qrserve.shared.security.JwtTokenProvider;
 
@@ -68,7 +71,7 @@ public class OrderService {
                 .branchId(table.getBranchId())
                 .tableId(table.getId())
                 .customerName(request.getCustomerName() != null ? request.getCustomerName() : "Guest")
-                .status("PENDING")
+                .status(OrderStatus.PENDING.name())
                 .totalAmount(BigDecimal.ZERO)
                 .note(request.getNote())
                 .build();
@@ -108,7 +111,7 @@ public class OrderService {
         orderRepository.save(savedOrder);
 
         // Mark table status as OCCUPIED via merchant-service REST call
-        updateTableStatus(table.getId(), "OCCUPIED");
+        updateTableStatus(table.getId(), TableStatus.OCCUPIED.name());
 
         // Publish Kafka event for notification/analytics services
         eventPublisher.publishOrderCreated(OrderCreatedEvent.builder()
@@ -143,10 +146,31 @@ public class OrderService {
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found ID: " + orderId));
 
         String previousStatus = order.getStatus();
-        order.setStatus(request.getStatus().toUpperCase());
+        OrderStatus next = request.getStatus();
 
-        if ("DELIVERED".equalsIgnoreCase(request.getStatus()) || "PAID".equalsIgnoreCase(request.getStatus())) {
-            updateTableStatus(order.getTableId(), "AVAILABLE");
+        // Reject illegal transitions. Binding to the enum stops unknown names, but
+        // PENDING -> PAID is a well-formed request that still corrupts reporting, so
+        // the ordering has to be checked too.
+        OrderStatus current;
+        try {
+            current = OrderStatus.valueOf(previousStatus);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            // A row persisted before the enum existed may hold an unknown value.
+            // Allow the correction rather than trapping the order forever, but say so.
+            log.warn("Order {} holds unrecognised status '{}'; allowing transition to {}",
+                    orderId, previousStatus, next);
+            current = null;
+        }
+        if (current != null && current != next && !current.canTransitionTo(next)) {
+            throw new BusinessException(
+                    "Cannot move order from " + current + " to " + next
+                            + "; allowed: " + current.allowedNext());
+        }
+
+        order.setStatus(next.name());
+
+        if (next == OrderStatus.DELIVERED || next == OrderStatus.PAID) {
+            updateTableStatus(order.getTableId(), TableStatus.AVAILABLE.name());
         }
 
         OrderEntity updated = orderRepository.save(order);
@@ -282,13 +306,52 @@ public class OrderService {
         }
     }
 
+    /**
+     * Best-effort table occupancy update, with a bounded retry.
+     *
+     * <p>Deliberately does not fail the order: a customer's order must not be
+     * rejected because a table flag could not be flipped. But the previous version
+     * logged only a warning, so three separate faults were invisible — PATCH was
+     * unsupported by the default request factory, no Authorization header was
+     * forwarded, and any failure was discarded. Exhausted retries now log at ERROR
+     * with the status so monitoring can alert on occupancy drift.
+     *
+     * <p>KNOWN LIMITATION: an order placed by an anonymous guest forwards no token,
+     * so this call is rejected by the endpoint's role check. That is the
+     * inter-service identity gap tracked as deferred work — it needs a service
+     * credential, not another retry.
+     */
     private void updateTableStatus(Long tableId, String status) {
-        try {
-            String url = merchantServiceUrl + "/api/tables/" + tableId + "/status";
-            Map<String, String> body = Map.of("status", status);
-            restTemplate.patchForObject(url, body, Map.class);
-        } catch (Exception e) {
-            log.warn("Failed to update table {} status to {}: {}", tableId, status, e.getMessage());
+        String url = merchantServiceUrl + "/api/tables/" + tableId + "/status";
+        HttpEntity<Map<String, String>> requestEntity =
+                new HttpEntity<>(Map.of("status", status), getAuthHeaders());
+
+        long backoffMs = 100L;
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+                restTemplate.exchange(url, HttpMethod.PATCH, requestEntity, Map.class);
+                return;
+            } catch (HttpClientErrorException e) {
+                // 4xx will not become 3xx on retry — stop immediately.
+                log.error("Table {} status not set to {}: merchant-service rejected the call with {} ({})",
+                        tableId, status, e.getStatusCode(), url);
+                return;
+            } catch (RestClientException e) {
+                if (attempt == 3) {
+                    log.error("Table {} status not set to {} after {} attempts; occupancy is now stale",
+                            tableId, status, attempt, e);
+                    return;
+                }
+                log.warn("Attempt {}/3 to set table {} status to {} failed: {}",
+                        attempt, tableId, status, e.getMessage());
+                try {
+                    Thread.sleep(backoffMs);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+                backoffMs *= 2;
+            }
         }
     }
 

@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { OrderStatus } from '../lib/orderStatus';
 import { useAuth } from '../context/AuthContext';
 import { 
   analyticsApi, 
@@ -368,7 +369,9 @@ export const useKitchenOrders = (params: { status?: string; branchId?: number; m
 export const useUpdateOrderStatus = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
+    // Typed as OrderStatus, not string: this is the mutation the kitchen board
+    // used to push 'SERVED' through, a value the backend rejects.
+    mutationFn: ({ id, status }: { id: string; status: OrderStatus }) =>
       orderApi.updateOrderStatus(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });

@@ -1,6 +1,7 @@
 package com.qrserve.merchant.controller;
 
 import com.qrserve.merchant.dto.CreateTableRequest;
+import com.qrserve.merchant.dto.UpdateTableStatusRequest;
 import com.qrserve.merchant.dto.CreateTableResponse;
 import com.qrserve.merchant.entity.TableEntity;
 import com.qrserve.merchant.service.TableService;
@@ -17,7 +18,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -76,8 +76,9 @@ public class TableController {
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER','WAITER','KITCHEN','CASHIER')")
     @Operation(summary = "Update table status (inter-service)")
-    public ResponseEntity<TableEntity> updateTableStatus(@PathVariable Long id, @RequestBody Map<String, String> body) {
-        String status = body.getOrDefault("status", "AVAILABLE");
-        return ResponseEntity.ok(tableService.updateTableStatus(id, status));
+    public ResponseEntity<TableEntity> updateTableStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateTableStatusRequest request) {
+        return ResponseEntity.ok(tableService.updateTableStatus(id, request.getStatus().name()));
     }
 }
