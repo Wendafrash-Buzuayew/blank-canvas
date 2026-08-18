@@ -51,6 +51,13 @@ subprojects {
 
         // Testing
         testImplementation 'org.springframework.boot:spring-boot-starter-test'
+        // REQUIRED with Spring Boot 4.1: the BOM manages junit-jupiter 6.0.3, i.e.
+        // JUnit Platform 6.x. When a project does not declare a launcher itself,
+        // Gradle 8.14 injects its own bundled junit-platform-launcher 1.x, and the
+        // mismatched engine/launcher pair fails discovery with
+        // "OutputDirectoryCreator not available" before a single test runs.
+        // Declaring it here takes the BOM-aligned 6.x launcher instead.
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     }
 
     test {
