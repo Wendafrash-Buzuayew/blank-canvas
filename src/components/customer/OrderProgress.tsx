@@ -8,9 +8,15 @@ const STEPS = [
   { key: 'DELIVERED', label: 'Served', icon: Check },
 ] as const;
 
+/** A cancelled order is not at a step in the journey — it left it. */
+const CANCELLED_STEP = -1;
+
 /** Map any backend status string onto the 4-step guest-facing journey. */
 function stepIndex(status?: string | null): number {
   const s = (status || '').toUpperCase();
+  // A cancellation used to fall through to 0, so a cancelled order told the guest
+  // it had just been sent to the kitchen and to hang tight.
+  if (s.includes('CANCEL')) return CANCELLED_STEP;
   // DELIVERED and PAID are the real terminal-ish states; SERVED/COMPLETE were
   // never emitted by the backend, so this step could not activate.
   if (s.includes('DELIVERED') || s.includes('PAID')) return 3;
@@ -47,7 +53,13 @@ export const OrderProgress: React.FC<Props> = ({ orderNumber, status, connection
           className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
             live ? 'bg-success/20 text-white' : 'bg-white/10 text-white/70'
           }`}
-          title={live ? 'Live updates connected' : 'Reconnecting to live updates'}
+          title={
+            live
+              ? 'Live updates connected'
+              : connection === 'connecting'
+                ? 'Reconnecting to live updates'
+                : 'Live updates unavailable — this refreshes every few seconds instead'
+          }
         >
           {live ? (
             <Wifi className="h-3.5 w-3.5 animate-breathe" aria-hidden />
@@ -56,7 +68,7 @@ export const OrderProgress: React.FC<Props> = ({ orderNumber, status, connection
           ) : (
             <WifiOff className="h-3.5 w-3.5" aria-hidden />
           )}
-          {live ? 'Live' : connection === 'connecting' ? 'Reconnecting' : 'Offline'}
+          {live ? 'Live' : connection === 'connecting' ? 'Reconnecting' : 'Updating'}
         </span>
       </div>
 
@@ -104,6 +116,7 @@ export const OrderProgress: React.FC<Props> = ({ orderNumber, status, connection
       </ol>
 
       <p className="mt-4 text-xs text-white/60">
+        {active === CANCELLED_STEP && 'This order was cancelled. Please speak to a waiter if that is unexpected.'}
         {active === 0 && 'Sent to the kitchen — hang tight, we’ll update this live.'}
         {active === 1 && 'The kitchen is cooking your order right now.'}
         {active === 2 && 'Ready! A waiter is bringing it over.'}

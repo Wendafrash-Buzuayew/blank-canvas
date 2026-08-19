@@ -10,7 +10,7 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "build:dev": "vite build --mode development",
-    "test:unit": "tsx src/lib/tenant.test.ts"
+    "test:unit": "tsx src/lib/tenant.test.ts && tsx src/lib/orderSession.test.ts"
   },
   "dependencies": {
     "@stomp/stompjs": "^7.3.0",

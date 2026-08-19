@@ -12,13 +12,25 @@ import {
   MapPin,
   Sparkles,
 } from 'lucide-react';
-import { usePublicMenuResolution, usePublicMenu, useCreateOrder, useCreateTableRequest } from '../hooks/useApiData';
+import {
+  usePublicMenuResolution,
+  usePublicMenu,
+  useCreateOrder,
+  useCreateTableRequest,
+  usePublicOrderTracking,
+} from '../hooks/useApiData';
 import { useOrderStream } from '../hooks/useRealtime';
 import { CartSheet, type CartLine } from '../components/customer/CartSheet';
 import { OrderProgress } from '../components/customer/OrderProgress';
 import { ServiceDock } from '../components/customer/ServiceDock';
 import type { WaiterRequestType } from '../lib/api';
 import { currentTenantSlug, resolveMenuTarget } from '../lib/tenant';
+import { mostAdvancedStatus } from '../lib/orderStatus';
+import {
+  readTrackedOrder,
+  writeTrackedOrder,
+  type TrackedOrder,
+} from '../lib/orderSession';
 
 const MenuSkeleton: React.FC = () => (
   <div className="space-y-3" aria-hidden>
@@ -77,18 +89,52 @@ export const CustomerMenuPage: React.FC = () => {
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<number | null>(null);
   const [bumpKey, setBumpKey] = useState(0);
-  const [placedOrderId, setPlacedOrderId] = useState<string | null>(null);
-  const [placedOrderNumber, setPlacedOrderNumber] = useState<string | null>(null);
   /**
-   * Anonymous token returned with the order. A guest has no JWT, so the realtime
-   * handshake is rejected without this and the tracker below never goes live.
+   * The order this guest is following, including the anonymous stream token that
+   * the realtime handshake and the status poll both need (a guest has no JWT).
+   *
+   * Held in one record because it is persisted as one: it used to live in three
+   * pieces of component state, so a browser refresh erased the tracker entirely
+   * even though the token stays valid for hours.
    */
-  const [orderStreamToken, setOrderStreamToken] = useState<string | null>(null);
+  const [tracked, setTracked] = useState<TrackedOrder | null>(null);
   const [requestSent, setRequestSent] = useState<WaiterRequestType | null>(null);
 
   const createOrder = useCreateOrder();
   const createRequest = useCreateTableRequest();
-  const { status: liveStatus, connection } = useOrderStream(placedOrderId, orderStreamToken);
+
+  // Restore only once the table is known, so a record saved at another table can
+  // never flash onto this one.
+  useEffect(() => {
+    if (!resolution) return;
+    const restored = readTrackedOrder({
+      merchantId: resolution.merchantId,
+      tableId: resolution.tableId,
+    });
+    setTracked((current) => (current && current.orderId === restored?.orderId ? current : restored));
+  }, [resolution?.merchantId, resolution?.tableId]);
+
+  const { data: trackedOrder } = usePublicOrderTracking(tracked?.orderId, tracked?.streamToken);
+  const { status: pushedStatus, connection } = useOrderStream(tracked?.orderId, tracked?.streamToken);
+
+  /**
+   * Two channels report the same order, and either can be momentarily behind: the
+   * poll is up to ten seconds stale, the socket misses anything published before
+   * it subscribed. Take the furthest-along so the guest's progress only ever moves
+   * forward. The stored status covers the third case — the first paint after a
+   * refresh, before either channel has answered.
+   */
+  const liveStatus = mostAdvancedStatus(pushedStatus, trackedOrder?.status, tracked?.status);
+  const placedOrderId = tracked?.orderId ?? null;
+  const placedOrderNumber = trackedOrder?.orderNumber || tracked?.orderNumber || null;
+
+  // Keep the stored copy current so the next refresh starts from the real status
+  // rather than from "Received". savedAt is carried over untouched: the record
+  // must expire with the token, not with the last update.
+  useEffect(() => {
+    if (!tracked || !liveStatus || liveStatus === tracked.status) return;
+    writeTrackedOrder({ ...tracked, status: liveStatus });
+  }, [liveStatus, tracked]);
 
   const currency = resolution?.currency || 'ETB';
   const sectionRefs = useRef<Record<number, HTMLElement | null>>({});
@@ -154,9 +200,19 @@ export const CustomerMenuPage: React.FC = () => {
       },
       {
         onSuccess: (res) => {
-          setPlacedOrderId(res.id);
-          setPlacedOrderNumber(res.orderNumber);
-          setOrderStreamToken(res.streamToken ?? null);
+          const record: TrackedOrder = {
+            orderId: res.id,
+            orderNumber: res.orderNumber,
+            // Seed from the response instead of assuming the first step: the
+            // tracker then shows the real status even if no event ever arrives.
+            status: res.status ?? null,
+            streamToken: res.streamToken ?? null,
+            merchantId: resolution.merchantId,
+            tableId: resolution.tableId,
+            savedAt: Date.now(),
+          };
+          writeTrackedOrder(record);
+          setTracked(record);
           setCart([]);
           setCartOpen(false);
           window.scrollTo({ top: 0, behavior: 'smooth' });

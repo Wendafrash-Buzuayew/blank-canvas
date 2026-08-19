@@ -1,7 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { OrderStatus } from '../lib/orderStatus';
+import { isTerminal } from '../lib/orderStatus';
 import { useAuth } from '../context/AuthContext';
 import { 
+  ApiError,
   analyticsApi, 
   authApi, 
   branchApi, 
@@ -556,6 +558,32 @@ export const usePublicMenu = (merchantId?: string | null) => {
     queryKey: ['public-menu', merchantId],
     queryFn: () => menuApi.getFullMenu(merchantId!),
     enabled: !!merchantId,
+  });
+};
+
+/**
+ * Current status of the order a guest is tracking, polled as a fallback.
+ *
+ * The WebSocket push is the fast path, but it is not a reliable one: the broker
+ * does not replay, so a transition published before the guest's subscription was
+ * live, or while a phone was between cells, is gone. This query is the readable
+ * source of truth that makes the tracker recoverable — on a refresh, after a
+ * dropped socket, and on every poll in between.
+ *
+ * Polling stops once the order reaches a terminal state: there is nothing further
+ * to learn, and a guest leaving the page open must not poll all evening.
+ */
+export const usePublicOrderTracking = (orderId?: string | null, streamToken?: string | null) => {
+  return useQuery({
+    queryKey: ['public-order-tracking', orderId],
+    queryFn: () => publicApi.trackOrder(orderId!, streamToken!),
+    enabled: !!orderId && !!streamToken,
+    refetchInterval: (query) => (isTerminal(query.state.data?.status) ? false : 10_000),
+    // Come back from a backgrounded phone browser with current data rather than
+    // whatever was on screen when the guest looked away.
+    refetchOnWindowFocus: true,
+    // A 401 means the token expired; retrying cannot fix it.
+    retry: (failureCount, error) => !(error instanceof ApiError && error.status === 401) && failureCount < 2,
   });
 };
 

@@ -118,6 +118,16 @@ export interface CreateOrderResponse {
   streamToken?: string;
 }
 
+/** GET /api/v1/public/orders/{orderId} — what a guest may read back about their order. */
+export interface OrderTrackingResponse {
+  id: string;
+  orderNumber: string;
+  status: string;
+  totalAmount: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface TodayAnalyticsResponse {
   todayRevenue: number;
   totalOrders: number;
@@ -862,6 +872,24 @@ export const publicApi = {
     ),
 
   health: () => request<{ status: string }>('/v1/public/menu/health', { skipAuth: true }),
+
+  /**
+   * GET /api/v1/public/orders/{orderId} — the current status of one order.
+   *
+   * The guest's only credential is the stream token returned with the order, and
+   * it travels in its own header: it is not an API credential and the backend
+   * refuses to authenticate a request with it (see JwtAuthenticationFilter). A
+   * header, not a query parameter, so the token stays out of URLs, logs and
+   * referrers.
+   *
+   * skipAuth so a staff member browsing the guest page cannot accidentally read
+   * this with their own token instead of the guest's.
+   */
+  trackOrder: (orderId: string, streamToken: string) =>
+    request<OrderTrackingResponse>(`/v1/public/orders/${encodeURIComponent(orderId)}`, {
+      skipAuth: true,
+      headers: { 'X-Order-Token': streamToken },
+    }),
 
   /** POST /api/v1/tables/{tableId}/requests — customer service call from a table */
   createTableRequest: (

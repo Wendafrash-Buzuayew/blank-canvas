@@ -167,6 +167,12 @@ export function useWaiterStream(merchantId?: string | null, branchId?: number | 
 /**
  * Live status stream for one order (used by the customer order tracker).
  *
+ * <p>This is the fast path, not the source of truth. The broker does not replay to
+ * a new subscription, so a transition published before this subscription went live
+ * — which includes the gap while the guest token forces a reconnect — is never
+ * seen here. `usePublicOrderTracking` is what makes the status recoverable; this
+ * hook keeps it instant, and invalidates that query so the two agree.
+ *
  * @param orderId     the order to follow
  * @param streamToken anonymous token returned by POST /api/orders. A guest has no
  *                    JWT, so without it the WebSocket handshake is rejected and
@@ -174,9 +180,13 @@ export function useWaiterStream(merchantId?: string | null, branchId?: number | 
  *                    their access token takes precedence.
  */
 export function useOrderStream(orderId?: string | null, streamToken?: string | null) {
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState<string | null>(null);
   const { events, push } = useEventBuffer(20);
   const destination = orderId ? StompDestinations.order(orderId) : null;
+
+  // Following a different order must not keep showing the previous one's status.
+  useEffect(() => setStatus(null), [orderId]);
 
   useEffect(() => {
     if (!streamToken) return;
@@ -184,10 +194,22 @@ export function useOrderStream(orderId?: string | null, streamToken?: string | n
     return () => realtime.setGuestToken(null);
   }, [streamToken]);
 
+  // Whatever the socket missed while it was down is gone; refetch instead of
+  // trusting the last value it happened to deliver.
+  const keys = useMemo<QueryKey[]>(
+    () => (orderId ? [['public-order-tracking', orderId]] : []),
+    [orderId]
+  );
+  useReconnectResync(keys);
+
   useStompSubscription(destination, (env) => {
     if (!push(env)) return;
     const next = (env.payload as any)?.status ?? (env.payload as any)?.newStatus;
     if (next) setStatus(String(next));
+    // Reconcile the readable copy: it is what survives the next refresh.
+    if (orderId) {
+      queryClient.invalidateQueries({ queryKey: ['public-order-tracking', orderId] });
+    }
   });
 
   return { status, events, connection: useRealtimeStatus() };

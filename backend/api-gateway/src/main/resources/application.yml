@@ -53,6 +53,29 @@ spring:
                       maxBackoff: 500ms
                       factor: 2
 
+            # Guest order tracking. MUST precede the merchant route: its
+            # /api/v1/** catch-all would otherwise send this to merchant-service,
+            # which has no such endpoint, and the guest tracker would 404. Same
+            # resilience filters as the rest of order-service — a guest polling a
+            # dead order-service must get the fallback, not a hanging request.
+            - id: order-service-public
+              uri: lb://order-service
+              predicates:
+                - Path=/api/v1/public/orders/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: default
+                    fallbackUri: forward:/fallback
+                - name: Retry
+                  args:
+                    retries: 2
+                    methods: GET
+                    backoff:
+                      firstBackoff: 50ms
+                      maxBackoff: 500ms
+                      factor: 2
+
             # Merchant Service Route (includes v1 public/waiter/table endpoints)
             - id: merchant-service
               uri: lb://merchant-service
@@ -205,6 +228,26 @@ resilience4j:
         sliding-window-size: 10
         failure-rate-threshold: 50
         wait-duration-in-open-state: 10s
+
+  # MUST be set explicitly. Spring Cloud CircuitBreaker wraps every route that
+  # carries the CircuitBreaker filter in a TimeLimiter, on the reactive path too,
+  # and its default timeout is ONE second — verified against the resilience4j on
+  # this classpath: TimeLimiterConfig.ofDefaults().getTimeoutDuration() is PT1S.
+  #
+  # That one second was the whole request budget for every downstream call. A cold
+  # JVM's first database-touching request routinely exceeds it, so the gateway
+  # aborted and forwarded to /fallback. GETs then succeeded on the Retry filter's
+  # second or third attempt, which is exactly why the app appeared to need a couple
+  # of requests before it would respond; POST and PATCH are not retried, so a login
+  # or an order simply failed instead.
+  #
+  # Ten seconds is chosen to clear a cold start rather than to be a target latency:
+  # it is a ceiling that stops a hung downstream from holding the caller forever,
+  # not a promise. Tighten it once startup latency is measured.
+  timelimiter:
+    instances:
+      default:
+        timeout-duration: 10s
 
 management:
   endpoints:

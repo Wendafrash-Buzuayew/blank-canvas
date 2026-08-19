@@ -228,6 +228,15 @@ project(':analytics-service') {
 project(':api-gateway') {
     dependencies {
         implementation 'org.springframework.boot:spring-boot-starter-webflux'
+        // Boot 4 split auto-configuration into per-technology modules, and
+        // starter-webflux now carries only the server side (spring-boot-webflux).
+        // WebClientAutoConfiguration — the source of the WebClient.Builder bean
+        // TenantSlugResolver injects — moved into spring-boot-webclient, which
+        // this starter brings. Without it the context fails to start on a missing
+        // WebClient$Builder. Building the client by hand instead would work but
+        // would drop the observation registry, so the tenant lookup would vanish
+        // from the gateway's traces.
+        implementation 'org.springframework.boot:spring-boot-starter-webclient'
         implementation 'org.springframework.cloud:spring-cloud-gateway-server-webflux'
         implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
         implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'

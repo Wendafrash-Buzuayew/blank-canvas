@@ -45,3 +45,50 @@ export const TABLE_STATUS = {
 } as const;
 
 export type TableStatus = (typeof TABLE_STATUS)[keyof typeof TABLE_STATUS];
+
+/**
+ * Lifecycle position of a status, used to pick the furthest-along of several
+ * reports of the same order.
+ *
+ * <p>The customer tracker learns its status from two independent channels — a
+ * WebSocket push and a REST poll — which can disagree for a few seconds in either
+ * direction: a push lands before the poll refetches, or a poll answers with a
+ * value the socket has already superseded. Taking the maximum rank means neither
+ * channel can walk the guest's progress backwards. CANCELLED ranks last because
+ * the backend accepts no transition out of it, so once seen it is the truth.
+ */
+const RANK: Record<string, number> = {
+  [ORDER_STATUS.PENDING]: 0,
+  [ORDER_STATUS.ACCEPTED]: 1,
+  [ORDER_STATUS.PREPARING]: 2,
+  [ORDER_STATUS.READY]: 3,
+  [ORDER_STATUS.DELIVERED]: 4,
+  [ORDER_STATUS.PAID]: 5,
+  [ORDER_STATUS.CANCELLED]: 6,
+};
+
+/** @returns the lifecycle position, or -1 for an unknown or absent status. */
+export function statusRank(status: string | null | undefined): number {
+  if (!status) return -1;
+  const rank = RANK[status.toUpperCase()];
+  return rank === undefined ? -1 : rank;
+}
+
+/**
+ * The furthest-along of the given statuses, or null if none is recognised.
+ *
+ * Unknown values are ignored rather than preferred: a status name this build does
+ * not know about must not outrank one it does.
+ */
+export function mostAdvancedStatus(...statuses: (string | null | undefined)[]): string | null {
+  let best: string | null = null;
+  let bestRank = -1;
+  for (const status of statuses) {
+    const rank = statusRank(status);
+    if (rank > bestRank) {
+      bestRank = rank;
+      best = status!.toUpperCase();
+    }
+  }
+  return best;
+}
