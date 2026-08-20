@@ -61,6 +61,9 @@ public final class Emvco {
             tags.put(tag, payload.substring(from, to));
             i = to;
         }
+        if (i < payload.length()) {
+            throw new IllegalArgumentException("Incomplete tag header at offset " + i + ": " + payload.substring(i));
+        }
         return tags;
     }
 }

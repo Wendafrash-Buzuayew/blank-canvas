@@ -8,6 +8,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -83,5 +84,22 @@ class EmvcoPayloadTest {
     void tlvEncoding() {
         assertEquals("0002ET", Emvco.tlv("00", "ET"));
         assertEquals("5907SUNRISE", Emvco.tlv("59", "SUNRISE"));
+    }
+
+    @Test
+    @DisplayName("parseTags rejects incomplete trailing tag header rather than truncating silently")
+    void incompleteTagHeaderRejected() {
+        String staticPayload = EmvcoPayload.staticPayload(SUNRISE, "T42-1", "BR1");
+        String withIncompleteTag = staticPayload + "62";
+        assertThrows(IllegalArgumentException.class, () -> Emvco.parseTags(withIncompleteTag),
+                "parseTags must throw on incomplete tag header, not return partial map");
+    }
+
+    @Test
+    @DisplayName("rounding extra precision rejects at mint time, not silently altering a payment that would mismatch")
+    void extraPrecisionRejected() {
+        assertThrows(ArithmeticException.class, () ->
+                EmvcoPayload.dynamicPayload(SUNRISE, "T42-1", "BR1", new BigDecimal("420.375"), "PR-1", "PB-1"),
+                "must reject amounts with more than 2 decimals to prevent silent mismatches at settlement");
     }
 }

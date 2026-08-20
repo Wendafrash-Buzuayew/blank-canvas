@@ -75,8 +75,12 @@ public final class EmvcoPayload {
     }
 
     /**
-     * Always two decimals. A bank app renders exactly the characters it reads, so
-     * "420" and "420.00" are the same money but not the same receipt.
+     * Amount must already be scaled to exactly two decimals by the caller. Rejects
+     * extra precision with ArithmeticException rather than rounding, because the
+     * payment matcher compares amounts exactly: rounding a payload down at mint time
+     * would mint a good-faith bill that comes back as AMOUNT_MISMATCH and sits waiting
+     * for staff. A loud failure before anything is printed is better than a payment
+     * that differs from the bill.
      */
     private static String amountOf(BigDecimal amount) {
         return amount.setScale(2, RoundingMode.UNNECESSARY).toPlainString();
