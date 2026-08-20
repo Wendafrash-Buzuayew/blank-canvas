@@ -30,6 +30,8 @@ inside a Super App ecosystem, without the platform ever holding funds.
 | Realtime | STOMP/SockJS → `notification-service`, Kafka domain events, Redis fan-out, anonymous order-stream token, guest status poll. |
 | Mini-app container | Nothing. No WebView, bridge or `postMessage` code anywhere. |
 | Merchant configuration | Nothing. `MerchantEntity` has no settings, and no settings entity exists in any service. |
+| Table QR, frontend | `qrApi` and `useTableQr` exist, but `QRDesigner` renders the code **client-side** (`QRCode.toCanvas` from the `qrcode` package) and falls back to a fabricated `https://qrserve.com/menu/${slug}/${branchId \|\| 1}/${tableId \|\| 1}`. Table creation never surfaces a QR. |
+| Per-table QR persistence | `TableEntity.qr_token` only. No stored payload, version, profile or printed-at — and therefore **no terminal-to-table mapping**. |
 | Non-table orders | Impossible. `tableId` is `@NotNull` in `CreateOrderRequest` and `nullable = false` in `OrderEntity`. |
 
 ### 1.2 Decomposition
@@ -41,6 +43,7 @@ inside a Super App ecosystem, without the platform ever holding funds.
 | 3 | Path B inbound: switch webhook adapter, verifier, operator tooling for held payments | 1 |
 | 4 | Mini-app delivery: guest surface into a hosted Next.js app, shared package, Ant adapters, mini-program shell | 1 |
 | 5 | Delivery fulfilment: addresses, zones, fees, dispatch, `OUT_FOR_DELIVERY` | 1, 4 |
+| 6 | Non-table fulfilment: takeout customer surface, branch entry, contact capture, pickup queue (section 9) | 1 |
 
 Sub-project 1 defines the models, ports and rules the others plug into. Sections
 5–8 below specify the contracts those sub-projects must satisfy, so implementing
@@ -294,6 +297,61 @@ reference label into its webhook is the largest unknowable without specs, so the
 matcher has a reference-free path. Static stickers carry no reference at all —
 which is why dynamic payloads carry the money that matters.
 
+### 5.5 Table binding and the terminal mapping
+
+A table QR is provisioned when the table is created, and the exact bytes are stored:
+
+```
+TableQr                                  // static stickers only; dynamic payloads are
+                                         // per-bill and never stored here
+  id, tableId, merchantId, branchId
+  terminalLabel : String  UNIQUE         // tag 62-07 — unique PER VERSION (see below)
+  payloadRaw    : String                 // the exact bytes that went onto the sticker
+  payloadCrc    : String
+  profile       : EMVCO | MENU_URL       // the two provisioning profiles from 5.3
+  version       : int
+  state         : ACTIVE | SUPERSEDED | REVOKED
+  provisionedAt, printedAt?, supersededAt?
+```
+
+**This is a payment-core dependency, not presentation work.** The `UNKNOWN_TERMINAL`
+outcome in 6.3 and the rule in 6.4 that the anonymous webhook derives its merchant
+from our own terminal mapping both require this table. `TableEntity.qr_token` is not a
+substitute: it carries no payload, no version and no resolvable terminal label.
+
+- **Provisioned inside the table-creation flow.** A table cannot exist without a
+  scannable code, and the creation response returns the rendered image.
+- **The stored payload is the truth.** A payment instrument in the physical world is a
+  liability; "what exact bytes are on table 15" must be answerable without recomputing
+  and hoping the inputs have not changed.
+- **Reprint creates a new version with a new `terminalLabel`, and the old row becomes
+  `SUPERSEDED`, never deleted.** A sticker can stay on a table for weeks after a
+  rotation, so the matcher resolves `terminalLabel` to a table across `ACTIVE` and
+  `SUPERSEDED` rows alike. Deleting them would silently convert real payments into
+  `UNKNOWN_TERMINAL` held records. The label changing per version is deliberate: it
+  makes a payment traceable to the physical sticker that produced it, which is how you
+  find out a stale code is still in circulation.
+- **`REVOKED`** is for a sticker known destroyed or compromised. Payments quoting it
+  are held, never settled.
+- A **branch-level entry QR** (section 9.2) is provisioned with the `MENU_URL` profile,
+  not `EMVCO`: without a table there is no terminal and without a bill there is no
+  amount, so there is nothing to pay.
+
+### 5.6 Rendering rule, and a bug to delete
+
+**The server renders the image; the client never renders the payload.** `QRDesigner`
+currently draws the code itself with `QRCode.toCanvas` — a second renderer for what is
+about to become a money instrument, which is the drift class this codebase has already
+paid for twice, now with a CRC attached. The designer composes branding *around* a
+server-provided image.
+
+**Delete the fabricated fallback.** `QRDesigner` falls back to
+`https://qrserve.com/menu/${slug}/${branchId || 1}/${tableId || 1}` when metadata has
+not loaded — the wrong domain (the tenant scheme is `{merchant}.qrserve.safaricom.et`)
+with branch and table defaulted to `1`. A merchant can print and laminate that, and
+nobody discovers it until a guest scans it. No metadata means an empty state, never a
+guess.
+
 ---
 
 ## 6. Payment paths
@@ -425,7 +483,7 @@ funds. Every non-settling outcome is a `HELD` record surfaced to staff.
   lag minutes, so windows are generous and overlap is resolved by amount.
 - Verification is a `WebhookVerifier` port; the dev fake is shared-secret HMAC.
 - The endpoint is anonymous, so the merchant is derived from our own
-  **terminal-to-table mapping**, never from `claimedMerchantId`.
+  **terminal-to-table mapping** (5.5), never from `claimedMerchantId`.
 - An unverified webhook returns `401` **and raises an alert**. It is either a
   misconfiguration or an attack, and silently dropping it loses money either way.
 
@@ -650,9 +708,78 @@ on reconnect.
 
 ---
 
-## 9. Invariants, failure modes, security
+## 9. Non-table fulfilment: the customer surface
 
-### 9.1 Invariants, each with a mechanism
+Everything guest-facing today is table-derived. Takeout is built in this phase;
+delivery is modelled only (section 2).
+
+### 9.1 What breaks without a table
+
+| Breaks | Fix |
+|---|---|
+| `resolveMenuTarget` requires a table number; resolution is merchant + branch + table | A branch-only form (9.2). It must keep rejecting a missing table for `DINE_IN`, so a dine-in order can never be placed without one |
+| The signed table QR is the presence proof; takeout has none | It needs none — prepaid is the control (9.3) |
+| No customer contact: `customerName` is optional and there is no phone | `CustomerContact` (9.4) |
+| The tracked-order record scopes on `merchantId + tableId` | Scope becomes `merchantId + fulfilmentType + (tableId \| 'TAKEOUT')` (9.5) |
+| No handover step; `DELIVERED` is written from the kitchen board | Pickup queue with a staff handover action (9.4) |
+| `ServiceDock` offers call-waiter, water and bill | Rendered only for `DINE_IN` (9.5) |
+| `OrderProgress`'s final step reads "Served" | Fulfilment-aware labels (9.5) |
+| No promised time is shown | Surface the existing `estimatedTime` as a pickup ETA (9.5) |
+
+### 9.2 Entry point
+
+A branch-level route `/{merchantSlug}/{branchSlug}` with no table segment, reached from
+a branch entry QR (`MENU_URL` profile, see 5.5) or the Super App merchant directory.
+`resolveMenuTarget` gains a branch-only form; the dine-in form is unchanged and still
+refuses a missing table number, so widening the entry cannot weaken table ordering.
+
+### 9.3 Presence, and why takeout needs no proof
+
+Dine-in presence is proven by the HMAC-signed table QR. Takeout has no table and needs
+no equivalent, because **prepaid is the control**: the kitchen never sees an unpaid
+takeout order (4.3), so an abusive unpaid order costs a database row and nothing else.
+This is exactly why settlement mode is keyed per fulfilment type (section 3) rather
+than per merchant — takeout being prepaid is a security property, not a preference.
+
+### 9.4 Contact and handover
+
+```
+CustomerContact { name, phone, walletUserRef? }
+```
+
+Required for `TAKEOUT` and `DELIVERY`, optional for `DINE_IN`. In-container,
+`getAuthCode` supplies `walletUserRef` and the wallet profile prefills name and phone
+(7.3).
+
+Handover: `READY` → guest notified → guest arrives → staff confirm → `DELIVERED`. The
+**order number is the pickup code**; a second code would be one more thing to lose.
+For takeout, `DELIVERED` is written by the pickup-queue action, not by the kitchen
+board — the kitchen finishing the food and a human receiving it are different events,
+and conflating them is how "picked up" orders sit uncollected on a counter.
+
+### 9.5 Fulfilment-aware guest UI
+
+- **Tracked-order scope** becomes `merchantId + fulfilmentType + (tableId | 'TAKEOUT')`.
+  The current record keys on merchant and table, so a takeout order would be dropped on
+  every refresh.
+- **`ServiceDock` renders only for `DINE_IN`.** Call-waiter, water and bill are
+  meaningless at a pickup counter.
+- **`OrderProgress` final step label follows the fulfilment type**: Served, Picked up,
+  or Delivered. The step ladder itself is unchanged.
+- **Pickup ETA** comes from `estimatedTime`, already returned by the create response.
+
+### 9.6 Merchant surface
+
+Takeout and delivery have no table, so they render as a **fulfilment queue** on the
+existing merchant destinations (section 8) rather than a table board: awaiting payment
+(prepaid), in kitchen, ready for pickup, handed over. The table board stays dine-in
+only, as in 8.1.
+
+---
+
+## 10. Invariants, failure modes, security
+
+### 10.1 Invariants, each with a mechanism
 
 | Invariant | Enforced by |
 |---|---|
@@ -668,7 +795,7 @@ simultaneously, exactly one wins; the loser is recorded as
 `UnmatchedPayment(DUPLICATE_REF)`. Application-level checks lose that race; a
 unique index cannot.
 
-### 9.2 Cash is the most likely way invariant 4 gets broken
+### 10.2 Cash is the most likely way invariant 4 gets broken
 
 A guest pays in-app while a waiter collects cash, and the cash never touches the
 payable — so the bill still looks open and the wallet payment settles something
@@ -677,7 +804,7 @@ already collected. **"Mark paid by cash" must create a
 path.** Any side channel that flips an order to `PAID` outside the payable breaks
 the model, and this is where someone will add one.
 
-### 9.3 Security
+### 10.3 Security
 
 - `credentialHandle` only — never credentials — in `MerchantSettings`.
 - Raw payloads carry payer identifiers: retention limits and restricted access.
@@ -695,7 +822,7 @@ the model, and this is where someone will add one.
   and `TenantContextFilter`; the anonymous webhook derives its merchant from the
   terminal mapping.
 
-### 9.4 Testing
+### 10.4 Testing
 
 | Level | Coverage |
 |---|---|
@@ -710,7 +837,7 @@ introducing a test runner. Java suites run with `./gradlew test`.
 
 ---
 
-## 10. Open items
+## 11. Open items
 
 1. **Real external specs.** The QR Generation API, the container's actual bridge
    surface, and the switch's webhook and verification scheme are all unknown.
@@ -725,8 +852,11 @@ introducing a test runner. Java suites run with `./gradlew test`.
    STOMP/SockJS endpoint.
 5. **Next.js migration scope** (sub-project 4) is larger than an adapter: it is a
    workspace split.
+6. **Whether branch entry QRs get printed at all**, or takeout entry is Super App
+   directory only. Decides whether 5.5's `MENU_URL` branch provisioning ships with
+   sub-project 6 or is deferred.
 
-## 11. Out of scope
+## 12. Out of scope
 
 Split and partial payments; any double-entry ledger; platform custody, payouts,
 fees or settlement scheduling; refund execution; delivery zones, fees, dispatch and
