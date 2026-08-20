@@ -46,4 +46,10 @@ class TerminalLabelTest {
         assertThrows(IllegalArgumentException.class, () -> TerminalLabel.of(42L, 0));
         assertThrows(IllegalArgumentException.class, () -> TerminalLabel.of(42L, -1));
     }
+
+    @Test
+    @DisplayName("overflowing the 25-character cap is rejected: a truncated tag 62-07 cannot be traced back to its sticker")
+    void overflowIsRejected() {
+        assertThrows(IllegalArgumentException.class, () -> TerminalLabel.of(Long.MAX_VALUE, 100000));
+    }
 }

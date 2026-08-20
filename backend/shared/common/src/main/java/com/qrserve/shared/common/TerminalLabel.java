@@ -22,7 +22,7 @@ public final class TerminalLabel {
         }
         String label = "T" + tableId + "-" + version;
         if (label.length() > MAX_LENGTH) {
-            throw new IllegalStateException("Terminal label exceeds tag 62-07: " + label);
+            throw new IllegalArgumentException("Terminal label exceeds tag 62-07: " + label);
         }
         return label;
     }
