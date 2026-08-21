@@ -12,6 +12,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -101,5 +102,28 @@ class MerchantSettingsResolverTest {
 
         assertEquals(SettlementMode.PREPAID,
                 MerchantSettingsResolver.resolve(merchant, null).mode(FulfilmentType.TAKEOUT));
+    }
+
+    @Test
+    @DisplayName("one caller must not be able to corrupt every other merchant's defaults")
+    void collectionsMustBeUnmodifiable() {
+        assertThrows(UnsupportedOperationException.class, () -> {
+            MerchantSettingsResolver.DEFAULTS.fulfilmentEnabled().add(FulfilmentType.TAKEOUT);
+        });
+    }
+
+    @Test
+    @DisplayName("null values in settlement modes are rejected at construction, not later")
+    void nullSettlementModeRejectedAtConstruction() {
+        MerchantSettingsResolver.SettingsRow merchant = new MerchantSettingsResolver.SettingsRow(
+                EnumSet.of(FulfilmentType.DINE_IN, FulfilmentType.TAKEOUT),
+                modes(FulfilmentType.DINE_IN, SettlementMode.TAB));
+        Map<FulfilmentType, SettlementMode> withNull = new EnumMap<>(merchant.settlementMode());
+        withNull.put(FulfilmentType.TAKEOUT, null);
+
+        assertThrows(NullPointerException.class, () -> {
+            MerchantSettingsResolver.resolve(merchant, new MerchantSettingsResolver.SettingsRow(
+                    EnumSet.of(FulfilmentType.DINE_IN, FulfilmentType.TAKEOUT), withNull));
+        });
     }
 }
