@@ -4,10 +4,11 @@ import { useQuery } from '@tanstack/react-query';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Spinner, ErrorState, EmptyState } from '../components/ui/States';
 import { EntitySelect } from '../components/ui/EntitySelect';
-import { useTables, useCreateTable, useDeleteTable, useUpdateTableStatus, useAssignWaiterV1 } from '../hooks/useApiData';
+import { useTables, useCreateTable, useDeleteTable, useUpdateTableStatus, useAssignWaiterV1, useTableQr } from '../hooks/useApiData';
 import { useBranchesLookup, useMerchantsLookup, useUsersLookup, useWaitersLookup } from '../hooks/useLookups';
 import { friendlyError } from '../lib/errors';
-import { isAuthenticated, tableAssignmentApi, TableAssignmentEntity } from '../lib/api';
+import { isAuthenticated, tableAssignmentApi, TableAssignmentEntity, CreateTableResponse } from '../lib/api';
+import { canRenderQr, qrCaption, qrImageSrc } from '../lib/qrDisplay';
 
 export const TableManagement: React.FC = () => {
   const tablesQuery = useTables();
@@ -27,6 +28,11 @@ export const TableManagement: React.FC = () => {
   const [pageError, setPageError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [branchFilter, setBranchFilter] = useState<string>('');
+  // The table just created, so we can show its QR immediately — the whole point of
+  // creating a table is printing this sticker, so the merchant should see it now
+  // rather than hunting for it in the list.
+  const [createdTable, setCreatedTable] = useState<CreateTableResponse | null>(null);
+  const createdTableQr = useTableQr(createdTable?.id);
 
   const tables = tablesQuery.data ?? [];
   const merchants = merchantsQuery.data ?? [];
@@ -127,12 +133,13 @@ export const TableManagement: React.FC = () => {
     if (!formData.tableNumber.trim()) return setFormError('Please enter a table number.');
 
     try {
-      await createMutation.mutateAsync({
+      const created = await createMutation.mutateAsync({
         branchId: formData.branchId,
         tableNumber: formData.tableNumber.trim(),
         capacity: formData.capacity,
       });
       setShowForm(false);
+      setCreatedTable(created);
     } catch (err) {
       setFormError(friendlyError(err, 'We could not create this table.'));
     }
@@ -412,6 +419,52 @@ export const TableManagement: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {createdTable && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-sm max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between p-4 border-b border-slate-200">
+              <div>
+                <h3 className="font-bold text-sm">Table {createdTable.tableNumber} created</h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">Print this code and place it on the table.</p>
+              </div>
+              <button
+                onClick={() => setCreatedTable(null)}
+                aria-label="Close"
+                className="p-1 text-slate-400 hover:text-slate-900 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 flex flex-col items-center gap-3">
+              <div className="w-48 h-48 bg-white rounded-2xl border border-slate-200 shadow-inner flex items-center justify-center">
+                {createdTableQr.isLoading ? (
+                  <Loader2 className="w-6 h-6 animate-spin text-[#E60028]" />
+                ) : canRenderQr(createdTableQr.data) ? (
+                  <img
+                    src={qrImageSrc(createdTableQr.data)!}
+                    alt={`QR code for Table ${createdTable.tableNumber}`}
+                    className="rounded-xl w-full h-full object-contain"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center gap-1.5 text-center px-3">
+                    <QrCode className="w-6 h-6 text-slate-300" />
+                    <span className="text-[10px] font-bold text-slate-400">{qrCaption(createdTableQr.data)}</span>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs font-bold text-slate-600">{qrCaption(createdTableQr.data)}</p>
+              <button
+                onClick={() => setCreatedTable(null)}
+                className="w-full py-2.5 bg-[#E60028] hover:bg-[#CC0024] text-white text-sm font-bold rounded-xl"
+              >
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}
