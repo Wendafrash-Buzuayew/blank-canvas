@@ -78,11 +78,20 @@ public class TableController {
      * falls through to anyRequest().authenticated(). The payload embeds the
      * merchant's own settlement account (bank or wallet), so publishing it
      * anonymously would make merchant account numbers enumerable by table id.
+     *
+     * <p>Role gates alone are not enough: any MERCHANT_OWNER or BRANCH_MANAGER
+     * could otherwise walk table ids and read every other merchant's settlement
+     * account. {@link #requireTenantAccess} pins the call to the caller's own
+     * tenant, the same way {@link #getAllTables} does.
      */
     @GetMapping("/{id}/qr")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
     @Operation(summary = "Get the active provisioned QR payload for a table (inter-service)")
-    public ResponseEntity<TableQrResponse> getTableQr(@PathVariable Long id) {
+    public ResponseEntity<TableQrResponse> getTableQr(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        TableEntity table = tableService.getTable(id);
+        requireTenantAccess(table.getMerchantId(), principal);
         TableQrEntity qr = tableQrProvisioningService.getActive(id);
         return ResponseEntity.ok(TableQrResponse.builder()
                 .payloadRaw(qr.getPayloadRaw())
@@ -91,6 +100,19 @@ public class TableController {
                 .profile(qr.getProfile())
                 .version(qr.getVersion())
                 .build());
+    }
+
+    /**
+     * SUPER_ADMIN may reach across tenants; every other role is pinned to its own
+     * merchantId regardless of which table id it asks for. Mirrors the scoping
+     * rule in {@link #getAllTables}.
+     */
+    private void requireTenantAccess(UUID merchantId, UserPrincipal principal) {
+        boolean superAdmin = principal != null && principal.getRole() == UserRole.SUPER_ADMIN;
+        boolean sameTenant = principal != null && merchantId.equals(principal.getMerchantId());
+        if (!superAdmin && !sameTenant) {
+            throw new UnauthorizedException("Caller has no access to merchant " + merchantId);
+        }
     }
 
     /**
