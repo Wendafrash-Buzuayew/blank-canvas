@@ -3,7 +3,10 @@ package com.qrserve.merchant.controller;
 import com.qrserve.merchant.dto.CreateTableRequest;
 import com.qrserve.merchant.dto.UpdateTableStatusRequest;
 import com.qrserve.merchant.dto.CreateTableResponse;
+import com.qrserve.merchant.dto.TableQrResponse;
 import com.qrserve.merchant.entity.TableEntity;
+import com.qrserve.merchant.entity.TableQrEntity;
+import com.qrserve.merchant.service.TableQrProvisioningService;
 import com.qrserve.merchant.service.TableService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,6 +30,7 @@ import java.util.UUID;
 public class TableController {
 
     private final TableService tableService;
+    private final TableQrProvisioningService tableQrProvisioningService;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
@@ -64,6 +68,29 @@ public class TableController {
     @Operation(summary = "Get table details by ID")
     public ResponseEntity<TableEntity> getTable(@PathVariable Long id) {
         return ResponseEntity.ok(tableService.getTable(id));
+    }
+
+    /**
+     * The active provisioned QR for this table — what qr-service renders.
+     *
+     * <p>Deliberately NOT covered by SecurityConfig's "/api/tables/*" permitAll rule:
+     * that wildcard is single-segment ("/api/tables/{id}"), so "/api/tables/{id}/qr"
+     * falls through to anyRequest().authenticated(). The payload embeds the
+     * merchant's own settlement account (bank or wallet), so publishing it
+     * anonymously would make merchant account numbers enumerable by table id.
+     */
+    @GetMapping("/{id}/qr")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
+    @Operation(summary = "Get the active provisioned QR payload for a table (inter-service)")
+    public ResponseEntity<TableQrResponse> getTableQr(@PathVariable Long id) {
+        TableQrEntity qr = tableQrProvisioningService.getActive(id);
+        return ResponseEntity.ok(TableQrResponse.builder()
+                .payloadRaw(qr.getPayloadRaw())
+                .payloadCrc(qr.getPayloadCrc())
+                .terminalLabel(qr.getTerminalLabel())
+                .profile(qr.getProfile())
+                .version(qr.getVersion())
+                .build());
     }
 
     /**

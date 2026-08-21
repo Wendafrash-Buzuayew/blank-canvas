@@ -7,6 +7,7 @@ import com.qrserve.shared.common.QrSignatureService;
 import com.qrserve.shared.common.TerminalLabel;
 import com.qrserve.shared.common.emvco.EmvcoMerchant;
 import com.qrserve.shared.common.emvco.EmvcoPayload;
+import com.qrserve.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,6 +60,17 @@ public class TableQrProvisioningService {
                             + active.getTerminalLabel() + "; use reprint(...) to supersede it");
         });
         return mintNext(ref);
+    }
+
+    /**
+     * The sticker currently valid for this table — what qr-service renders and
+     * nothing else. 404s rather than returning empty, because the caller (an image
+     * render, or a printable-code export) has nothing useful to do without it.
+     */
+    public TableQrEntity getActive(Long tableId) {
+        return repository.findByTableIdAndState(tableId, "ACTIVE")
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No active QR for table ID: " + tableId));
     }
 
     /** Issues the next version and supersedes whatever is currently ACTIVE. */
