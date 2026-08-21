@@ -47,7 +47,7 @@ class TerminalMapServiceTest {
     @Test
     @DisplayName("a provisioning event becomes a resolvable mapping")
     void recordsMapping() {
-        when(repository.existsById("T42-1")).thenReturn(false);
+        when(repository.findById("T42-1")).thenReturn(Optional.empty());
 
         service.record(event("T42-1", 42L, 1));
 
@@ -58,12 +58,33 @@ class TerminalMapServiceTest {
     @DisplayName("a redelivered event is not written twice")
     void idempotentOnRedelivery() {
         // Kafka is at-least-once, and the projection's primary key is the label, so a
-        // second insert would fail the listener and stall the partition.
-        when(repository.existsById("T42-1")).thenReturn(true);
+        // second insert would fail the listener and stall the partition. Safety here
+        // rests on merchant-service keying the Kafka send by terminalLabel, so a
+        // redelivery of the same label always lands with a matching tableId.
+        TerminalMapEntity stored = TerminalMapEntity.builder()
+                .terminalLabel("T42-1").tableId(42L).merchantId(MERCHANT).branchId(5L)
+                .tableNumber("15").version(1).build();
+        when(repository.findById("T42-1")).thenReturn(Optional.of(stored));
 
         service.record(event("T42-1", 42L, 1));
 
         verify(repository, never()).save(any(TerminalMapEntity.class));
+    }
+
+    @Test
+    @DisplayName("a conflicting same-label event is logged and ignored, not written")
+    void conflictingTableIdIsIgnored() {
+        // A stored row with a different tableId than the incoming event is the one
+        // anomaly worth surfacing loudly rather than silently discarding.
+        TerminalMapEntity stored = TerminalMapEntity.builder()
+                .terminalLabel("T42-1").tableId(42L).merchantId(MERCHANT).branchId(5L)
+                .tableNumber("15").version(1).build();
+        when(repository.findById("T42-1")).thenReturn(Optional.of(stored));
+
+        service.record(event("T42-1", 99L, 1));
+
+        verify(repository, never()).save(any(TerminalMapEntity.class));
+        assertEquals(42L, stored.getTableId(), "the stored row must be left untouched by a conflicting event");
     }
 
     @Test
