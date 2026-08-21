@@ -1,7 +1,17 @@
 package com.qrserve.qr.service;
 
+import com.google.zxing.BinaryBitmap;
+import com.google.zxing.LuminanceSource;
+import com.google.zxing.MultiFormatReader;
+import com.google.zxing.ResultMetadataType;
+import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
+import com.google.zxing.common.HybridBinarizer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -74,5 +84,38 @@ class QrGeneratorServiceTest {
         assertEquals('P', png[1]);
         assertEquals('N', png[2]);
         assertEquals('G', png[3]);
+    }
+
+    @Test
+    @DisplayName("renderPng uses error correction H, restored from the M this replaced")
+    void rendersWithHighErrorCorrection() throws Exception {
+        // This is the print path for a code laminated onto a physical table: it has to
+        // survive scuffing and being photographed at an angle. The EC level a decoder
+        // reports back is read from the QR's own format bits, so this proves what was
+        // actually encoded rather than just what was requested.
+        byte[] png = QrGeneratorService.renderPng(VALID_STATIC, 300);
+        com.google.zxing.Result result = decode(png);
+        assertEquals(VALID_STATIC, result.getText());
+        assertEquals("H", String.valueOf(result.getResultMetadata().get(ResultMetadataType.ERROR_CORRECTION_LEVEL)));
+    }
+
+    @Test
+    @DisplayName("renderPng honors the UTF-8 charset hint for non-ASCII content")
+    void rendersUtf8ContentCorrectly() throws Exception {
+        // Without the charset hint, ZXing's writer defaults to ISO-8859-1, which
+        // cannot represent Ge'ez script at all. A merchant display name or a slug
+        // outside ASCII must still round-trip exactly, or the printed sticker encodes
+        // garbage no wallet can read.
+        String content = "https://sunrise.qrserve.safaricom.et/menu/main/15?note=ሰሉ፡";
+        byte[] png = QrGeneratorService.renderPng(content, 300);
+        com.google.zxing.Result result = decode(png);
+        assertEquals(content, result.getText());
+    }
+
+    private static com.google.zxing.Result decode(byte[] png) throws Exception {
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(png));
+        LuminanceSource source = new BufferedImageLuminanceSource(image);
+        BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
+        return new MultiFormatReader().decode(bitmap);
     }
 }

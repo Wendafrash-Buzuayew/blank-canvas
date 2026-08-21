@@ -108,13 +108,22 @@ public class QrGeneratorService {
         return storedPayload;
     }
 
-    /** ZXing render. Separated from payload selection so each can be tested alone. */
+    /**
+     * ZXing render. Separated from payload selection so each can be tested alone.
+     *
+     * <p>Error correction {@code H}, margin {@code 2}, and the UTF-8 charset hint
+     * match the {@code generateQrPng} this replaced. This is the print path for a
+     * code that gets laminated onto a physical table and cannot be reprinted on a
+     * whim — it has to survive scuffing and being photographed at an angle, and a
+     * merchant display name outside ASCII has to still encode correctly.
+     */
     static byte[] renderPng(String payload, int size) {
         try {
             BitMatrix matrix = new MultiFormatWriter().encode(
                     payload, BarcodeFormat.QR_CODE, size, size,
-                    Map.of(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M,
-                            EncodeHintType.MARGIN, 1));
+                    Map.of(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.H,
+                            EncodeHintType.MARGIN, 2,
+                            EncodeHintType.CHARACTER_SET, "UTF-8"));
             BufferedImage image = MatrixToImageWriter.toBufferedImage(matrix);
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             ImageIO.write(image, "PNG", out);
