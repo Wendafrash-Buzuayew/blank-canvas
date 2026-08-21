@@ -72,21 +72,9 @@ public class TableService {
         // provisioning happens inside this same transaction rather than on a later
         // screen. This is a fresh table row, so it never has an ACTIVE terminal
         // label yet and provision() cannot hit its own-active-row guard.
-        TableQrEntity qr = tableQrProvisioningService.provision(
-                new TableQrProvisioningService.TableRef(
-                        saved.getId(), merchant.getId(), branch.getId(),
-                        merchant.getSlug(), merchant.getName(), merchant.getCity(),
-                        branch.getSlug(), saved.getTableNumber()));
+        TableQrEntity qr = tableQrProvisioningService.provision(buildTableRef(saved, branch, merchant));
 
-        tableQrEventPublisher.publish(TableQrProvisionedEvent.builder()
-                .terminalLabel(qr.getTerminalLabel())
-                .tableId(saved.getId())
-                .merchantId(merchant.getId())
-                .branchId(branch.getId())
-                .tableNumber(saved.getTableNumber())
-                .version(qr.getVersion())
-                .provisionedAt(qr.getProvisionedAt())
-                .build());
+        tableQrEventPublisher.publish(buildProvisionedEvent(qr, saved.getId(), merchant.getId(), branch.getId(), saved.getTableNumber()));
 
         return CreateTableResponse.builder()
                 .id(saved.getId())
@@ -123,5 +111,59 @@ public class TableService {
         TableEntity table = getTable(id);
         table.setStatus(status.toUpperCase());
         return tableRepository.save(table);
+    }
+
+    /**
+     * Provisions a QR for a table that has none yet, or reprints when one is
+     * already ACTIVE.
+     *
+     * <p>Every table created before this branch shipped has no {@code TableQr}
+     * row at all — {@code provision()} was previously only ever called from
+     * {@link #createTable}. This is the endpoint-facing way to backfill those
+     * tables one at a time, and the first production caller of {@code reprint()}.
+     */
+    @Transactional
+    public TableQrEntity provisionOrReprintQr(Long tableId) {
+        TableEntity table = getTable(tableId);
+        BranchEntity branch = branchRepository.findById(table.getBranchId())
+                .orElseThrow(() -> new ResourceNotFoundException("Branch not found ID: " + table.getBranchId()));
+        MerchantEntity merchant = merchantRepository.findById(table.getMerchantId())
+                .orElseThrow(() -> new ResourceNotFoundException("Merchant not found ID: " + table.getMerchantId()));
+
+        TableQrProvisioningService.TableRef ref = buildTableRef(table, branch, merchant);
+        TableQrEntity qr = tableQrProvisioningService.hasActive(tableId)
+                ? tableQrProvisioningService.reprint(tableId, ref)
+                : tableQrProvisioningService.provision(ref);
+
+        tableQrEventPublisher.publish(
+                buildProvisionedEvent(qr, table.getId(), merchant.getId(), branch.getId(), table.getTableNumber()));
+
+        return qr;
+    }
+
+    /**
+     * The one place that assembles a {@link TableQrProvisioningService.TableRef}.
+     * {@code createTable} and {@link #provisionOrReprintQr} both need exactly the
+     * same fields; duplicating the lookups inline invites the two paths to drift.
+     */
+    private TableQrProvisioningService.TableRef buildTableRef(
+            TableEntity table, BranchEntity branch, MerchantEntity merchant) {
+        return new TableQrProvisioningService.TableRef(
+                table.getId(), merchant.getId(), branch.getId(),
+                merchant.getSlug(), merchant.getName(), merchant.getCity(),
+                branch.getSlug(), table.getTableNumber());
+    }
+
+    private TableQrProvisionedEvent buildProvisionedEvent(
+            TableQrEntity qr, Long tableId, UUID merchantId, Long branchId, String tableNumber) {
+        return TableQrProvisionedEvent.builder()
+                .terminalLabel(qr.getTerminalLabel())
+                .tableId(tableId)
+                .merchantId(merchantId)
+                .branchId(branchId)
+                .tableNumber(tableNumber)
+                .version(qr.getVersion())
+                .provisionedAt(qr.getProvisionedAt())
+                .build();
     }
 }

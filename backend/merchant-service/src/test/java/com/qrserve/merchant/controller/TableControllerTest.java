@@ -23,11 +23,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * The payload behind {@code GET .../qr} embeds the merchant's own settlement
- * account (bank or wallet). Role gates alone let any MERCHANT_OWNER or
- * BRANCH_MANAGER walk table ids and read another merchant's sticker, so the
- * endpoint must also pin the caller to its own tenant, the same way
- * {@link TableController#getAllTables} already does.
+ * The payload behind {@code GET .../qr} and {@code POST .../qr} embeds the
+ * merchant's own settlement account (bank or wallet). Role gates alone let any
+ * MERCHANT_OWNER or BRANCH_MANAGER walk table ids and read (or reprint) another
+ * merchant's sticker, so both endpoints must also pin the caller to its own
+ * tenant, the same way {@link TableController#getAllTables} already does.
  */
 class TableControllerTest {
 
@@ -62,6 +62,8 @@ class TableControllerTest {
                 .terminalLabel(terminalLabel).payloadRaw("0002010102...9A4D").payloadCrc("9A4D")
                 .profile("EMVCO").version(version).state("ACTIVE").build();
     }
+
+    // --- GET /{id}/qr ---
 
     @Test
     @DisplayName("getTableQr returns the payload when the caller owns the table's tenant")
@@ -98,5 +100,45 @@ class TableControllerTest {
                 .getBody();
 
         assertEquals("T42-1", body.getTerminalLabel());
+    }
+
+    // --- POST /{id}/qr ---
+
+    @Test
+    @DisplayName("provisionTableQr returns the provisioned payload when the caller owns the tenant")
+    void provisionTableQrWithinTenant() {
+        when(tableService.getTable(TABLE_ID)).thenReturn(tableOwnedBy(OWN_MERCHANT));
+        when(tableService.provisionOrReprintQr(TABLE_ID)).thenReturn(activeQr("T42-1", 1));
+
+        TableQrResponse body = controller
+                .provisionTableQr(TABLE_ID, principal(OWN_MERCHANT, UserRole.MERCHANT_OWNER))
+                .getBody();
+
+        assertEquals("T42-1", body.getTerminalLabel());
+        verify(tableService).provisionOrReprintQr(TABLE_ID);
+    }
+
+    @Test
+    @DisplayName("provisionTableQr refuses a caller from a different tenant, without provisioning anything")
+    void provisionTableQrCrossTenantRefused() {
+        when(tableService.getTable(TABLE_ID)).thenReturn(tableOwnedBy(OTHER_MERCHANT));
+
+        assertThrows(UnauthorizedException.class, () ->
+                controller.provisionTableQr(TABLE_ID, principal(OWN_MERCHANT, UserRole.MERCHANT_OWNER)));
+
+        verify(tableService, never()).provisionOrReprintQr(any());
+    }
+
+    @Test
+    @DisplayName("provisionTableQr allows SUPER_ADMIN to provision across tenants")
+    void provisionTableQrSuperAdminCrossesTenants() {
+        when(tableService.getTable(TABLE_ID)).thenReturn(tableOwnedBy(OTHER_MERCHANT));
+        when(tableService.provisionOrReprintQr(TABLE_ID)).thenReturn(activeQr("T42-2", 2));
+
+        TableQrResponse body = controller
+                .provisionTableQr(TABLE_ID, principal(OWN_MERCHANT, UserRole.SUPER_ADMIN))
+                .getBody();
+
+        assertEquals("T42-2", body.getTerminalLabel());
     }
 }

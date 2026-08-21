@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -89,5 +90,59 @@ class TableServiceHarness {
 
     TableQrEventPublisher publisher() {
         return publisher;
+    }
+
+    /**
+     * Builds a harness around an already-existing table (id {@link #TABLE_ID}),
+     * for exercising {@link TableService#provisionOrReprintQr}. Unlike
+     * {@link #withProvisionedQr}, the table already exists in the repository
+     * rather than being created by the call under test.
+     *
+     * @param hasActive what {@code TableQrProvisioningService.hasActive} reports —
+     *                   drives whether {@code provisionOrReprintQr} calls
+     *                   {@code provision(...)} or {@code reprint(...)}
+     */
+    static TableServiceHarness withExistingTable(boolean hasActive, String terminalLabel, String payload) {
+        TableRepository tableRepository = mock(TableRepository.class);
+        BranchRepository branchRepository = mock(BranchRepository.class);
+        MerchantRepository merchantRepository = mock(MerchantRepository.class);
+        TableQrProvisioningService provisioningService = mock(TableQrProvisioningService.class);
+        TableQrEventPublisher publisher = mock(TableQrEventPublisher.class);
+
+        PublicMenuUrl urls = new PublicMenuUrl("qrserve.safaricom.et", "https");
+        QrSignatureService signatures = new QrSignatureService("master-secret-value", "");
+
+        when(tableRepository.findById(TABLE_ID)).thenReturn(Optional.of(TableEntity.builder()
+                .id(TABLE_ID).branchId(BRANCH_ID).merchantId(MERCHANT_ID)
+                .tableNumber("15").capacity(4).status("AVAILABLE").build()));
+        when(branchRepository.findById(BRANCH_ID)).thenReturn(Optional.of(BranchEntity.builder()
+                .id(BRANCH_ID).merchantId(MERCHANT_ID).name("Main").slug("main")
+                .phone("+251900000000").address("Bole").build()));
+        when(merchantRepository.findById(MERCHANT_ID)).thenReturn(Optional.of(MerchantEntity.builder()
+                .id(MERCHANT_ID).name("Sunrise Coffee").slug("sunrise")
+                .phone("+251900000000").city("Addis Ababa").address("Bole").category("CAFE").build()));
+
+        when(provisioningService.hasActive(TABLE_ID)).thenReturn(hasActive);
+        TableQrEntity qr = TableQrEntity.builder()
+                .id(2L).tableId(TABLE_ID).merchantId(MERCHANT_ID).branchId(BRANCH_ID)
+                .terminalLabel(terminalLabel).payloadRaw(payload)
+                .payloadCrc(payload.length() >= 4 ? payload.substring(payload.length() - 4) : payload)
+                .profile("EMVCO").version(hasActive ? 2 : 1).state("ACTIVE").provisionedAt(LocalDateTime.now())
+                .build();
+        when(provisioningService.provision(any(TableQrProvisioningService.TableRef.class))).thenReturn(qr);
+        when(provisioningService.reprint(eq(TABLE_ID), any(TableQrProvisioningService.TableRef.class))).thenReturn(qr);
+
+        TableService service = new TableService(tableRepository, branchRepository, merchantRepository,
+                urls, signatures, provisioningService, publisher);
+
+        return new TableServiceHarness(service, publisher);
+    }
+
+    static UUID merchantId() {
+        return MERCHANT_ID;
+    }
+
+    static Long tableId() {
+        return TABLE_ID;
     }
 }

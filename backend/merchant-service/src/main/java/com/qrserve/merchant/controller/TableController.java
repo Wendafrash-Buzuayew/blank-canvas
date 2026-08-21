@@ -103,6 +103,38 @@ public class TableController {
     }
 
     /**
+     * Provisions a QR for a table that has none, or reprints when one is already
+     * ACTIVE. Every table created before this endpoint shipped has no
+     * {@code TableQr} row at all — {@code provision()} was previously reachable
+     * only from {@code createTable} — so this is the one-time, per-table way to
+     * backfill them (see the plan doc's Global Constraints for the deploy note).
+     *
+     * <p>Deliberately routed as a sub-path, not a top-level segment, for the same
+     * reason as {@link #getTableQr}: SecurityConfig's "/api/tables/*" permitAll
+     * rule is single-segment and does not match "/api/tables/{id}/qr", so this
+     * falls through to anyRequest().authenticated() and the role gate below.
+     * Same tenant scoping as {@link #getTableQr} — the payload embeds the
+     * merchant's own settlement account.
+     */
+    @PostMapping("/{id}/qr")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
+    @Operation(summary = "Provision a QR for a table, or reprint one if already active")
+    public ResponseEntity<TableQrResponse> provisionTableQr(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        TableEntity table = tableService.getTable(id);
+        requireTenantAccess(table.getMerchantId(), principal);
+        TableQrEntity qr = tableService.provisionOrReprintQr(id);
+        return ResponseEntity.ok(TableQrResponse.builder()
+                .payloadRaw(qr.getPayloadRaw())
+                .payloadCrc(qr.getPayloadCrc())
+                .terminalLabel(qr.getTerminalLabel())
+                .profile(qr.getProfile())
+                .version(qr.getVersion())
+                .build());
+    }
+
+    /**
      * SUPER_ADMIN may reach across tenants; every other role is pinned to its own
      * merchantId regardless of which table id it asks for. Mirrors the scoping
      * rule in {@link #getAllTables}.

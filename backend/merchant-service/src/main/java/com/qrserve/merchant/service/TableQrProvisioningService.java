@@ -73,6 +73,11 @@ public class TableQrProvisioningService {
                         "No active QR for table ID: " + tableId));
     }
 
+    /** True when this table already has an ACTIVE row, so the caller knows to reprint(...) instead of provision(...). */
+    public boolean hasActive(Long tableId) {
+        return repository.findByTableIdAndState(tableId, "ACTIVE").isPresent();
+    }
+
     /** Issues the next version and supersedes whatever is currently ACTIVE. */
     @Transactional
     public TableQrEntity reprint(Long tableId, TableRef ref) {
