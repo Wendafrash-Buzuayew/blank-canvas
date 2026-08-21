@@ -5,11 +5,13 @@ import com.qrserve.merchant.dto.CreateTableResponse;
 import com.qrserve.merchant.entity.BranchEntity;
 import com.qrserve.merchant.entity.MerchantEntity;
 import com.qrserve.merchant.entity.TableEntity;
+import com.qrserve.merchant.entity.TableQrEntity;
 import com.qrserve.merchant.repository.BranchRepository;
 import com.qrserve.merchant.repository.MerchantRepository;
 import com.qrserve.merchant.repository.TableRepository;
 import com.qrserve.shared.common.PublicMenuUrl;
 import com.qrserve.shared.common.QrSignatureService;
+import com.qrserve.shared.events.TableQrProvisionedEvent;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,8 @@ public class TableService {
     private final MerchantRepository merchantRepository;
     private final PublicMenuUrl publicMenuUrl;
     private final QrSignatureService qrSignatureService;
+    private final TableQrProvisioningService tableQrProvisioningService;
+    private final TableQrEventPublisher tableQrEventPublisher;
 
     @Transactional
     public CreateTableResponse createTable(CreateTableRequest request) {
@@ -64,12 +68,34 @@ public class TableService {
         String qrUrl = publicMenuUrl.menuUrl(
                 merchant.getSlug(), branch.getSlug(), saved.getTableNumber(), signature);
 
+        // A table without a scannable EMVCo code is a table nobody can pay at, so
+        // provisioning happens inside this same transaction rather than on a later
+        // screen. This is a fresh table row, so it never has an ACTIVE terminal
+        // label yet and provision() cannot hit its own-active-row guard.
+        TableQrEntity qr = tableQrProvisioningService.provision(
+                new TableQrProvisioningService.TableRef(
+                        saved.getId(), merchant.getId(), branch.getId(),
+                        merchant.getSlug(), merchant.getName(), merchant.getCity(),
+                        branch.getSlug(), saved.getTableNumber()));
+
+        tableQrEventPublisher.publish(TableQrProvisionedEvent.builder()
+                .terminalLabel(qr.getTerminalLabel())
+                .tableId(saved.getId())
+                .merchantId(merchant.getId())
+                .branchId(branch.getId())
+                .tableNumber(saved.getTableNumber())
+                .version(qr.getVersion())
+                .provisionedAt(qr.getProvisionedAt())
+                .build());
+
         return CreateTableResponse.builder()
                 .id(saved.getId())
                 .tableNumber(saved.getTableNumber())
                 .capacity(saved.getCapacity())
                 .qrUrl(qrUrl)
                 .qrToken(saved.getQrToken())
+                .terminalLabel(qr.getTerminalLabel())
+                .qrPayload(qr.getPayloadRaw())
                 .build();
     }
 
