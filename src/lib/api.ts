@@ -161,6 +161,12 @@ export interface QrMetadataResponse {
   format: string;
   mimeType: string;
   base64Content: string;
+  /** Optional: an older backend omits these. Raw EMVCo (or menu-link) payload string. */
+  payloadRaw?: string;
+  /** Optional: an older backend omits these. Identifies which printed sticker this is. */
+  terminalLabel?: string;
+  /** Optional: an older backend omits these. 'EMVCO' for a payment payload, 'MENU_URL' otherwise. */
+  profile?: string;
 }
 
 // ============ Token Management ============

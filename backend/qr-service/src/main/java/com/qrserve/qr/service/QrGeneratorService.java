@@ -10,6 +10,7 @@ import com.qrserve.qr.dto.QrExportRequest;
 import com.qrserve.qr.dto.QrMetadataResponse;
 import com.qrserve.shared.common.PublicMenuUrl;
 import com.qrserve.shared.common.QrSignatureService;
+import com.qrserve.shared.common.emvco.EmvcoPayload;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,7 +31,6 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -40,6 +40,9 @@ import java.util.UUID;
 public class QrGeneratorService {
 
     private static final int QR_SIZE = 300;
+
+    /** The one profile whose payload is a URL rather than an EMVCo TLV string. */
+    private static final String PROFILE_MENU_URL = "MENU_URL";
 
     private final RestTemplate restTemplate;
     private final PublicMenuUrl publicMenuUrl;
@@ -52,27 +55,82 @@ public class QrGeneratorService {
         TableInfo table = fetchTable(tableId);
         MerchantInfo merchant = fetchMerchant(table.getMerchantId());
         BranchInfo branch = fetchBranch(table.getBranchId());
+        TableQrInfo qr = fetchTableQr(tableId);
 
-        String targetUrl = targetUrlFor(table, merchant, branch, publicMenuUrl, qrSignatureService);
+        // Still built and returned for the designer to show as a human-readable
+        // link, but it is no longer what gets encoded into the sticker.
+        String menuUrl = targetUrlFor(table, merchant, branch, publicMenuUrl, qrSignatureService);
 
-        // Generate real QR code using ZXing
-        String base64Png = generateQrBase64(targetUrl);
+        String payload = payloadToRender(qr.getPayloadRaw(), qr.getProfile());
+        byte[] png = renderPng(payload, QR_SIZE);
 
         return QrMetadataResponse.builder()
                 .tableId(table.getId())
-                .qrUrl(targetUrl)
+                .qrUrl(menuUrl)
+                .payloadRaw(payload)
+                .terminalLabel(qr.getTerminalLabel())
+                .profile(qr.getProfile())
                 .format("PNG")
                 .mimeType("image/png")
-                .base64Content("data:image/png;base64," + base64Png)
+                .base64Content("data:image/png;base64," + Base64.getEncoder().encodeToString(png))
                 .build();
     }
 
     public byte[] exportPng(QrExportRequest request) {
-        TableInfo table = fetchTable(request.getTableId());
-        MerchantInfo merchant = fetchMerchant(table.getMerchantId());
-        BranchInfo branch = fetchBranch(table.getBranchId());
+        TableQrInfo qr = fetchTableQr(request.getTableId());
+        return renderPng(payloadToRender(qr.getPayloadRaw(), qr.getProfile()), QR_SIZE);
+    }
 
-        return generateQrPng(targetUrlFor(table, merchant, branch, publicMenuUrl, qrSignatureService));
+    /**
+     * The payload to encode, validated.
+     *
+     * <p>Static so it can be asserted without standing up HTTP, and package-visible
+     * for the same reason {@code targetUrlFor} was: this is the one decision that
+     * must not diverge between services.
+     *
+     * <p>A {@code MENU_URL}-profile row carries no CRC — a sliced substring of a URL
+     * would be meaningless data pretending to be a checksum — so only the EMVCO
+     * profile is put through {@link EmvcoPayload#crcValid(String)}.
+     *
+     * @throws IllegalStateException when nothing is stored or an EMVCo payload's CRC
+     *         does not match — both cases must stop a print run rather than produce
+     *         a dead sticker
+     */
+    static String payloadToRender(String storedPayload, String profile) {
+        if (storedPayload == null || storedPayload.isBlank()) {
+            throw new IllegalStateException(
+                    "No provisioned QR payload for this table; provision one before rendering");
+        }
+        if (!PROFILE_MENU_URL.equals(profile) && !EmvcoPayload.crcValid(storedPayload)) {
+            throw new IllegalStateException(
+                    "Stored QR payload fails its own CRC and would be rejected by every wallet");
+        }
+        return storedPayload;
+    }
+
+    /**
+     * ZXing render. Separated from payload selection so each can be tested alone.
+     *
+     * <p>Error correction {@code H}, margin {@code 2}, and the UTF-8 charset hint
+     * match the {@code generateQrPng} this replaced. This is the print path for a
+     * code that gets laminated onto a physical table and cannot be reprinted on a
+     * whim — it has to survive scuffing and being photographed at an angle, and a
+     * merchant display name outside ASCII has to still encode correctly.
+     */
+    static byte[] renderPng(String payload, int size) {
+        try {
+            BitMatrix matrix = new MultiFormatWriter().encode(
+                    payload, BarcodeFormat.QR_CODE, size, size,
+                    Map.of(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.H,
+                            EncodeHintType.MARGIN, 2,
+                            EncodeHintType.CHARACTER_SET, "UTF-8"));
+            BufferedImage image = MatrixToImageWriter.toBufferedImage(matrix);
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            ImageIO.write(image, "PNG", out);
+            return out.toByteArray();
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to render QR payload", e);
+        }
     }
 
     /**
@@ -186,6 +244,36 @@ public class QrGeneratorService {
     }
 
     /**
+     * Fetches the provisioned {@code TableQr} for this table — the payload this
+     * service must render, and the one thing it must not recompute. 404s when the
+     * table has no ACTIVE row, which merchant-service's {@code GET .../qr} endpoint
+     * signals with a plain 404 (never public: the payload embeds a merchant's own
+     * settlement account).
+     */
+    private TableQrInfo fetchTableQr(Long tableId) {
+        try {
+            String url = merchantServiceUrl + "/api/tables/" + tableId + "/qr";
+            HttpEntity<Void> requestEntity = new HttpEntity<>(getAuthHeaders());
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url, HttpMethod.GET, requestEntity, new ParameterizedTypeReference<Map<String, Object>>() {});
+
+            Map<String, Object> body = response.getBody();
+            if (body == null) {
+                throw new ResourceNotFoundException("No provisioned QR for table ID: " + tableId);
+            }
+
+            return new TableQrInfo(
+                    (String) body.get("payloadRaw"),
+                    (String) body.get("terminalLabel"),
+                    (String) body.get("profile")
+            );
+        } catch (Exception e) {
+            log.error("Failed to fetch table QR {} from merchant-service", tableId, e);
+            throw new ResourceNotFoundException("No provisioned QR for table ID: " + tableId);
+        }
+    }
+
+    /**
      * Extracts Authorization Header from the current request thread
      */
     private HttpHeaders getAuthHeaders() {
@@ -202,28 +290,6 @@ public class QrGeneratorService {
         return headers;
     }
 
-
-    private String generateQrBase64(String content) {
-        return Base64.getEncoder().encodeToString(generateQrPng(content));
-    }
-
-    private byte[] generateQrPng(String content) {
-        try {
-            Map<EncodeHintType, Object> hints = new HashMap<>();
-            hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.H);
-            hints.put(EncodeHintType.MARGIN, 2);
-            hints.put(EncodeHintType.CHARACTER_SET, "UTF-8");
-
-            BitMatrix bitMatrix = new MultiFormatWriter().encode(content, BarcodeFormat.QR_CODE, QR_SIZE, QR_SIZE, hints);
-            BufferedImage image = MatrixToImageWriter.toBufferedImage(bitMatrix);
-
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ImageIO.write(image, "PNG", baos);
-            return baos.toByteArray();
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to generate QR code", e);
-        }
-    }
 
     /** Package-private so {@link #targetUrlFor} can be unit-tested. */
     static class TableInfo {
@@ -270,5 +336,22 @@ public class QrGeneratorService {
 
         public Long getId() { return id; }
         public String getSlug() { return slug; }
+    }
+
+    /** The stored payload plus the fields the response and the render decision need. */
+    static class TableQrInfo {
+        private final String payloadRaw;
+        private final String terminalLabel;
+        private final String profile;
+
+        TableQrInfo(String payloadRaw, String terminalLabel, String profile) {
+            this.payloadRaw = payloadRaw;
+            this.terminalLabel = terminalLabel;
+            this.profile = profile;
+        }
+
+        public String getPayloadRaw() { return payloadRaw; }
+        public String getTerminalLabel() { return terminalLabel; }
+        public String getProfile() { return profile; }
     }
 }

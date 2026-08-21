@@ -1,14 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
-import QRCode from 'qrcode';
-import { 
-  QrCode, 
-  Download, 
-  Printer, 
-  Sparkles, 
-  Paintbrush, 
-  Image as ImageIcon, 
-  Check, 
-  Copy, 
+import React, { useEffect, useState } from 'react';
+import {
+  QrCode,
+  Download,
+  Printer,
+  Sparkles,
+  Paintbrush,
+  Image as ImageIcon,
+  Check,
+  Copy,
   ExternalLink,
   Store,
   Table as TableIcon,
@@ -18,6 +17,7 @@ import {
 import { Merchant, QRDesignConfig, Table } from '../../types';
 import { qrApi } from '../../lib/api';
 import { useTableQr } from '../../hooks/useApiData';
+import { canRenderQr, qrCaption, qrImageSrc } from '../../lib/qrDisplay';
 
 interface QRDesignerProps {
   merchant: Merchant;
@@ -36,7 +36,6 @@ export const QRDesigner: React.FC<QRDesignerProps> = ({
   config,
   onSaveConfig,
 }) => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [localConfig, setLocalConfig] = useState<QRDesignConfig>(config);
   const [selectedTableNum, setSelectedTableNum] = useState<string>(activeTableNumber || '1');
   const [exporting, setExporting] = useState<'png' | 'pdf' | null>(null);
@@ -45,51 +44,15 @@ export const QRDesigner: React.FC<QRDesignerProps> = ({
   const selectedTable = tables.find(t => t.tableNumber === selectedTableNum);
   const selectedTableId = selectedTable ? Number(selectedTable.id) : undefined;
 
-  // Fetch real QR metadata from backend
+  // Fetch real QR metadata from backend. The backend mints, stores and renders the
+  // code; this component only shows what it was given — see src/lib/qrDisplay.ts.
   const { data: qrMetadata, isLoading: qrLoading, refetch: refetchQr } = useTableQr(selectedTableId);
 
-  const menuUrl = qrMetadata?.qrUrl || `https://qrserve.com/menu/${merchant.slug}/${selectedTable?.branchId || 1}/${selectedTableId || 1}`;
+  const menuUrl = qrMetadata?.qrUrl;
 
   useEffect(() => {
     setLocalConfig(config);
   }, [config]);
-
-  useEffect(() => {
-    if (!canvasRef.current) return;
-
-    // If we have backend QR metadata with base64 content, render that
-    if (qrMetadata?.base64Content) {
-      const img = new Image();
-      img.onload = () => {
-        if (canvasRef.current) {
-          const ctx = canvasRef.current.getContext('2d');
-          if (ctx) {
-            ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-            ctx.drawImage(img, 0, 0, canvasRef.current.width, canvasRef.current.height);
-          }
-        }
-      };
-      img.src = qrMetadata.base64Content;
-      return;
-    }
-
-    // Fallback: generate QR client-side
-    QRCode.toCanvas(
-      canvasRef.current,
-      menuUrl,
-      {
-        width: 220,
-        margin: 2,
-        color: {
-          dark: localConfig.patternColor || '#1E1E1E',
-          light: '#FFFFFF',
-        },
-      },
-      (err) => {
-        if (err) console.error('QR rendering error', err);
-      }
-    );
-  }, [menuUrl, localConfig, qrMetadata]);
 
   const handleDownloadPNG = async () => {
     if (!selectedTableId) return;
@@ -109,13 +72,10 @@ export const QRDesigner: React.FC<QRDesignerProps> = ({
       link.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('Failed to export PNG from backend, falling back to canvas', err);
-      // Fallback to canvas export
-      if (!canvasRef.current) return;
-      const link = document.createElement('a');
-      link.download = `QRStand-${merchant.slug}-Table-${selectedTableNum}.png`;
-      link.href = canvasRef.current.toDataURL('image/png');
-      link.click();
+      // No client-side fallback: the server renders the only copy of this code,
+      // so a failed export means try again, not reconstruct it from a canvas.
+      console.error('Failed to export PNG from backend', err);
+      alert('PNG export failed. Please try again.');
     } finally {
       setExporting(null);
     }
@@ -146,6 +106,7 @@ export const QRDesigner: React.FC<QRDesignerProps> = ({
   };
 
   const handleCopyUrl = async () => {
+    if (!menuUrl) return;
     try {
       await navigator.clipboard.writeText(menuUrl);
       alert('QR URL copied to clipboard!');
@@ -256,24 +217,30 @@ export const QRDesigner: React.FC<QRDesignerProps> = ({
                   <Loader2 className="w-3 h-3 animate-spin" /> Fetching from backend...
                 </span>
               ) : (
-                <span className="font-mono text-gray-700 truncate">{menuUrl}</span>
+                <span className="font-mono text-gray-700 truncate">{menuUrl || 'Not available'}</span>
               )}
+            </div>
+            <div className="text-[11px] text-gray-500 flex items-center gap-1">
+              <QrCode className="w-3 h-3" /> {qrCaption(qrMetadata)}
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={handleCopyUrl}
-                className="text-[11px] font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors"
+                disabled={!menuUrl}
+                className="text-[11px] font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors"
               >
                 <Copy className="w-3 h-3" /> Copy URL
               </button>
-              <a
-                href={menuUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[11px] font-bold text-[#E60028] hover:underline flex items-center gap-1"
-              >
-                <ExternalLink className="w-3 h-3" /> Open Menu Link
-              </a>
+              {menuUrl && (
+                <a
+                  href={menuUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[11px] font-bold text-[#E60028] hover:underline flex items-center gap-1"
+                >
+                  <ExternalLink className="w-3 h-3" /> Open Menu Link
+                </a>
+              )}
             </div>
           </div>
 
@@ -424,9 +391,22 @@ export const QRDesigner: React.FC<QRDesignerProps> = ({
               TABLE {selectedTableNum}
             </div>
 
-            {/* Canvas QR Code Box */}
-            <div className="p-3 bg-white rounded-2xl shadow-inner border border-gray-200 relative">
-              <canvas ref={canvasRef} className="rounded-xl" />
+            {/* Server-rendered QR Code Box */}
+            <div className="p-3 bg-white rounded-2xl shadow-inner border border-gray-200 relative w-[220px] h-[220px] flex items-center justify-center">
+              {canRenderQr(qrMetadata) ? (
+                <img
+                  src={qrImageSrc(qrMetadata)!}
+                  alt={`QR code for Table ${selectedTableNum}`}
+                  className="rounded-xl w-full h-full object-contain"
+                />
+              ) : (
+                !qrLoading && (
+                  <div className="flex flex-col items-center gap-1.5 text-center px-2">
+                    <ImageIcon className="w-6 h-6 text-gray-300" />
+                    <span className="text-[10px] font-bold text-gray-400">{qrCaption(qrMetadata)}</span>
+                  </div>
+                )
+              )}
               {qrLoading && (
                 <div className="absolute inset-0 bg-white/70 flex items-center justify-center rounded-2xl">
                   <Loader2 className="w-6 h-6 animate-spin text-[#E60028]" />

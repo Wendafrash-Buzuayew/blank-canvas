@@ -5,6 +5,7 @@ import com.qrserve.merchant.dto.CreateTableResponse;
 import com.qrserve.merchant.entity.BranchEntity;
 import com.qrserve.merchant.entity.MerchantEntity;
 import com.qrserve.merchant.entity.TableEntity;
+import com.qrserve.merchant.entity.TableQrEntity;
 import com.qrserve.merchant.repository.BranchRepository;
 import com.qrserve.merchant.repository.MerchantRepository;
 import com.qrserve.merchant.repository.TableRepository;
@@ -58,7 +59,19 @@ class TableQrUrlTest {
             return t;
         });
 
-        tableService = new TableService(tableRepository, branchRepository, merchantRepository, urls, signatures);
+        // This test is only about the menu URL, so QR provisioning is stubbed to a
+        // fixed row rather than exercised — that behaviour is covered by
+        // TableQrProvisioningServiceTest and TableServiceQrProvisioningTest.
+        TableQrProvisioningService provisioningService = mock(TableQrProvisioningService.class);
+        TableQrEventPublisher publisher = mock(TableQrEventPublisher.class);
+        when(provisioningService.provision(any(TableQrProvisioningService.TableRef.class)))
+                .thenReturn(TableQrEntity.builder()
+                        .id(1L).tableId(42L).merchantId(MERCHANT_ID).branchId(7L)
+                        .terminalLabel("T42-1").payloadRaw("irrelevant").payloadCrc("0000")
+                        .profile("EMVCO").version(1).state("ACTIVE").build());
+
+        tableService = new TableService(tableRepository, branchRepository, merchantRepository, urls, signatures,
+                provisioningService, publisher);
     }
 
     private CreateTableResponse createTable(String tableNumber) {
