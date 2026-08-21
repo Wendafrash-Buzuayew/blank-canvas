@@ -19,11 +19,21 @@ public final class EmvcoPayload {
     private static final String STATIC_INITIATION = "11";
     private static final String DYNAMIC_INITIATION = "12";
 
+    /** Spec cap for tag 59 (merchant name). */
+    private static final int MAX_MERCHANT_NAME = 25;
+
+    /** Spec cap for tag 60 (merchant city). */
+    private static final int MAX_MERCHANT_CITY = 15;
+
+    /** Spec cap for tag 62-03 (store label). */
+    private static final int MAX_STORE_LABEL = 25;
+
     private EmvcoPayload() {
     }
 
     /** Amount-less, printable, stable across reprints of the same version. */
     public static String staticPayload(EmvcoMerchant merchant, String terminalLabel, String storeLabel) {
+        validate(merchant, storeLabel);
         String additional = Emvco.tlv("03", storeLabel) + Emvco.tlv("07", terminalLabel);
         return withCrc(header(merchant, STATIC_INITIATION) + tail(merchant) + Emvco.tlv("62", additional));
     }
@@ -37,6 +47,8 @@ public final class EmvcoPayload {
             String paymentRef,
             String billNumber) {
 
+        validate(merchant, storeLabel);
+
         String additional = Emvco.tlv("01", billNumber)
                 + Emvco.tlv("03", storeLabel)
                 + Emvco.tlv("05", paymentRef)
@@ -46,6 +58,51 @@ public final class EmvcoPayload {
                 + Emvco.tlv("54", amountOf(amount))
                 + tail(merchant)
                 + Emvco.tlv("62", additional));
+    }
+
+    /**
+     * Rejects, before anything is minted, the two ways a payload can be built that
+     * every bank app then silently refuses: a value outside the spec's per-tag
+     * length cap, and a value outside US-ASCII.
+     *
+     * <p>{@link Emvco#tlv} counts a value's length in UTF-16 chars and
+     * {@link Emvco#crc16} encodes it as US-ASCII (substituting {@code '?'} for
+     * anything outside that range), while the image renderer encodes UTF-8. For a
+     * merchant name containing, say, Amharic script, those three disagree about
+     * both the byte length and the bytes themselves: the TLV length header would
+     * undercount the UTF-8 byte length, and the CRC would be computed over
+     * corrupted ASCII-substituted bytes rather than what actually gets encoded.
+     * {@link #crcValid} cannot catch this after the fact — it repeats the exact
+     * same substitution, so a wrong CRC still matches. The only place to catch it
+     * is here, before a payload is minted and printed.
+     */
+    private static void validate(EmvcoMerchant merchant, String storeLabel) {
+        requireAsciiWithinCap("59", merchant.name(), MAX_MERCHANT_NAME);
+        requireAsciiWithinCap("60", merchant.city(), MAX_MERCHANT_CITY);
+        requireAsciiWithinCap("62-03", storeLabel, MAX_STORE_LABEL);
+    }
+
+    private static void requireAsciiWithinCap(String tag, String value, int maxLength) {
+        if (value == null) {
+            throw new IllegalArgumentException("EMVCo tag " + tag + " must not be null");
+        }
+        if (!isUsAscii(value)) {
+            throw new IllegalArgumentException(
+                    "EMVCo tag " + tag + " must be US-ASCII, was: " + value);
+        }
+        if (value.length() > maxLength) {
+            throw new IllegalArgumentException(
+                    "EMVCo tag " + tag + " exceeds " + maxLength + " characters: " + value);
+        }
+    }
+
+    private static boolean isUsAscii(String value) {
+        for (int i = 0; i < value.length(); i++) {
+            if (value.charAt(i) > 127) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** True when the payload's trailing four characters match its own contents. */

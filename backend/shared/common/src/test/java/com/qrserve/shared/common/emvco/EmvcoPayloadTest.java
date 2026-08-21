@@ -102,4 +102,40 @@ class EmvcoPayloadTest {
                 EmvcoPayload.dynamicPayload(SUNRISE, "T42-1", "BR1", new BigDecimal("420.375"), "PR-1", "PB-1"),
                 "must reject amounts with more than 2 decimals to prevent silent mismatches at settlement");
     }
+
+    @Test
+    @DisplayName("a non-ASCII merchant name is rejected at mint time, not printed as a mismatched CRC")
+    void nonAsciiMerchantNameRejected() {
+        // "Café" a Latin script with an accent is already outside US-ASCII. Emvco.tlv
+        // counts UTF-16 chars while Emvco.crc16 substitutes '?' for anything outside
+        // US-ASCII and ZXing encodes UTF-8: three disagreeing views of the same bytes,
+        // none of which crcValid can detect after the fact.
+        EmvcoMerchant nonAscii = new EmvcoMerchant(
+                "ET.QRSERVE", "1234567890", "5812", "230", "ET", "Café Addis", "ADDIS ABABA");
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> EmvcoPayload.staticPayload(nonAscii, "T42-1", "BR1"));
+        assertTrue(ex.getMessage().contains("59"), "the refusal must name the offending tag");
+    }
+
+    @Test
+    @DisplayName("a merchant name over the spec's 25-character cap for tag 59 is rejected")
+    void merchantNameOverCapRejected() {
+        EmvcoMerchant tooLong = new EmvcoMerchant(
+                "ET.QRSERVE", "1234567890", "5812", "230", "ET",
+                "SUNRISE RESTAURANT AND CAFE", "ADDIS ABABA");
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> EmvcoPayload.staticPayload(tooLong, "T42-1", "BR1"));
+        assertTrue(ex.getMessage().contains("59"), "the refusal must name the offending tag");
+    }
+
+    @Test
+    @DisplayName("a merchant city over the spec's 15-character cap for tag 60 is rejected")
+    void merchantCityOverCapRejected() {
+        EmvcoMerchant tooLong = new EmvcoMerchant(
+                "ET.QRSERVE", "1234567890", "5812", "230", "ET",
+                "SUNRISE", "ADDIS ABABA METROPOLITAN AREA");
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> EmvcoPayload.staticPayload(tooLong, "T42-1", "BR1"));
+        assertTrue(ex.getMessage().contains("60"), "the refusal must name the offending tag");
+    }
 }
