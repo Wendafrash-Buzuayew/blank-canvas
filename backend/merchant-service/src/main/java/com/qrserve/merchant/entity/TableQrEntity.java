@@ -48,7 +48,13 @@ public class TableQrEntity {
     @Column(name = "payload_raw", nullable = false, length = 1024)
     private String payloadRaw;
 
-    @Column(name = "payload_crc", nullable = false, length = 4)
+    /**
+     * An EMVCo payload's own last four characters, so it is redundant with
+     * {@link #payloadRaw} but cheap to check without reparsing it. Null for the
+     * MENU_URL profile — a URL has no CRC, and a sliced substring of one would be
+     * meaningless data pretending to be a checksum.
+     */
+    @Column(name = "payload_crc", length = 4)
     private String payloadCrc;
 
     /** EMVCO or MENU_URL — the two provisioning profiles. */

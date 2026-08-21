@@ -2,6 +2,8 @@ package com.qrserve.merchant.service;
 
 import com.qrserve.merchant.entity.TableQrEntity;
 import com.qrserve.merchant.repository.TableQrRepository;
+import com.qrserve.shared.common.PublicMenuUrl;
+import com.qrserve.shared.common.QrSignatureService;
 import com.qrserve.shared.common.emvco.Emvco;
 import com.qrserve.shared.common.emvco.EmvcoPayload;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +16,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -29,6 +32,7 @@ class TableQrProvisioningServiceTest {
 
     private TableQrRepository repository;
     private MerchantSettingsService settings;
+    private QrSignatureService signatures;
     private TableQrProvisioningService service;
 
     private TableQrProvisioningService.TableRef ref() {
@@ -40,7 +44,9 @@ class TableQrProvisioningServiceTest {
     void setUp() {
         repository = mock(TableQrRepository.class);
         settings = mock(MerchantSettingsService.class);
-        service = new TableQrProvisioningService(repository, settings);
+        signatures = new QrSignatureService("master-secret-value", "");
+        PublicMenuUrl urls = new PublicMenuUrl("qrserve.safaricom.et", "https");
+        service = new TableQrProvisioningService(repository, settings, urls, signatures);
 
         when(repository.save(any(TableQrEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -116,17 +122,45 @@ class TableQrProvisioningServiceTest {
     }
 
     @Test
-    @DisplayName("the destination account comes from settings, never from a default")
-    void destinationComesFromSettings() {
-        // A payload built with the wrong destination sends a guest's money to the
-        // wrong account, so an unconfigured merchant must fail loudly at provisioning
-        // rather than print a code that pays somebody else. Branch 9 is deliberately
-        // left unstubbed on `settings` (setUp only configures branch 5), so
-        // destinationRef(MERCHANT, 9L) returns Mockito's default null and this table
-        // never had a chance to inherit the wrong account.
-        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
-                () -> service.provision(new TableQrProvisioningService.TableRef(
-                        43L, MERCHANT, 9L, "sunrise", "SUNRISE", "ADDIS ABABA", "wello-sefer", "16")),
-                "provisioning without a settlement destination must be refused");
+    @DisplayName("an unconfigured merchant falls back to the signed menu-URL profile, not a refusal")
+    void unconfiguredMerchantFallsBackToMenuUrl() {
+        // Behaviour change, made deliberately: an earlier version of this test asserted
+        // IllegalStateException here. No merchant on the platform had a MerchantSettings
+        // row before this class existed, so refusing to provision made every existing
+        // merchant unable to create a table the moment this shipped. The signed menu
+        // URL is already a supported printable code, so an unconfigured merchant falls
+        // back to it instead of losing table creation outright.
+        //
+        // Branch 9 is deliberately left unstubbed on `settings` (setUp only configures
+        // branch 5), so destinationRef(MERCHANT, 9L) returns Mockito's default null.
+        TableQrProvisioningService.TableRef ref = new TableQrProvisioningService.TableRef(
+                43L, MERCHANT, 9L, "sunrise", "SUNRISE", "ADDIS ABABA", "wello-sefer", "16");
+
+        TableQrEntity qr = service.provision(ref);
+
+        assertEquals("MENU_URL", qr.getProfile());
+        assertEquals("T43-1", qr.getTerminalLabel(), "the sticker still needs an identity either way");
+        assertNull(qr.getPayloadCrc(), "a menu URL has no CRC; a sliced substring of it would be a lie");
+
+        String signature = signatures.generateSignature(MERCHANT, 9L, 43L);
+        String expectedUrl = new PublicMenuUrl("qrserve.safaricom.et", "https")
+                .menuUrl("sunrise", "wello-sefer", "16", signature);
+        assertEquals(expectedUrl, qr.getPayloadRaw(),
+                "the fallback payload must be built exactly the way TableService builds the menu URL, "
+                        + "or the two can drift");
+        assertTrue(qr.getPayloadRaw().startsWith("https://"));
+    }
+
+    @Test
+    @DisplayName("a configured merchant still gets the real EMVCo profile, not the fallback")
+    void configuredMerchantStillGetsEmvcoProfile() {
+        // Covers the branch the other way: adding the fallback must not quietly steer
+        // a properly configured merchant away from a real payable EMVCo code.
+        TableQrEntity qr = service.provision(ref());
+
+        assertEquals("EMVCO", qr.getProfile());
+        assertTrue(EmvcoPayload.crcValid(qr.getPayloadRaw()),
+                "a payload whose CRC does not match is rejected by every bank app");
+        assertEquals(qr.getPayloadCrc(), qr.getPayloadRaw().substring(qr.getPayloadRaw().length() - 4));
     }
 }
