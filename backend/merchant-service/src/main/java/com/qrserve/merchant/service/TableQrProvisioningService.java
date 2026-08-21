@@ -1,6 +1,5 @@
 package com.qrserve.merchant.service;
 
-import com.qrserve.merchant.dto.ResolvedMerchantSettings;
 import com.qrserve.merchant.entity.TableQrEntity;
 import com.qrserve.merchant.repository.TableQrRepository;
 import com.qrserve.shared.common.TerminalLabel;
@@ -48,10 +47,12 @@ public class TableQrProvisioningService {
 
     @Transactional
     public TableQrEntity provision(TableRef ref) {
-        int version = repository.findTopByTableIdOrderByVersionDesc(ref.tableId())
-                .map(existing -> existing.getVersion() + 1)
-                .orElse(1);
-        return mint(ref, version);
+        repository.findByTableIdAndState(ref.tableId(), "ACTIVE").ifPresent(active -> {
+            throw new IllegalStateException(
+                    "Table " + ref.tableId() + " already has an ACTIVE terminal label "
+                            + active.getTerminalLabel() + "; use reprint(...) to supersede it");
+        });
+        return mintNext(ref);
     }
 
     /** Issues the next version and supersedes whatever is currently ACTIVE. */
@@ -62,11 +63,17 @@ public class TableQrProvisioningService {
             active.setSupersededAt(LocalDateTime.now());
             repository.save(active);
         });
-        return provision(ref);
+        return mintNext(ref);
+    }
+
+    private TableQrEntity mintNext(TableRef ref) {
+        int version = repository.findTopByTableIdOrderByVersionDesc(ref.tableId())
+                .map(existing -> existing.getVersion() + 1)
+                .orElse(1);
+        return mint(ref, version);
     }
 
     private TableQrEntity mint(TableRef ref, int version) {
-        ResolvedMerchantSettings settings = settingsService.resolve(ref.merchantId(), ref.branchId());
         String destination = destinationOf(ref);
 
         String terminalLabel = TerminalLabel.of(ref.tableId(), version);

@@ -94,6 +94,28 @@ class TableQrProvisioningServiceTest {
     }
 
     @Test
+    @DisplayName("provisioning a table that already has an ACTIVE row is refused, not duplicated")
+    void provisionRefusesWhenAlreadyActive() {
+        // uq_table_qr_active allows only one ACTIVE row per table. provision() must
+        // refuse before hitting that constraint, because the next developer wiring a
+        // "regenerate QR" button will reach for provision() and needs a clear pointer
+        // to reprint(...) instead of a raw integrity-violation 500.
+        TableQrEntity existing = TableQrEntity.builder()
+                .id(900L).tableId(42L).merchantId(MERCHANT).branchId(5L)
+                .terminalLabel("T42-1").version(1).state("ACTIVE")
+                .payloadRaw("irrelevant").payloadCrc("0000").profile("EMVCO")
+                .build();
+        when(repository.findByTableIdAndState(42L, "ACTIVE")).thenReturn(Optional.of(existing));
+
+        IllegalStateException ex = org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                () -> service.provision(ref()),
+                "provision() must not create a second ACTIVE row for the same table");
+
+        assertTrue(ex.getMessage().contains("T42-1"),
+                "the refusal must name the existing terminal label so the caller can find the row");
+    }
+
+    @Test
     @DisplayName("the destination account comes from settings, never from a default")
     void destinationComesFromSettings() {
         // A payload built with the wrong destination sends a guest's money to the
