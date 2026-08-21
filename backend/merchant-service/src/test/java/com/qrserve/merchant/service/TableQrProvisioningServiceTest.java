@@ -6,6 +6,7 @@ import com.qrserve.shared.common.PublicMenuUrl;
 import com.qrserve.shared.common.QrSignatureService;
 import com.qrserve.shared.common.emvco.Emvco;
 import com.qrserve.shared.common.emvco.EmvcoPayload;
+import com.qrserve.shared.exceptions.ResourceNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -162,5 +164,35 @@ class TableQrProvisioningServiceTest {
         assertTrue(EmvcoPayload.crcValid(qr.getPayloadRaw()),
                 "a payload whose CRC does not match is rejected by every bank app");
         assertEquals(qr.getPayloadCrc(), qr.getPayloadRaw().substring(qr.getPayloadRaw().length() - 4));
+    }
+
+    @Test
+    @DisplayName("getActive returns the ACTIVE row exactly as the repository holds it")
+    void getActiveReturnsActiveRow() {
+        TableQrEntity active = TableQrEntity.builder()
+                .id(900L).tableId(42L).merchantId(MERCHANT).branchId(5L)
+                .terminalLabel("T42-1").version(1).state("ACTIVE")
+                .payloadRaw("irrelevant").payloadCrc("0000").profile("EMVCO")
+                .build();
+        when(repository.findByTableIdAndState(42L, "ACTIVE")).thenReturn(Optional.of(active));
+
+        TableQrEntity found = service.getActive(42L);
+
+        // Assert on the terminal label, not just non-null: the caller renders whatever
+        // this method hands back, so it must be the exact row the repository holds.
+        assertEquals("T42-1", found.getTerminalLabel());
+    }
+
+    @Test
+    @DisplayName("getActive refuses to invent a row when the table has none")
+    void getActiveRefusesWhenNoActiveRow() {
+        when(repository.findByTableIdAndState(42L, "ACTIVE")).thenReturn(Optional.empty());
+
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
+                () -> service.getActive(42L));
+
+        // The caller (qr-service, rendering a sticker) needs the table id in the
+        // message to have any hope of diagnosing an un-provisioned table.
+        assertTrue(ex.getMessage().contains("42"), "the refusal must name the table id");
     }
 }
