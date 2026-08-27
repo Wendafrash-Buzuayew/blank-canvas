@@ -51,7 +51,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
   }
 
   if (requiresPhase2 && !isPhase2Enabled()) {
-    return <Navigate to={getRoleHomeRoute(user!.role)} replace />;
+    return <Navigate to={user ? getRoleHomeRoute(user.role) : '/login'} replace />;
   }
 
   // Role-based access control

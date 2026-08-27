@@ -3,7 +3,8 @@
  * `npm run test:unit`.
  */
 import assert from 'node:assert/strict';
-import { getNavigationForRole, getRoleHomeRoute } from './navigation';
+import { getNavigationForRole, getRoleHomeRoute, ROLE_NAVIGATION } from './navigation';
+import { isRoleAllowedInPhase } from './phase';
 
 let failures = 0;
 function test(name: string, fn: () => void) {
@@ -60,6 +61,18 @@ test('a role with no phase 1 navigation falls back to /login', () => {
 test('phase 2 restores each role\'s real home route', () => {
   assert.equal(getRoleHomeRoute('SUPER_ADMIN', true), '/admin/dashboard');
   assert.equal(getRoleHomeRoute('WAITER', true), '/waiter/dashboard');
+});
+
+test('isRoleAllowedInPhase agrees with Phase 1 navigation for every known role', () => {
+  for (const role of Object.keys(ROLE_NAVIGATION)) {
+    const allowed = isRoleAllowedInPhase(role, false);
+    const hasPhase1Nav = getNavigationForRole(role, false).length > 0;
+    assert.equal(
+      allowed,
+      hasPhase1Nav,
+      `${role}: isRoleAllowedInPhase=${allowed} but getNavigationForRole(...).length>0=${hasPhase1Nav}`,
+    );
+  }
 });
 
 if (failures > 0) {

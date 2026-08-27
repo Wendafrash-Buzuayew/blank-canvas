@@ -285,8 +285,14 @@ export const CustomerMenuPage: React.FC = () => {
           </div>
           <h1 className="mt-4 font-display text-xl font-extrabold">We couldn’t open this table</h1>
           <p className="mt-2 text-sm text-muted">
-            The QR code for <strong className="text-ink">table {target?.tableNumber ?? '?'}</strong> didn’t resolve. It may have been
-            replaced or the link is incomplete.
+            {isPhase2Enabled() ? (
+              <>
+                The QR code for <strong className="text-ink">table {target?.tableNumber ?? '?'}</strong> didn’t resolve. It may have been
+                replaced or the link is incomplete.
+              </>
+            ) : (
+              'This QR code didn’t resolve. It may have been replaced or the link is incomplete.'
+            )}
           </p>
           <button
             onClick={() => refetchResolution()}

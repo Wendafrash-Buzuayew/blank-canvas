@@ -10,8 +10,8 @@ export const LoginPage: React.FC = () => {
   const { login, isLoading, isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [email, setEmail] = useState('admin@hotel.com');
-  const [password, setPassword] = useState('password');
+  const [email, setEmail] = useState(isPhase2Enabled() ? 'admin@hotel.com' : '');
+  const [password, setPassword] = useState(isPhase2Enabled() ? 'password' : '');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [wasPhaseBlocked, setWasPhaseBlocked] = useState(false);
@@ -61,6 +61,13 @@ export const LoginPage: React.FC = () => {
           <p className="text-sm text-slate-500 mt-2">
             This app is available for merchant accounts during this phase. Please sign in with a merchant account.
           </p>
+          <button
+            type="button"
+            onClick={() => setWasPhaseBlocked(false)}
+            className="mt-5 text-sm font-bold text-[#E60028] hover:underline"
+          >
+            Back to sign in
+          </button>
         </div>
       </div>
     );
@@ -170,26 +177,28 @@ export const LoginPage: React.FC = () => {
               )}
             </button>
 
-            <div className="pt-3 border-t border-gray-100">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Demo Accounts</p>
-              <div className="space-y-1.5">
-                {demoAccounts.map(acc => (
-                  <button
-                    key={acc.email}
-                    type="button"
-                    onClick={() => {
-                      setEmail(acc.email);
-                      setPassword(acc.password);
-                      setError(null);
-                    }}
-                    className="w-full text-left px-3 py-2 rounded-xl bg-gray-50 border border-gray-200 text-xs hover:border-[#E60028]/40 hover:bg-red-50/50 transition-colors"
-                  >
-                    <span className="font-bold text-gray-900">{acc.label}: </span>
-                    <span className="text-gray-500 font-mono">{acc.email}</span>
-                  </button>
-                ))}
+            {isPhase2Enabled() && (
+              <div className="pt-3 border-t border-gray-100">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Demo Accounts</p>
+                <div className="space-y-1.5">
+                  {demoAccounts.map(acc => (
+                    <button
+                      key={acc.email}
+                      type="button"
+                      onClick={() => {
+                        setEmail(acc.email);
+                        setPassword(acc.password);
+                        setError(null);
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl bg-gray-50 border border-gray-200 text-xs hover:border-[#E60028]/40 hover:bg-red-50/50 transition-colors"
+                    >
+                      <span className="font-bold text-gray-900">{acc.label}: </span>
+                      <span className="text-gray-500 font-mono">{acc.email}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </form>
         </div>
 

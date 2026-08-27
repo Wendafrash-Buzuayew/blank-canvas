@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Menu, QrCode } from 'lucide-react';
+import { Menu, QrCode, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Sidebar } from './Sidebar.tsx';
 import { MobileBottomNav } from './MobileBottomNav.tsx';
 import { useAuth } from '../context/AuthContext';
@@ -13,12 +14,18 @@ interface DashboardLayoutProps {
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   if (!isPhase2Enabled()) {
     // Phase 1: no sidebar at all - a fixed bottom tab bar instead, content
     // constrained to a mobile frame. This is the Merchant Mini App shell,
     // not the full admin console below.
+    const handleLogout = () => {
+      logout();
+      navigate('/login', { replace: true });
+    };
+
     return (
       <div className="min-h-screen bg-slate-50">
         <header className="sticky top-0 z-20 bg-white border-b border-slate-200 shadow-xs">
@@ -27,6 +34,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, titl
               <QrCode className="w-4 h-4" />
             </div>
             {title && <h1 className="text-base font-bold text-slate-900">{title}</h1>}
+            <button
+              onClick={handleLogout}
+              aria-label="Sign out"
+              className="ml-auto p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </header>
         <main className="mx-auto max-w-[430px] px-4 pb-24 pt-4">{children}</main>
