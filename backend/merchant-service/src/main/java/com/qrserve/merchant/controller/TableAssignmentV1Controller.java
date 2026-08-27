@@ -34,8 +34,11 @@ public class TableAssignmentV1Controller {
     private final TableRepository tableRepository;
     private final WaiterRepository waiterRepository;
 
+    // WAITER included so the frontend's /waiter/tables page (which calls this
+    // endpoint for its "assign waiter" action) actually works for waiters, not
+    // just managers. Tenant/branch isolation below is unchanged by this.
     @PostMapping("/{tableId}/assign-waiter")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER','WAITER')")
     @Operation(summary = "Assign a waiter to a table")
     public ResponseEntity<WaiterAssignmentDto> assignWaiter(
             @PathVariable Long tableId,
