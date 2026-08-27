@@ -10,3 +10,4 @@ coverage/
 !.env.development
 !.env.production
 !.env.local.example
+.worktrees/
