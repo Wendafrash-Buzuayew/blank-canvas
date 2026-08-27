@@ -70,7 +70,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/admin/dashboard"
             element={
-              <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN']} requiresPhase2>
                 <DashboardPage />
               </ProtectedRoute>
             }
@@ -78,7 +78,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/admin/merchants"
             element={
-              <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN']} requiresPhase2>
                 <MerchantManagement />
               </ProtectedRoute>
             }
@@ -86,7 +86,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/admin/branches"
             element={
-              <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN']} requiresPhase2>
                 <BranchManagement />
               </ProtectedRoute>
             }
@@ -94,7 +94,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/admin/users"
             element={
-              <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN']} requiresPhase2>
                 <UserManagement />
               </ProtectedRoute>
             }
@@ -102,7 +102,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/admin/tables"
             element={
-              <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN']} requiresPhase2>
                 <TableManagement />
               </ProtectedRoute>
             }
@@ -110,7 +110,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/admin/waiters"
             element={
-              <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN']} requiresPhase2>
                 <WaiterManagement />
               </ProtectedRoute>
             }
@@ -118,7 +118,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/admin/analytics"
             element={
-              <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN']} requiresPhase2>
                 <AnalyticsPage />
               </ProtectedRoute>
             }
@@ -126,7 +126,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/admin/subscriptions"
             element={
-              <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN']} requiresPhase2>
                 <DashboardPage />
               </ProtectedRoute>
             }
@@ -134,7 +134,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/admin/settings"
             element={
-              <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN']} requiresPhase2>
                 <SettingsPage />
               </ProtectedRoute>
             }
@@ -152,7 +152,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/merchant/branches"
             element={
-              <ProtectedRoute allowedRoles={['MERCHANT_OWNER', 'SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['MERCHANT_OWNER', 'SUPER_ADMIN']} requiresPhase2>
                 <BranchManagement />
               </ProtectedRoute>
             }
@@ -160,7 +160,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/merchant/users"
             element={
-              <ProtectedRoute allowedRoles={['MERCHANT_OWNER', 'SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['MERCHANT_OWNER', 'SUPER_ADMIN']} requiresPhase2>
                 <UserManagement />
               </ProtectedRoute>
             }
@@ -168,7 +168,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/merchant/tables"
             element={
-              <ProtectedRoute allowedRoles={['MERCHANT_OWNER', 'SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['MERCHANT_OWNER', 'SUPER_ADMIN']} requiresPhase2>
                 <TableManagement />
               </ProtectedRoute>
             }
@@ -184,7 +184,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/merchant/orders"
             element={
-              <ProtectedRoute allowedRoles={['MERCHANT_OWNER', 'SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['MERCHANT_OWNER', 'SUPER_ADMIN']} requiresPhase2>
                 <KitchenLivePage />
               </ProtectedRoute>
             }
@@ -192,7 +192,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/merchant/waiters"
             element={
-              <ProtectedRoute allowedRoles={['MERCHANT_OWNER', 'SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['MERCHANT_OWNER', 'SUPER_ADMIN']} requiresPhase2>
                 <WaiterManagement />
               </ProtectedRoute>
             }
@@ -200,7 +200,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/merchant/analytics"
             element={
-              <ProtectedRoute allowedRoles={['MERCHANT_OWNER', 'SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['MERCHANT_OWNER', 'SUPER_ADMIN']} requiresPhase2>
                 <AnalyticsPage />
               </ProtectedRoute>
             }
@@ -218,7 +218,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/branch/dashboard"
             element={
-              <ProtectedRoute allowedRoles={['BRANCH_MANAGER', 'MERCHANT_OWNER', 'SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['BRANCH_MANAGER', 'MERCHANT_OWNER', 'SUPER_ADMIN']} requiresPhase2>
                 <DashboardPage />
               </ProtectedRoute>
             }
@@ -226,7 +226,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/branch/orders"
             element={
-              <ProtectedRoute allowedRoles={['BRANCH_MANAGER', 'MERCHANT_OWNER', 'SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['BRANCH_MANAGER', 'MERCHANT_OWNER', 'SUPER_ADMIN']} requiresPhase2>
                 <KitchenLivePage />
               </ProtectedRoute>
             }
@@ -234,7 +234,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/branch/tables"
             element={
-              <ProtectedRoute allowedRoles={['BRANCH_MANAGER', 'MERCHANT_OWNER', 'SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['BRANCH_MANAGER', 'MERCHANT_OWNER', 'SUPER_ADMIN']} requiresPhase2>
                 <TableManagement />
               </ProtectedRoute>
             }
@@ -242,7 +242,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/branch/waiters"
             element={
-              <ProtectedRoute allowedRoles={['BRANCH_MANAGER', 'MERCHANT_OWNER', 'SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['BRANCH_MANAGER', 'MERCHANT_OWNER', 'SUPER_ADMIN']} requiresPhase2>
                 <WaiterManagement />
               </ProtectedRoute>
             }
@@ -250,7 +250,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/branch/kitchen"
             element={
-              <ProtectedRoute allowedRoles={['BRANCH_MANAGER', 'MERCHANT_OWNER', 'SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['BRANCH_MANAGER', 'MERCHANT_OWNER', 'SUPER_ADMIN']} requiresPhase2>
                 <KitchenLivePage />
               </ProtectedRoute>
             }
@@ -258,7 +258,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/branch/reports"
             element={
-              <ProtectedRoute allowedRoles={['BRANCH_MANAGER', 'MERCHANT_OWNER', 'SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['BRANCH_MANAGER', 'MERCHANT_OWNER', 'SUPER_ADMIN']} requiresPhase2>
                 <AnalyticsPage />
               </ProtectedRoute>
             }
@@ -268,7 +268,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/waiter/dashboard"
             element={
-              <ProtectedRoute allowedRoles={['WAITER', 'MERCHANT_OWNER', 'BRANCH_MANAGER', 'SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['WAITER', 'MERCHANT_OWNER', 'BRANCH_MANAGER', 'SUPER_ADMIN']} requiresPhase2>
                 <WaiterDashboardPage />
               </ProtectedRoute>
             }
@@ -276,7 +276,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/waiter/tables"
             element={
-              <ProtectedRoute allowedRoles={['WAITER', 'MERCHANT_OWNER', 'BRANCH_MANAGER', 'SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['WAITER', 'MERCHANT_OWNER', 'BRANCH_MANAGER', 'SUPER_ADMIN']} requiresPhase2>
                 <TableManagement />
               </ProtectedRoute>
             }
@@ -284,7 +284,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/waiter/orders"
             element={
-              <ProtectedRoute allowedRoles={['WAITER', 'MERCHANT_OWNER', 'BRANCH_MANAGER', 'SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['WAITER', 'MERCHANT_OWNER', 'BRANCH_MANAGER', 'SUPER_ADMIN']} requiresPhase2>
                 <WaiterDashboardPage />
               </ProtectedRoute>
             }
@@ -292,7 +292,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/waiter/requests"
             element={
-              <ProtectedRoute allowedRoles={['WAITER', 'MERCHANT_OWNER', 'BRANCH_MANAGER', 'SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['WAITER', 'MERCHANT_OWNER', 'BRANCH_MANAGER', 'SUPER_ADMIN']} requiresPhase2>
                 <WaiterRequestsPage />
               </ProtectedRoute>
             }
@@ -302,7 +302,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/kitchen/dashboard"
             element={
-              <ProtectedRoute allowedRoles={['KITCHEN', 'MERCHANT_OWNER', 'BRANCH_MANAGER', 'SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['KITCHEN', 'MERCHANT_OWNER', 'BRANCH_MANAGER', 'SUPER_ADMIN']} requiresPhase2>
                 <KitchenLivePage />
               </ProtectedRoute>
             }
@@ -310,7 +310,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/kitchen/incoming"
             element={
-              <ProtectedRoute allowedRoles={['KITCHEN', 'MERCHANT_OWNER', 'BRANCH_MANAGER', 'SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['KITCHEN', 'MERCHANT_OWNER', 'BRANCH_MANAGER', 'SUPER_ADMIN']} requiresPhase2>
                 <KitchenLivePage />
               </ProtectedRoute>
             }
@@ -318,7 +318,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/kitchen/preparing"
             element={
-              <ProtectedRoute allowedRoles={['KITCHEN', 'MERCHANT_OWNER', 'BRANCH_MANAGER', 'SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['KITCHEN', 'MERCHANT_OWNER', 'BRANCH_MANAGER', 'SUPER_ADMIN']} requiresPhase2>
                 <KitchenLivePage />
               </ProtectedRoute>
             }
@@ -326,7 +326,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/kitchen/ready"
             element={
-              <ProtectedRoute allowedRoles={['KITCHEN', 'MERCHANT_OWNER', 'BRANCH_MANAGER', 'SUPER_ADMIN']}>
+              <ProtectedRoute allowedRoles={['KITCHEN', 'MERCHANT_OWNER', 'BRANCH_MANAGER', 'SUPER_ADMIN']} requiresPhase2>
                 <KitchenLivePage />
               </ProtectedRoute>
             }
