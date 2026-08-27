@@ -1,20 +1,57 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { QrCode, Loader2, AlertCircle, Lock, Mail, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ApiError } from '../lib/api';
 import { getRoleHome } from '../router/ProtectedRoute';
+import { isPhase2Enabled, isRoleAllowedInPhase } from '../lib/phase';
 
 export const LoginPage: React.FC = () => {
-  const { login, isLoading, isAuthenticated, user } = useAuth();
+  const { login, isLoading, isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState('admin@hotel.com');
   const [password, setPassword] = useState('password');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [wasPhaseBlocked, setWasPhaseBlocked] = useState(false);
 
-  // If already authenticated, redirect to role home
+  const restoredPhaseBlock = Boolean(
+    (location.state as { phaseBlocked?: boolean } | null)?.phaseBlocked,
+  );
+  const justLoggedInBlocked =
+    isAuthenticated && Boolean(user) && !isRoleAllowedInPhase(user!.role, isPhase2Enabled());
+  const phaseBlocked = restoredPhaseBlock || justLoggedInBlocked || wasPhaseBlocked;
+
+  // A role that isn't allowed in the current phase still authenticates
+  // successfully (the backend has no notion of phase), so it must be logged
+  // out here rather than shown a dashboard it has no navigation for.
+  // wasPhaseBlocked latches so the message survives the logout() completing
+  // and isAuthenticated flipping back to false mid-render.
+  useEffect(() => {
+    if (justLoggedInBlocked) {
+      setWasPhaseBlocked(true);
+      logout();
+    }
+  }, [justLoggedInBlocked, logout]);
+
+  if (phaseBlocked) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-200 p-8 text-center">
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-6 h-6" />
+          </div>
+          <h1 className="text-lg font-black text-slate-900">Merchant accounts only</h1>
+          <p className="text-sm text-slate-500 mt-2">
+            This app is available for merchant accounts during this phase. Please sign in with a merchant account.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // If already authenticated with an allowed role, redirect to role home
   if (isAuthenticated && user) {
     return <Navigate to={getRoleHome(user.role)} replace />;
   }
