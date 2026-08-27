@@ -35,6 +35,21 @@ export const LoginPage: React.FC = () => {
     }
   }, [justLoggedInBlocked, logout]);
 
+  // ProtectedRoute redirects here with `state: { phaseBlocked: true }` for a
+  // restored session it just logged out. Browsers persist history.state
+  // across a same-entry reload (F5), so if we left it in place, this message
+  // would keep re-appearing on this tab forever - even for an unrelated,
+  // legitimate login attempt later. Latch it into wasPhaseBlocked (so the
+  // message keeps showing for the rest of this render pass) and immediately
+  // replace the history entry with a clean state so a reload - or a fresh
+  // login attempt - doesn't re-trigger it.
+  useEffect(() => {
+    if (restoredPhaseBlock) {
+      setWasPhaseBlocked(true);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [restoredPhaseBlock, navigate, location.pathname]);
+
   if (phaseBlocked) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
