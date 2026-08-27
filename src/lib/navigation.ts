@@ -13,8 +13,11 @@ import {
   ChefHat,
   ClipboardList,
   CheckCircle2,
+  QrCode,
   type LucideIcon,
 } from 'lucide-react';
+
+import { isPhase2Enabled } from './phase';
 
 export interface NavItem {
   label: string;
@@ -72,19 +75,41 @@ export const ROLE_NAVIGATION: Record<string, NavItem[]> = {
 };
 
 /**
- * Get the navigation items for a given role.
- * Falls back to an empty array if the role is unknown.
+ * Phase 1 navigation: only MERCHANT_OWNER has anything to show. Every other
+ * role's Phase 1 experience is "no navigation, log out" - see
+ * isRoleAllowedInPhase in ./phase.ts and its use in ProtectedRoute/LoginPage.
  */
-export function getNavigationForRole(role: string): NavItem[] {
-  return ROLE_NAVIGATION[role] || [];
+export const ROLE_NAVIGATION_PHASE1: Record<string, NavItem[]> = {
+  MERCHANT_OWNER: [
+    { label: 'Dashboard', path: '/merchant/dashboard', icon: LayoutDashboard },
+    { label: 'Menu & QR', path: '/merchant/menu', icon: QrCode },
+    { label: 'Settings', path: '/merchant/settings', icon: Settings },
+  ],
+};
+
+/**
+ * Get the navigation items for a given role, respecting the current phase.
+ * In Phase 1, ROLE_NAVIGATION_PHASE1 is used instead of the full table, so
+ * every role except MERCHANT_OWNER gets an empty list rather than a filtered
+ * one - falling back to '/login' below, not a route with no nav to reach it.
+ */
+export function getNavigationForRole(
+  role: string,
+  phase2Enabled: boolean = isPhase2Enabled(),
+): NavItem[] {
+  const table = phase2Enabled ? ROLE_NAVIGATION : ROLE_NAVIGATION_PHASE1;
+  return table[role] || [];
 }
 
 /**
- * Get the home route for a given role.
+ * Get the home route for a given role, respecting the current phase.
  */
-export function getRoleHomeRoute(role: string): string {
-  const items = ROLE_NAVIGATION[role];
-  if (items && items.length > 0) {
+export function getRoleHomeRoute(
+  role: string,
+  phase2Enabled: boolean = isPhase2Enabled(),
+): string {
+  const items = getNavigationForRole(role, phase2Enabled);
+  if (items.length > 0) {
     return items[0].path;
   }
   return '/login';

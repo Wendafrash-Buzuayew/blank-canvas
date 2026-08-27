@@ -1,0 +1,69 @@
+/**
+ * Pure-function tests for phase-aware role navigation. Run with
+ * `npm run test:unit`.
+ */
+import assert from 'node:assert/strict';
+import { getNavigationForRole, getRoleHomeRoute } from './navigation';
+
+let failures = 0;
+function test(name: string, fn: () => void) {
+  try {
+    fn();
+    console.log(`  ok  ${name}`);
+  } catch (error) {
+    failures += 1;
+    console.error(`FAIL  ${name}`);
+    console.error(`      ${(error as Error).message}`);
+  }
+}
+
+// ---- getNavigationForRole ----
+
+test('phase 1 gives MERCHANT_OWNER exactly Dashboard, Menu & QR, Settings', () => {
+  const items = getNavigationForRole('MERCHANT_OWNER', false);
+  assert.deepEqual(
+    items.map((i) => i.path),
+    ['/merchant/dashboard', '/merchant/menu', '/merchant/settings'],
+  );
+});
+
+test('phase 1 gives every other role no navigation at all', () => {
+  assert.deepEqual(getNavigationForRole('SUPER_ADMIN', false), []);
+  assert.deepEqual(getNavigationForRole('BRANCH_MANAGER', false), []);
+  assert.deepEqual(getNavigationForRole('WAITER', false), []);
+  assert.deepEqual(getNavigationForRole('KITCHEN', false), []);
+});
+
+test('phase 2 restores the full navigation for every role', () => {
+  const merchantItems = getNavigationForRole('MERCHANT_OWNER', true);
+  assert.equal(merchantItems.length, 9);
+  assert.ok(getNavigationForRole('WAITER', true).length > 0);
+  assert.ok(getNavigationForRole('SUPER_ADMIN', true).length > 0);
+});
+
+test('an unknown role gets no navigation in either phase', () => {
+  assert.deepEqual(getNavigationForRole('BOGUS', false), []);
+  assert.deepEqual(getNavigationForRole('BOGUS', true), []);
+});
+
+// ---- getRoleHomeRoute ----
+
+test('MERCHANT_OWNER lands on the dashboard in phase 1', () => {
+  assert.equal(getRoleHomeRoute('MERCHANT_OWNER', false), '/merchant/dashboard');
+});
+
+test('a role with no phase 1 navigation falls back to /login', () => {
+  assert.equal(getRoleHomeRoute('WAITER', false), '/login');
+  assert.equal(getRoleHomeRoute('SUPER_ADMIN', false), '/login');
+});
+
+test('phase 2 restores each role\'s real home route', () => {
+  assert.equal(getRoleHomeRoute('SUPER_ADMIN', true), '/admin/dashboard');
+  assert.equal(getRoleHomeRoute('WAITER', true), '/waiter/dashboard');
+});
+
+if (failures > 0) {
+  console.error(`\n${failures} test(s) failed`);
+  process.exit(1);
+}
+console.log('\nall navigation tests passed');
