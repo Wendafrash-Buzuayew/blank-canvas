@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Menu, QrCode } from 'lucide-react';
 import { Sidebar } from './Sidebar.tsx';
+import { MobileBottomNav } from './MobileBottomNav.tsx';
 import { useAuth } from '../context/AuthContext';
 import { getRoleLabel } from '../router/ProtectedRoute';
+import { isPhase2Enabled } from '../lib/phase';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -12,6 +14,26 @@ interface DashboardLayoutProps {
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuth();
+
+  if (!isPhase2Enabled()) {
+    // Phase 1: no sidebar at all - a fixed bottom tab bar instead, content
+    // constrained to a mobile frame. This is the Merchant Mini App shell,
+    // not the full admin console below.
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <header className="sticky top-0 z-20 bg-white border-b border-slate-200 shadow-xs">
+          <div className="mx-auto flex h-14 max-w-[430px] items-center gap-2 px-4">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0DA64B] text-white">
+              <QrCode className="w-4 h-4" />
+            </div>
+            {title && <h1 className="text-base font-bold text-slate-900">{title}</h1>}
+          </div>
+        </header>
+        <main className="mx-auto max-w-[430px] px-4 pb-24 pt-4">{children}</main>
+        <MobileBottomNav />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
