@@ -31,6 +31,7 @@ import {
   writeTrackedOrder,
   type TrackedOrder,
 } from '../lib/orderSession';
+import { isPhase2Enabled } from '../lib/phase';
 
 const MenuSkeleton: React.FC = () => (
   <div className="space-y-3" aria-hidden>
@@ -352,27 +353,29 @@ export const CustomerMenuPage: React.FC = () => {
                 {resolution.branchName || effectiveBranchSlug}
               </p>
             </div>
-            <span className="shrink-0 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold ring-1 ring-white/15">
-              Table {resolution.tableNumber}
-            </span>
+            {isPhase2Enabled() && (
+              <span className="shrink-0 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold ring-1 ring-white/15">
+                Table {resolution.tableNumber}
+              </span>
+            )}
           </div>
           <p className="mt-3 flex items-center gap-1.5 text-xs text-white/50">
             <Sparkles className="h-3.5 w-3.5" aria-hidden />
-            Order from your table — no app, no queue.
+            {isPhase2Enabled() ? 'Order from your table — no app, no queue.' : 'Browse our menu.'}
           </p>
         </div>
       </header>
 
       <main className="mx-auto max-w-2xl px-5">
         {/* Live tracker */}
-        {placedOrderId && (
+        {isPhase2Enabled() && placedOrderId && (
           <div className="-mt-5">
             <OrderProgress orderNumber={placedOrderNumber} status={liveStatus} connection={connection} />
           </div>
         )}
 
         {/* Search + sticky category rail */}
-        <div className={placedOrderId ? 'mt-5' : '-mt-5'}>
+        <div className={isPhase2Enabled() && placedOrderId ? 'mt-5' : '-mt-5'}>
           <label className="relative block">
             <span className="sr-only">Search the menu</span>
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
@@ -502,7 +505,7 @@ export const CustomerMenuPage: React.FC = () => {
                             <span className="text-xs font-semibold text-muted">{currency}</span>
                           </span>
 
-                          {soldOut ? (
+                          {!isPhase2Enabled() ? null : soldOut ? (
                             <span className="rounded-full bg-canvas px-3 py-1.5 text-xs font-semibold text-muted">
                               Unavailable
                             </span>
@@ -543,16 +546,18 @@ export const CustomerMenuPage: React.FC = () => {
         </div>
       </main>
 
-      <ServiceDock
-        onRequest={sendRequest}
-        pending={createRequest.isPending}
-        sentType={requestSent}
-        failed={createRequest.isError}
-        offsetClass={cartCount > 0 ? 'bottom-28' : 'bottom-6'}
-      />
+      {isPhase2Enabled() && (
+        <ServiceDock
+          onRequest={sendRequest}
+          pending={createRequest.isPending}
+          sentType={requestSent}
+          failed={createRequest.isError}
+          offsetClass={cartCount > 0 ? 'bottom-28' : 'bottom-6'}
+        />
+      )}
 
       {/* Cart bar */}
-      {cartCount > 0 && (
+      {isPhase2Enabled() && cartCount > 0 && (
         <div className="safe-b fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 px-5 pt-3 backdrop-blur">
           <div className="mx-auto max-w-2xl">
             <button
@@ -576,25 +581,27 @@ export const CustomerMenuPage: React.FC = () => {
         </div>
       )}
 
-      <CartSheet
-        open={cartOpen}
-        onClose={() => setCartOpen(false)}
-        lines={cart}
-        currency={currency}
-        tableNumber={resolution.tableNumber}
-        onChangeQty={(id, d) => {
-          const l = cart.find((x) => x.productId === id);
-          if (l) changeQty({ id, name: l.name, price: l.price }, d);
-        }}
-        onRemove={(id) => setCart((prev) => prev.filter((l) => l.productId !== id))}
-        onConfirm={placeOrder}
-        submitting={createOrder.isPending}
-        errorMessage={
-          createOrder.isError
-            ? 'We couldn’t send your order. Check your connection and try again, or ask a waiter.'
-            : null
-        }
-      />
+      {isPhase2Enabled() && (
+        <CartSheet
+          open={cartOpen}
+          onClose={() => setCartOpen(false)}
+          lines={cart}
+          currency={currency}
+          tableNumber={resolution.tableNumber}
+          onChangeQty={(id, d) => {
+            const l = cart.find((x) => x.productId === id);
+            if (l) changeQty({ id, name: l.name, price: l.price }, d);
+          }}
+          onRemove={(id) => setCart((prev) => prev.filter((l) => l.productId !== id))}
+          onConfirm={placeOrder}
+          submitting={createOrder.isPending}
+          errorMessage={
+            createOrder.isError
+              ? 'We couldn’t send your order. Check your connection and try again, or ask a waiter.'
+              : null
+          }
+        />
+      )}
     </div>
   );
 };
