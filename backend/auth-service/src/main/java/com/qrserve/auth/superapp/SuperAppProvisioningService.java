@@ -16,7 +16,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
@@ -55,7 +54,6 @@ public class SuperAppProvisioningService {
     @Value("${services.merchant-service-url:http://localhost:8085}")
     private String merchantServiceUrl;
 
-    @Transactional
     public LoginResponse exchangeAndLogin(String rawToken) {
         SuperAppMerchantClaim claim = superAppAuthPort.exchangeToken(rawToken);
 
