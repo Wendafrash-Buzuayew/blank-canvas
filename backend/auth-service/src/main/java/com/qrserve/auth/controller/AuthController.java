@@ -3,6 +3,8 @@ package com.qrserve.auth.controller;
 import com.qrserve.auth.dto.LoginRequest;
 import com.qrserve.auth.dto.LoginResponse;
 import com.qrserve.auth.dto.RefreshRequest;
+import com.qrserve.auth.dto.SuperAppExchangeRequest;
+import com.qrserve.auth.superapp.SuperAppProvisioningService;
 import com.qrserve.auth.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,11 +33,18 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 public class AuthController {
 
     private final AuthService authService;
+    private final SuperAppProvisioningService superAppProvisioningService;
 
     @PostMapping("/login")
     @Operation(summary = "Authenticate user and issue JWT token")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/superapp/exchange")
+    @Operation(summary = "Exchange an M-PESA Super App token for a QRServe session, auto-registering the merchant on first entry")
+    public ResponseEntity<LoginResponse> exchangeSuperAppToken(@Valid @RequestBody SuperAppExchangeRequest request) {
+        return ResponseEntity.ok(superAppProvisioningService.exchangeAndLogin(request.getToken()));
     }
 
     @PostMapping("/refresh")

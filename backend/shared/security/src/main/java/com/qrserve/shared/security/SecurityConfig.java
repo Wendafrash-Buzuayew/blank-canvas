@@ -79,6 +79,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/v1/auth/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/refresh", "/api/v1/auth/refresh").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/logout", "/api/v1/auth/logout").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/superapp/exchange").permitAll()
 
                 // 5. Public customer-facing reads/writes, narrowly scoped.
                 //    GET /api/menu/{merchantId} is the only public menu endpoint;
