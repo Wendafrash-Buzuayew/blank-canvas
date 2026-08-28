@@ -58,6 +58,7 @@ class SuperAppProvisioningServiceTest {
         when(authPort.exchangeToken(TOKEN)).thenReturn(claim());
         when(passwordEncoder.encode(any())).thenReturn("hashed");
         when(tokenProvider.generateAccessToken(any(UserPrincipal.class))).thenReturn("access-token");
+        when(tokenProvider.generateInternalServiceToken(any(UserPrincipal.class))).thenReturn("system-token");
         when(tokenProvider.generateRefreshToken(any(UserPrincipal.class))).thenReturn("refresh-token");
         when(tokenProvider.getAccessExpirationSeconds()).thenReturn(3600L);
     }

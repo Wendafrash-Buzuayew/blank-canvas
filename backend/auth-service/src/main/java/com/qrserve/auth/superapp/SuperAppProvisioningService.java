@@ -8,6 +8,7 @@ import com.qrserve.shared.security.JwtTokenProvider;
 import com.qrserve.shared.security.UserPrincipal;
 import com.qrserve.shared.security.UserRole;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -16,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
@@ -39,6 +41,7 @@ import java.util.UUID;
  * find a superAppMerchantRef match and will provision a duplicate merchant.
  * Fixing this needs an idempotency key or outbox pattern - out of scope here.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SuperAppProvisioningService {
@@ -82,6 +85,7 @@ public class SuperAppProvisioningService {
                 .enabled(true)
                 .superAppMerchantRef(claim.merchantExternalRef())
                 .build();
+        log.info("Provisioned new merchant {} (branch {}) for Super App ref {}", merchant.id(), branch.id(), claim.merchantExternalRef());
         return userRepository.save(user);
     }
 
@@ -96,7 +100,7 @@ public class SuperAppProvisioningService {
                 .role(UserRole.SUPER_ADMIN)
                 .email("system@" + PLACEHOLDER_EMAIL_DOMAIN)
                 .build();
-        return tokenProvider.generateAccessToken(system);
+        return tokenProvider.generateInternalServiceToken(system);
     }
 
     private MerchantProvisionResponse createMerchant(SuperAppMerchantClaim claim, String systemToken) {
@@ -107,12 +111,17 @@ public class SuperAppProvisioningService {
                 "city", claim.city(),
                 "address", claim.address(),
                 "category", claim.category());
-        ResponseEntity<MerchantProvisionResponse> response = restTemplate.exchange(
-                merchantServiceUrl + "/api/merchants",
-                HttpMethod.POST,
-                new HttpEntity<>(body, authHeaders(systemToken)),
-                MerchantProvisionResponse.class);
-        return requireBody(response, "merchant provisioning");
+        try {
+            ResponseEntity<MerchantProvisionResponse> response = restTemplate.exchange(
+                    merchantServiceUrl + "/api/merchants",
+                    HttpMethod.POST,
+                    new HttpEntity<>(body, authHeaders(systemToken)),
+                    MerchantProvisionResponse.class);
+            return requireBody(response, "merchant provisioning");
+        } catch (RestClientException e) {
+            log.warn("Merchant provisioning failed for Super App ref {}", claim.merchantExternalRef(), e);
+            throw new ServiceUnavailableException("merchant-service is unavailable during merchant provisioning", e);
+        }
     }
 
     private BranchProvisionResponse createDefaultBranch(UUID merchantId, SuperAppMerchantClaim claim, String systemToken) {
@@ -122,12 +131,17 @@ public class SuperAppProvisioningService {
                 "slug", "main",
                 "phone", claim.phone(),
                 "address", claim.address());
-        ResponseEntity<BranchProvisionResponse> response = restTemplate.exchange(
-                merchantServiceUrl + "/api/branches",
-                HttpMethod.POST,
-                new HttpEntity<>(body, authHeaders(systemToken)),
-                BranchProvisionResponse.class);
-        return requireBody(response, "branch provisioning");
+        try {
+            ResponseEntity<BranchProvisionResponse> response = restTemplate.exchange(
+                    merchantServiceUrl + "/api/branches",
+                    HttpMethod.POST,
+                    new HttpEntity<>(body, authHeaders(systemToken)),
+                    BranchProvisionResponse.class);
+            return requireBody(response, "branch provisioning");
+        } catch (RestClientException e) {
+            log.warn("Branch provisioning failed for Super App ref {}", claim.merchantExternalRef(), e);
+            throw new ServiceUnavailableException("merchant-service is unavailable during branch provisioning", e);
+        }
     }
 
     private void createDefaultTable(Long branchId, String systemToken) {
@@ -135,11 +149,16 @@ public class SuperAppProvisioningService {
                 "branchId", branchId,
                 "tableNumber", "1",
                 "capacity", 1);
-        restTemplate.exchange(
-                merchantServiceUrl + "/api/tables",
-                HttpMethod.POST,
-                new HttpEntity<>(body, authHeaders(systemToken)),
-                Object.class);
+        try {
+            restTemplate.exchange(
+                    merchantServiceUrl + "/api/tables",
+                    HttpMethod.POST,
+                    new HttpEntity<>(body, authHeaders(systemToken)),
+                    Object.class);
+        } catch (RestClientException e) {
+            log.warn("Table provisioning failed for branch {}", branchId, e);
+            throw new ServiceUnavailableException("merchant-service is unavailable during table provisioning", e);
+        }
     }
 
     private HttpHeaders authHeaders(String token) {

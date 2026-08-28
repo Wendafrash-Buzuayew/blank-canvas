@@ -26,6 +26,10 @@ export const LoginPage: React.FC = () => {
 
   useEffect(() => {
     if (!superAppToken) return;
+    // Strip the token from the visible URL/history immediately - it must not
+    // persist in browser history, a Referer header, or access logs for any
+    // longer than it takes to read it once here.
+    window.history.replaceState({}, '', window.location.pathname);
     loginWithSuperAppToken(superAppToken)
       .catch((err) => {
         setSuperAppError(

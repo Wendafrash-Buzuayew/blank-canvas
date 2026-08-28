@@ -80,6 +80,32 @@ public class JwtTokenProvider {
                 .compact();
     }
 
+    /** Fixed short lifetime for internal, single-purpose service tokens (see generateInternalServiceToken). */
+    private static final long INTERNAL_SERVICE_TOKEN_EXPIRATION_MS = 60_000L;
+
+    /**
+     * Mints a short-lived (60s), single-purpose access token for internal
+     * service-to-service calls - e.g. auth-service provisioning a merchant via
+     * merchant-service's own endpoints. Unlike {@link #generateAccessToken},
+     * this is never handed to a client and is used immediately after minting,
+     * so it does not need (and must not carry) a normal session's lifetime.
+     */
+    public String generateInternalServiceToken(UserPrincipal userPrincipal) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", userPrincipal.getUserId() != null ? userPrincipal.getUserId().toString() : null);
+        claims.put("merchantId", userPrincipal.getMerchantId() != null ? userPrincipal.getMerchantId().toString() : null);
+        claims.put("role", userPrincipal.getRole().name());
+        claims.put(CLAIM_TYPE, TYPE_ACCESS);
+
+        return Jwts.builder()
+                .claims(claims)
+                .subject(userPrincipal.getEmail())
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + INTERNAL_SERVICE_TOKEN_EXPIRATION_MS))
+                .signWith(key)
+                .compact();
+    }
+
     public String generateRefreshToken(UserPrincipal userPrincipal) {
         return Jwts.builder()
                 .claim(CLAIM_TYPE, TYPE_REFRESH)

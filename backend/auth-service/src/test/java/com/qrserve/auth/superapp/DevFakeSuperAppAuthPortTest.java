@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  */
 class DevFakeSuperAppAuthPortTest {
 
-    private final DevFakeSuperAppAuthPort port = new DevFakeSuperAppAuthPort();
+    private final DevFakeSuperAppAuthPort port = new DevFakeSuperAppAuthPort(true);
 
     @Test
     @DisplayName("a well-formed token JSON becomes a claim with every field")
@@ -58,5 +58,28 @@ class DevFakeSuperAppAuthPortTest {
     void rejectsBlankToken() {
         assertThrows(UnauthorizedException.class, () -> port.exchangeToken(null));
         assertThrows(UnauthorizedException.class, () -> port.exchangeToken("  "));
+    }
+
+    @Test
+    @DisplayName("the dev fake refuses to run at all when disabled, even for a well-formed token")
+    void refusesWhenDisabled() {
+        DevFakeSuperAppAuthPort disabledPort = new DevFakeSuperAppAuthPort(false);
+        String token = "{"
+                + "\"merchantExternalRef\":\"MPESA-BIZ-001\","
+                + "\"businessName\":\"Sunrise Cafe\","
+                + "\"phone\":\"+254700000000\","
+                + "\"city\":\"Nairobi\","
+                + "\"address\":\"123 Moi Ave\","
+                + "\"category\":\"Restaurant\""
+                + "}";
+        assertThrows(UnauthorizedException.class, () -> disabledPort.exchangeToken(token));
+    }
+
+    @Test
+    @DisplayName("a token missing any required field other than merchantExternalRef is rejected")
+    void rejectsMissingOtherFields() {
+        String missingCity = "{\"merchantExternalRef\":\"MPESA-BIZ-001\",\"businessName\":\"Sunrise Cafe\","
+                + "\"phone\":\"+254700000000\",\"address\":\"123 Moi Ave\",\"category\":\"Restaurant\"}";
+        assertThrows(UnauthorizedException.class, () -> port.exchangeToken(missingCity));
     }
 }

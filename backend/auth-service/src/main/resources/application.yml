@@ -54,6 +54,14 @@ qr:
 services:
   merchant-service-url: ${MERCHANT_SERVICE_URL:http://localhost:8085}
 
+superapp:
+  auth:
+    # Fails closed by default: the dev fake accepts ANY token as proof of
+    # identity, so it must never be reachable unless explicitly turned on for
+    # local/dev use. Set SUPERAPP_DEV_FAKE_ENABLED=true only in environments
+    # where that's the intended behavior.
+    dev-fake-enabled: ${SUPERAPP_DEV_FAKE_ENABLED:false}
+
 management:
   endpoints:
     web:
