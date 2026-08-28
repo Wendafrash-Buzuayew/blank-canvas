@@ -38,6 +38,14 @@ public class UserEntity {
     @Column(nullable = false)
     private UserRole role;
 
+    /**
+     * The M-PESA Super App's own merchant/business reference, so a repeat entry
+     * from the Super App finds the existing account instead of re-provisioning.
+     * Null for every user created through the ordinary email/password path.
+     */
+    @Column(name = "super_app_merchant_ref", unique = true)
+    private String superAppMerchantRef;
+
     @Column(nullable = false)
     private boolean enabled;
 

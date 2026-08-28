@@ -13,4 +13,5 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
     Optional<UserEntity> findByEmail(String email);
     boolean existsByEmail(String email);
     List<UserEntity> findByMerchantId(UUID merchantId);
+    Optional<UserEntity> findBySuperAppMerchantRef(String superAppMerchantRef);
 }
