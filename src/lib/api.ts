@@ -362,6 +362,14 @@ export const authApi = {
       skipAuth: true,
     }),
 
+  /** POST /api/auth/superapp/exchange - M-PESA Super App token exchange. */
+  exchangeSuperAppToken: (token: string) =>
+    request<LoginResponse>('/auth/superapp/exchange', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+      skipAuth: true,
+    }),
+
   refresh: (token: string) =>
     request<LoginResponse>('/auth/refresh', {
       method: 'POST',

@@ -16,6 +16,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<AuthUser>;
+  loginWithSuperAppToken: (token: string) => Promise<AuthUser>;
   logout: () => Promise<void>;
   setUserProfile: (user: AuthUser) => void;
   refreshUser: () => Promise<void>;
@@ -112,6 +113,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
+  const loginWithSuperAppToken = useCallback(async (token: string): Promise<AuthUser> => {
+    setIsLoading(true);
+    try {
+      const response: LoginResponse = await authApi.exchangeSuperAppToken(token);
+      setTokens(response.accessToken, response.refreshToken);
+
+      let authUser: AuthUser;
+      try {
+        const info = await authApi.getMe();
+        authUser = mapUserInfoToAuthUser(info);
+      } catch (err) {
+        // Fallback: decode JWT payload if /me fails - mirrors login()'s own fallback.
+        const payload = JSON.parse(atob(response.accessToken.split('.')[1]));
+        authUser = {
+          id: payload.sub || payload.userId || '',
+          email: payload.email || '',
+          name: payload.name || payload.sub || 'Merchant',
+          role: payload.role || 'MERCHANT_OWNER',
+          merchantId: payload.merchantId,
+        };
+      }
+
+      setUser(authUser);
+      setUserState(authUser);
+      setAuthState(true);
+      window.dispatchEvent(new CustomEvent('qrserve_auth_update'));
+      return authUser;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
@@ -149,6 +182,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isAuthenticated: authState,
         isLoading,
         login,
+        loginWithSuperAppToken,
         logout,
         setUserProfile,
         refreshUser,

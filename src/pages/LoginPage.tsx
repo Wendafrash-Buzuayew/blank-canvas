@@ -1,13 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { QrCode, Loader2, AlertCircle, Lock, Mail, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ApiError } from '../lib/api';
 import { getRoleHome } from '../router/ProtectedRoute';
 import { isPhase2Enabled, isRoleAllowedInPhase } from '../lib/phase';
+import { getSuperAppToken } from '../lib/superApp';
 
 export const LoginPage: React.FC = () => {
-  const { login, isLoading, isAuthenticated, user, logout } = useAuth();
+  const { login, loginWithSuperAppToken, isLoading, isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState(isPhase2Enabled() ? 'admin@hotel.com' : '');
@@ -15,6 +16,27 @@ export const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [wasPhaseBlocked, setWasPhaseBlocked] = useState(false);
+
+  // Read once per mount: a Super App launch hands this off via the URL, and
+  // it must not be re-read after the exchange consumes it (e.g. on an
+  // in-page state change), or a failed exchange would retry forever.
+  const superAppToken = useMemo(() => getSuperAppToken(), []);
+  const [superAppExchanging, setSuperAppExchanging] = useState(Boolean(superAppToken));
+  const [superAppError, setSuperAppError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!superAppToken) return;
+    loginWithSuperAppToken(superAppToken)
+      .catch((err) => {
+        setSuperAppError(
+          err instanceof ApiError ? err.message : 'Could not sign in from the Super App. Please try again.',
+        );
+      })
+      .finally(() => setSuperAppExchanging(false));
+    // Runs once per mount against the token captured above - loginWithSuperAppToken
+    // is stable (useCallback with an empty dependency array in AuthContext).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [superAppToken]);
 
   const restoredPhaseBlock = Boolean(
     (location.state as { phaseBlocked?: boolean } | null)?.phaseBlocked,
@@ -73,6 +95,17 @@ export const LoginPage: React.FC = () => {
     );
   }
 
+  if (superAppExchanging) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-3 text-slate-500">
+          <Loader2 className="w-6 h-6 animate-spin" />
+          <p className="text-sm font-bold">Signing you in…</p>
+        </div>
+      </div>
+    );
+  }
+
   // If already authenticated with an allowed role, redirect to role home
   if (isAuthenticated && user) {
     return <Navigate to={getRoleHome(user.role)} replace />;
@@ -118,10 +151,10 @@ export const LoginPage: React.FC = () => {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            {error && (
+            {(error || superAppError) && (
               <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-700 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
-                {error}
+                {error || superAppError}
               </div>
             )}
 
