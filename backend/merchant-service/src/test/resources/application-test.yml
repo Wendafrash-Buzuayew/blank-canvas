@@ -37,6 +37,7 @@ qr:
 
 app:
   public-base-domain: qrserve.test
+  public-menu-domain: qrserve-menu.test
   public-url-scheme: https
 
 management:
