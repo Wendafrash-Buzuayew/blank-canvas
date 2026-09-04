@@ -10,7 +10,7 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "build:dev": "vite build --mode development",
-    "test:unit": "tsx src/lib/tenant.test.ts && tsx src/lib/orderSession.test.ts && tsx src/lib/qrDisplay.test.ts && tsx src/lib/phase.test.ts && tsx src/lib/navigation.test.ts && tsx src/lib/superApp.test.ts"
+    "test:unit": "tsx src/lib/tenant.test.ts && tsx src/lib/orderSession.test.ts && tsx src/lib/qrDisplay.test.ts && tsx src/lib/phase.test.ts && tsx src/lib/navigation.test.ts && tsx src/lib/superApp.test.ts && tsx src/lib/digitalMenu.test.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",

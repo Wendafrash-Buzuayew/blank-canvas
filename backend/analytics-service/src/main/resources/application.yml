@@ -42,6 +42,7 @@ jwt:
 # whoever ran the deploy.
 app:
   public-base-domain: ${PUBLIC_BASE_DOMAIN}
+  public-menu-domain: ${PUBLIC_MENU_DOMAIN}
   public-url-scheme: ${PUBLIC_URL_SCHEME:https}
 
 qr:

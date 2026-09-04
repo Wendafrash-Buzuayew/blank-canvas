@@ -43,6 +43,10 @@ public class BranchEntity {
     @Column(nullable = false)
     private String address;
 
+    @Column(name = "is_primary", nullable = false)
+    @Builder.Default
+    private boolean isPrimary = false;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

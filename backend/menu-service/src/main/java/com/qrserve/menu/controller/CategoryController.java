@@ -30,8 +30,11 @@ public class CategoryController {
     @PostMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
     @Operation(summary = "Create menu category")
-    public ResponseEntity<CategoryEntity> createCategory(@Valid @RequestBody CreateCategoryRequest request) {
-        return ResponseEntity.ok(menuService.createCategory(request));
+    public ResponseEntity<CategoryEntity> createCategory(
+            @Valid @RequestBody CreateCategoryRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        UUID merchantId = resolveScope(request.getMerchantId(), principal);
+        return ResponseEntity.ok(menuService.createCategory(request, merchantId));
     }
 
     /**

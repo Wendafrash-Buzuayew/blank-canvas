@@ -40,6 +40,9 @@ spring:
           max-idle: 4
           min-idle: 0
 
+services:
+  merchant-service-url: ${MERCHANT_SERVICE_URL:http://localhost:8085}
+
 jwt:
   secret: ${JWT_SECRET}
   access-expiration-ms: 3600000
@@ -54,6 +57,7 @@ jwt:
 app:
   public-base-domain: ${PUBLIC_BASE_DOMAIN}
   public-url-scheme: ${PUBLIC_URL_SCHEME:https}
+  public-menu-domain: ${PUBLIC_MENU_DOMAIN}
 
 qr:
   signature-secret: ${QR_SIGNATURE_SECRET}
@@ -61,6 +65,14 @@ qr:
   # already printed onto table stands keep validating; clear it once
   # reprinting is done. Signing always uses signature-secret above.
   signature-secret-previous: ${QR_SIGNATURE_SECRET_PREVIOUS:}
+
+# One-off, opt-in migration (BranchMenuBackfillRunner): does nothing on every
+# normal boot. Flip to true for exactly one deploy to give every existing
+# branch its own independent copy of its merchant's current catalog, then
+# flip back off.
+backfill:
+  branch-menus:
+    enabled: ${BACKFILL_BRANCH_MENUS_ENABLED:false}
 
 eureka:
   client:

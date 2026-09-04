@@ -39,6 +39,7 @@ jwt:
 app:
   public-base-domain: ${PUBLIC_BASE_DOMAIN}
   public-url-scheme: ${PUBLIC_URL_SCHEME:https}
+  public-menu-domain: ${PUBLIC_MENU_DOMAIN}
 
 qr:
   signature-secret: ${QR_SIGNATURE_SECRET}

@@ -47,6 +47,7 @@ public class QrGeneratorService {
     private final RestTemplate restTemplate;
     private final PublicMenuUrl publicMenuUrl;
     private final QrSignatureService qrSignatureService;
+    private final com.qrserve.shared.common.DigitalMenuUrl digitalMenuUrl;
 
     @Value("${services.merchant-service-url:http://localhost:8085}")
     private String merchantServiceUrl;
@@ -80,6 +81,42 @@ public class QrGeneratorService {
         TableQrInfo qr = fetchTableQr(request.getTableId());
         return renderPng(payloadToRender(qr.getPayloadRaw(), qr.getProfile()), QR_SIZE);
     }
+
+    /**
+     * Renders a QR for the phase-1 digital-menu branch URL. No stored QR
+     * state exists for this scheme (unlike table QR's rotation-tracked
+     * payload) — slugs are permanent, so the URL is fully reproducible from
+     * merchant-service data on every call.
+     */
+    public byte[] getQrForBranch(String merchantSlug, String branchSlug) {
+        DigitalMenuResolution resolution = fetchDigitalMenuResolution(merchantSlug, branchSlug);
+        String url = digitalMenuUrl.branchUrl(resolution.merchantSlug(), resolution.branchSlug());
+        String signature = qrSignatureService.generateSignature(resolution.merchantId(), resolution.branchId());
+        return renderPng(url + "?signature=" + signature, QR_SIZE);
+    }
+
+    private DigitalMenuResolution fetchDigitalMenuResolution(String merchantSlug, String branchSlug) {
+        try {
+            String url = merchantServiceUrl + "/api/v1/public/digital-menu/" + merchantSlug + "/" + branchSlug;
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url, HttpMethod.GET, new HttpEntity<>(getAuthHeaders()),
+                    new ParameterizedTypeReference<Map<String, Object>>() {});
+            Map<String, Object> body = response.getBody();
+            if (body == null) {
+                throw new ResourceNotFoundException("No branch " + branchSlug + " for merchant " + merchantSlug);
+            }
+            return new DigitalMenuResolution(
+                    UUID.fromString((String) body.get("merchantId")),
+                    (String) body.get("merchantSlug"),
+                    ((Number) body.get("branchId")).longValue(),
+                    (String) body.get("branchSlug"));
+        } catch (Exception e) {
+            log.error("Failed to resolve digital menu branch {}/{}", merchantSlug, branchSlug, e);
+            throw new ResourceNotFoundException("No branch " + branchSlug + " for merchant " + merchantSlug);
+        }
+    }
+
+    private record DigitalMenuResolution(UUID merchantId, String merchantSlug, Long branchId, String branchSlug) {}
 
     /**
      * The payload to encode, validated.

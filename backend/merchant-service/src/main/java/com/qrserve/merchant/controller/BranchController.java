@@ -63,4 +63,16 @@ public class BranchController {
         }
         return ResponseEntity.ok(branch);
     }
+
+    @PatchMapping("/{id}/primary")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('MERCHANT_OWNER')")
+    @Operation(summary = "Designate a branch as the merchant's primary branch")
+    public ResponseEntity<BranchEntity> setPrimaryBranch(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        UUID merchantId = principal.getRole() == UserRole.SUPER_ADMIN
+                ? branchService.getBranch(id).getMerchantId()
+                : principal.getMerchantId();
+        return ResponseEntity.ok(branchService.setPrimaryBranch(merchantId, id));
+    }
 }

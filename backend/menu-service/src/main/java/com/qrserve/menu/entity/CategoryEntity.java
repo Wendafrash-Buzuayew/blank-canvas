@@ -24,6 +24,13 @@ public class CategoryEntity {
     @Column(name = "merchant_id", nullable = false)
     private UUID merchantId;
 
+    // The real scoping key going forward — a branch's menu owns its own
+    // categories. merchantId is kept, denormalized from the owning Menu, so
+    // existing tenant-check code (CategoryController.resolveScope etc.)
+    // keeps working unchanged.
+    @Column(name = "menu_id", nullable = false)
+    private UUID menuId;
+
     @Column(nullable = false)
     private String name;
 

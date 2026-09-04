@@ -6,34 +6,83 @@ import com.qrserve.menu.dto.MenuResponse;
 import com.qrserve.menu.dto.UpdateCategoryRequest;
 import com.qrserve.menu.dto.UpdateProductRequest;
 import com.qrserve.menu.entity.CategoryEntity;
+import com.qrserve.menu.entity.MenuEntity;
 import com.qrserve.menu.entity.ProductEntity;
 import com.qrserve.menu.repository.CategoryRepository;
+import com.qrserve.menu.repository.MenuRepository;
 import com.qrserve.menu.repository.ProductRepository;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
+import com.qrserve.shared.exceptions.UnauthorizedException;
+import com.qrserve.shared.security.UserPrincipal;
+import com.qrserve.shared.security.UserRole;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MenuService {
 
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
+    private final MenuRepository menuRepository;
+    private final RestTemplate restTemplate;
+
+    @Value("${services.merchant-service-url:http://localhost:8085}")
+    private String merchantServiceUrl;
 
     // ============ Category CRUD ============
 
+    /**
+     * A branch without a menu is a branch nobody can publish, so this is
+     * called both when a category is first added to a branch and by the
+     * publish endpoint (Task 5) — idempotent either way.
+     */
     @Transactional
-    @CacheEvict(value = "menus", key = "#request.merchantId")
-    public CategoryEntity createCategory(CreateCategoryRequest request) {
+    public MenuEntity getOrCreateMenuForBranch(Long branchId, UUID merchantId) {
+        return menuRepository.findByBranchId(branchId)
+                .orElseGet(() -> menuRepository.save(MenuEntity.builder()
+                        .branchId(branchId)
+                        .merchantId(merchantId)
+                        // Explicit rather than relying on MenuEntity#prePersist: that
+                        // callback only fires through real JPA persistence, not when
+                        // menuRepository.save is mocked (see MenuServiceCategoryTest).
+                        .status(MenuEntity.Status.DRAFT)
+                        .build()));
+    }
+
+    @Transactional
+    @CacheEvict(value = "menus", key = "#merchantId")
+    public CategoryEntity createCategory(CreateCategoryRequest request, UUID merchantId) {
+        UUID actualMerchantId = fetchBranchMerchantId(request.getBranchId());
+        if (!actualMerchantId.equals(merchantId)) {
+            throw new AccessDeniedException("Branch " + request.getBranchId() + " does not belong to your merchant");
+        }
+        MenuEntity menu = getOrCreateMenuForBranch(request.getBranchId(), merchantId);
         CategoryEntity category = CategoryEntity.builder()
-                .merchantId(request.getMerchantId())
+                .menuId(menu.getId())
+                .merchantId(merchantId)
                 .name(request.getName())
                 .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
                 .build();
@@ -76,6 +125,7 @@ public class MenuService {
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with ID: " + request.getCategoryId()));
 
         ProductEntity product = ProductEntity.builder()
+                .menuId(category.getMenuId())
                 .merchantId(category.getMerchantId())
                 .categoryId(category.getId())
                 .name(request.getName())
@@ -161,5 +211,103 @@ public class MenuService {
         return MenuResponse.builder()
                 .categories(categoryDtos)
                 .build();
+    }
+
+    /** Menu-scoped variant, used by the new branch-level public endpoint (Task 8). */
+    public MenuResponse getFullMenuByMenuId(UUID menuId) {
+        List<CategoryEntity> categories = categoryRepository.findByMenuIdOrderByDisplayOrderAsc(menuId);
+
+        List<MenuResponse.CategoryDto> categoryDtos = categories.stream().map(cat -> {
+            List<ProductEntity> products = productRepository.findByCategoryId(cat.getId());
+
+            List<MenuResponse.ProductDto> productDtos = products.stream().map(prod ->
+                    MenuResponse.ProductDto.builder()
+                            .id(prod.getId())
+                            .name(prod.getName())
+                            .description(prod.getDescription())
+                            .price(prod.getPrice())
+                            .image(prod.getImage())
+                            .available(prod.isAvailable())
+                            .preparationTime(prod.getPreparationTime())
+                            .build()
+            ).collect(Collectors.toList());
+
+            return MenuResponse.CategoryDto.builder()
+                    .id(cat.getId())
+                    .name(cat.getName())
+                    .items(productDtos)
+                    .build();
+        }).collect(Collectors.toList());
+
+        return MenuResponse.builder().categories(categoryDtos).build();
+    }
+
+    /** Used by the public branch-menu endpoint (Task 8) to look up a branch's menu and its status. */
+    public Optional<MenuEntity> getMenuForBranch(Long branchId) {
+        return menuRepository.findByBranchId(branchId);
+    }
+
+    /**
+     * Publish is the HLD's own gate: "Only menus with a Published status are
+     * made available through the public menu interface" (6.2). Requires a
+     * menu to already exist for the branch — call getOrCreateMenuForBranch
+     * (via adding a category) before this.
+     */
+    @Transactional
+    public MenuEntity publish(Long branchId, UserPrincipal principal) {
+        if (principal == null) {
+            throw new UnauthorizedException("Authentication required");
+        }
+        if (principal.getRole() != UserRole.SUPER_ADMIN) {
+            UUID actualMerchantId = fetchBranchMerchantId(branchId);
+            if (!actualMerchantId.equals(principal.getMerchantId())) {
+                throw new AccessDeniedException("Branch " + branchId + " does not belong to your merchant");
+            }
+        }
+        MenuEntity menu = menuRepository.findByBranchId(branchId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No menu to publish for branch " + branchId + " — add at least one category first"));
+        menu.setStatus(MenuEntity.Status.PUBLISHED);
+        menu.setPublishedAt(java.time.LocalDateTime.now());
+        return menuRepository.save(menu);
+    }
+
+    /**
+     * Verifies a caller-controlled branchId actually belongs to the expected
+     * merchant, by asking merchant-service (the owner of BranchEntity) rather
+     * than trusting the request body. Mirrors QrGeneratorService.fetchBranch's
+     * RestTemplate + forwarded-Authorization-header pattern in qr-service.
+     */
+    private UUID fetchBranchMerchantId(Long branchId) {
+        try {
+            String url = merchantServiceUrl + "/api/branches/" + branchId;
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url, HttpMethod.GET, new HttpEntity<>(getAuthHeaders()),
+                    new ParameterizedTypeReference<Map<String, Object>>() {});
+            Map<String, Object> body = response.getBody();
+            if (body == null) {
+                throw new ResourceNotFoundException("Branch not found: " + branchId);
+            }
+            return UUID.fromString((String) body.get("merchantId"));
+        } catch (ResourceNotFoundException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to verify branch {} ownership via merchant-service", branchId, e);
+            throw new ResourceNotFoundException("Branch not found: " + branchId);
+        }
+    }
+
+    private HttpHeaders getAuthHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        ServletRequestAttributes attributes =
+                (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attributes != null) {
+            HttpServletRequest request = attributes.getRequest();
+            String authToken = request.getHeader(HttpHeaders.AUTHORIZATION);
+            if (authToken != null && !authToken.isEmpty()) {
+                headers.set(HttpHeaders.AUTHORIZATION, authToken);
+            }
+        }
+        return headers;
     }
 }

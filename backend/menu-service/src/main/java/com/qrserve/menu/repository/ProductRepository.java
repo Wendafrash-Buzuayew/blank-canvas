@@ -14,6 +14,7 @@ public interface ProductRepository extends JpaRepository<ProductEntity, Long> {
     List<ProductEntity> findByCategoryId(Long categoryId);
     List<ProductEntity> findByMerchantId(UUID merchantId);
     List<ProductEntity> findByMerchantIdAndAvailableTrue(UUID merchantId);
+    List<ProductEntity> findByMenuId(UUID menuId);
 
     @Modifying
     @Query("DELETE FROM ProductEntity p WHERE p.categoryId = :categoryId")
