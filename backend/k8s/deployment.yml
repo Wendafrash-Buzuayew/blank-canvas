@@ -92,6 +92,11 @@ spec:
             configMapKeyRef:
               name: qrserve-config
               key: public-base-domain
+        - name: PUBLIC_MENU_DOMAIN
+          valueFrom:
+            configMapKeyRef:
+              name: qrserve-config
+              key: public-menu-domain
         livenessProbe:
           httpGet:
             path: /actuator/health/liveness
@@ -163,6 +168,11 @@ spec:
             configMapKeyRef:
               name: qrserve-config
               key: public-base-domain
+        - name: PUBLIC_MENU_DOMAIN
+          valueFrom:
+            configMapKeyRef:
+              name: qrserve-config
+              key: public-menu-domain
         livenessProbe:
           httpGet:
             path: /actuator/health/liveness
@@ -234,6 +244,11 @@ spec:
             configMapKeyRef:
               name: qrserve-config
               key: public-base-domain
+        - name: PUBLIC_MENU_DOMAIN
+          valueFrom:
+            configMapKeyRef:
+              name: qrserve-config
+              key: public-menu-domain
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: "kafka-service:9092"
         - name: MERCHANT_SERVICE_URL
@@ -293,6 +308,11 @@ spec:
             configMapKeyRef:
               name: qrserve-config
               key: public-base-domain
+        - name: PUBLIC_MENU_DOMAIN
+          valueFrom:
+            configMapKeyRef:
+              name: qrserve-config
+              key: public-menu-domain
         livenessProbe:
           httpGet:
             path: /actuator/health/liveness

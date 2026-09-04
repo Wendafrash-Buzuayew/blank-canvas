@@ -21,3 +21,12 @@ data:
   # Each merchant is served at {merchantSlug}.<this value>. Requires wildcard DNS
   # and a wildcard TLS certificate for *.<this value> (see k8s/proxy-ingress.yml).
   public-base-domain: "qrserve.safaricom.et"
+  # The phase-1 digital-menu URL family (/m/{merchant-slug}[/{branch-slug}]),
+  # required by DigitalMenuUrl the same way public-base-domain is required by
+  # PublicMenuUrl above. Deliberately a sibling domain, not a subdomain of
+  # public-base-domain (menu.qrserve.safaricom.et would work too now that
+  # "menu" is a reserved label in Slugs.RESERVED_LABELS, but a separate
+  # domain avoids depending on that reservation staying correct forever).
+  # Requires its own DNS + TLS certificate; not wildcarded, since only one
+  # host is served here.
+  public-menu-domain: "menu.safaricom.et"
