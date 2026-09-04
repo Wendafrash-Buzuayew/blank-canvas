@@ -2,10 +2,8 @@ package com.qrserve.gateway.tenant;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
 import org.springframework.web.server.ServerWebExchange;
@@ -41,6 +39,10 @@ class PathTenantResolutionGlobalFilterTest {
         ServerHttpRequest mutated = captor.getValue().getRequest();
         assertEquals(MERCHANT_ID.toString(), mutated.getHeaders().getFirst(TenantResolutionGlobalFilter.TENANT_ID_HEADER));
         assertEquals("sunrise", mutated.getHeaders().getFirst(TenantResolutionGlobalFilter.TENANT_SLUG_HEADER));
+        // Regression guard: a successful resolution must not also trip the
+        // not-found branch (chain.filter(...) returns an always-empty Mono<Void>,
+        // which switchIfEmpty must not mistake for "resolution failed").
+        assertNull(exchange.getResponse().getStatusCode());
     }
 
     @Test

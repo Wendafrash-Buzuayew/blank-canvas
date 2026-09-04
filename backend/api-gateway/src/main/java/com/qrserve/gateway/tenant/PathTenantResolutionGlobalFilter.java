@@ -44,12 +44,16 @@ public class PathTenantResolutionGlobalFilter implements GlobalFilter, Ordered {
         }
 
         return resolver.resolve(merchantSlug)
-                .flatMap(merchantId -> chain.filter(withTenant(exchange, merchantId, merchantSlug)))
+                // switchIfEmpty must sit on resolve()'s Mono<UUID> directly, not on the
+                // flatMap'd result: chain.filter(...) returns Mono<Void>, which always
+                // completes empty even on success. Chaining switchIfEmpty after the
+                // flatMap would fire it on every request, successful or not.
                 .switchIfEmpty(Mono.defer(() -> {
                     log.debug("No tenant for path-derived slug '{}'", merchantSlug);
                     exchange.getResponse().setStatusCode(HttpStatus.NOT_FOUND);
-                    return exchange.getResponse().setComplete();
-                }));
+                    return exchange.getResponse().setComplete().then(Mono.<java.util.UUID>empty());
+                }))
+                .flatMap(merchantId -> chain.filter(withTenant(exchange, merchantId, merchantSlug)));
     }
 
     private ServerWebExchange withTenant(ServerWebExchange exchange, java.util.UUID merchantId, String slug) {
@@ -62,9 +66,19 @@ public class PathTenantResolutionGlobalFilter implements GlobalFilter, Ordered {
         return exchange.mutate().request(request).build();
     }
 
-    /** Same order as the host-based filter — both run ahead of routing, independently. */
+    /**
+     * Deliberately NOT -100 (the same value {@link TenantResolutionGlobalFilter} uses).
+     * Spring does not guarantee a tie-break order between two {@link GlobalFilter}
+     * beans with equal {@link Ordered} values — it falls back to bean registration
+     * order, which neither class controls. {@code TenantResolutionGlobalFilter}
+     * unconditionally strips {@code X-Tenant-*} headers on any host with no tenant
+     * label in it (e.g. {@code menu.safaricom.et}), which is exactly the host this
+     * filter's routes are served from. Running one step after -100 guarantees that
+     * unconditional strip always happens first (harmlessly, before anything has been
+     * set) and this filter's header injection always happens last and survives.
+     */
     @Override
     public int getOrder() {
-        return -100;
+        return -99;
     }
 }
