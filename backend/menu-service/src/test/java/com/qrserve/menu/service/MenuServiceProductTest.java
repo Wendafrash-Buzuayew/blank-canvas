@@ -8,6 +8,7 @@ import com.qrserve.menu.repository.MenuRepository;
 import com.qrserve.menu.repository.ProductRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
@@ -32,7 +33,7 @@ class MenuServiceProductTest {
         categoryRepository = mock(CategoryRepository.class);
         productRepository = mock(ProductRepository.class);
         service = new MenuService(categoryRepository, productRepository, mock(MenuRepository.class),
-                mock(RestTemplate.class));
+                mock(RestTemplate.class), mock(PlatformTransactionManager.class));
     }
 
     @Test

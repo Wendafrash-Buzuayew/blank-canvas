@@ -13,6 +13,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
@@ -40,7 +41,8 @@ class MenuServiceCategoryTest {
         productRepository = mock(ProductRepository.class);
         menuRepository = mock(MenuRepository.class);
         restTemplate = mock(RestTemplate.class);
-        service = new MenuService(categoryRepository, productRepository, menuRepository, restTemplate);
+        service = new MenuService(categoryRepository, productRepository, menuRepository, restTemplate,
+                mock(PlatformTransactionManager.class));
     }
 
     /** Stubs the merchant-service branch-ownership lookup used by fetchBranchMerchantId. */

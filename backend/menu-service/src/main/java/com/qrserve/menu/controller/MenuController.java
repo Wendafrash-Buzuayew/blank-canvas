@@ -40,6 +40,14 @@ public class MenuController {
         return ResponseEntity.ok(menuService.getFullMenuByMenuId(menu.getId()));
     }
 
+    @GetMapping("/branch/{branchId}/manage")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
+    @Operation(summary = "Get a branch's menu for editing, draft or published, staff-only")
+    public ResponseEntity<MenuResponse> getMenuForBranchManagement(
+            @PathVariable Long branchId, @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(menuService.getMenuForBranchManagement(branchId, principal));
+    }
+
     @PostMapping("/branch/{branchId}/publish")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
     @Operation(summary = "Publish a branch's menu, making it publicly reachable")

@@ -28,7 +28,9 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -37,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Service
@@ -48,6 +51,7 @@ public class MenuService {
     private final ProductRepository productRepository;
     private final MenuRepository menuRepository;
     private final RestTemplate restTemplate;
+    private final PlatformTransactionManager transactionManager;
 
     @Value("${services.merchant-service-url:http://localhost:8085}")
     private String merchantServiceUrl;
@@ -72,21 +76,29 @@ public class MenuService {
                         .build()));
     }
 
-    @Transactional
+    /**
+     * Not {@code @Transactional}: fetchBranchMerchantId is a synchronous
+     * outbound HTTP call to merchant-service, and opening a DB transaction
+     * before it returns would hold a pooled connection for the full
+     * round-trip. The ownership check runs first, with no transaction open;
+     * only the actual DB writes run inside one, via runInTransaction.
+     */
     @CacheEvict(value = "menus", key = "#merchantId")
     public CategoryEntity createCategory(CreateCategoryRequest request, UUID merchantId) {
         UUID actualMerchantId = fetchBranchMerchantId(request.getBranchId());
         if (!actualMerchantId.equals(merchantId)) {
             throw new AccessDeniedException("Branch " + request.getBranchId() + " does not belong to your merchant");
         }
-        MenuEntity menu = getOrCreateMenuForBranch(request.getBranchId(), merchantId);
-        CategoryEntity category = CategoryEntity.builder()
-                .menuId(menu.getId())
-                .merchantId(merchantId)
-                .name(request.getName())
-                .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
-                .build();
-        return categoryRepository.save(category);
+        return runInTransaction(() -> {
+            MenuEntity menu = getOrCreateMenuForBranch(request.getBranchId(), merchantId);
+            CategoryEntity category = CategoryEntity.builder()
+                    .menuId(menu.getId())
+                    .merchantId(merchantId)
+                    .name(request.getName())
+                    .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
+                    .build();
+            return categoryRepository.save(category);
+        });
     }
 
     @Transactional(readOnly = true)
@@ -248,12 +260,35 @@ public class MenuService {
     }
 
     /**
+     * Authenticated, draft-inclusive counterpart to getMenuForBranch/
+     * getFullMenuByMenuId: the merchant's own menu-builder UI must see its
+     * own unpublished work, unlike the public digital-menu endpoint (Task 8)
+     * which 404s anything not PUBLISHED. A branch with no menu yet (no
+     * category ever added) returns an empty menu rather than 404 — that's a
+     * normal, not-yet-started state for the builder UI, not an error.
+     */
+    public MenuResponse getMenuForBranchManagement(Long branchId, UserPrincipal principal) {
+        if (principal == null) {
+            throw new UnauthorizedException("Authentication required");
+        }
+        if (principal.getRole() != UserRole.SUPER_ADMIN) {
+            UUID actualMerchantId = fetchBranchMerchantId(branchId);
+            if (!actualMerchantId.equals(principal.getMerchantId())) {
+                throw new AccessDeniedException("Branch " + branchId + " does not belong to your merchant");
+            }
+        }
+        return menuRepository.findByBranchId(branchId)
+                .map(menu -> getFullMenuByMenuId(menu.getId()))
+                .orElseGet(() -> MenuResponse.builder().categories(List.of()).build());
+    }
+
+    /**
      * Publish is the HLD's own gate: "Only menus with a Published status are
      * made available through the public menu interface" (6.2). Requires a
      * menu to already exist for the branch — call getOrCreateMenuForBranch
      * (via adding a category) before this.
      */
-    @Transactional
+    /** Not {@code @Transactional} — see createCategory's Javadoc for why. */
     public MenuEntity publish(Long branchId, UserPrincipal principal) {
         if (principal == null) {
             throw new UnauthorizedException("Authentication required");
@@ -264,12 +299,24 @@ public class MenuService {
                 throw new AccessDeniedException("Branch " + branchId + " does not belong to your merchant");
             }
         }
-        MenuEntity menu = menuRepository.findByBranchId(branchId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "No menu to publish for branch " + branchId + " — add at least one category first"));
-        menu.setStatus(MenuEntity.Status.PUBLISHED);
-        menu.setPublishedAt(java.time.LocalDateTime.now());
-        return menuRepository.save(menu);
+        return runInTransaction(() -> {
+            MenuEntity menu = menuRepository.findByBranchId(branchId)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "No menu to publish for branch " + branchId + " — add at least one category first"));
+            menu.setStatus(MenuEntity.Status.PUBLISHED);
+            menu.setPublishedAt(java.time.LocalDateTime.now());
+            return menuRepository.save(menu);
+        });
+    }
+
+    /**
+     * Applies a transaction boundary explicitly, in one method, regardless
+     * of whether this method is entered externally (proxied) or via
+     * self-invocation (bypasses the proxy) — sidesteps Spring AOP's
+     * self-invocation limitation the same way BranchMenuBackfillRunner does.
+     */
+    private <T> T runInTransaction(Supplier<T> work) {
+        return new TransactionTemplate(transactionManager).execute(status -> work.get());
     }
 
     /**
