@@ -92,6 +92,34 @@ public class QrSignatureService {
         return mac(deriveTenantKey(masterSecret, merchantId), payload.getBytes(StandardCharsets.UTF_8));
     }
 
+    /** Signs {merchantId, branchId} — no table. Used by the digital-menu URL family. */
+    public String generateSignature(UUID merchantId, Long branchId) {
+        return sign(secret, merchantId, branchId);
+    }
+
+    public boolean validateSignature(String signature, UUID merchantId, Long branchId) {
+        if (signature == null || signature.isBlank()) {
+            return false;
+        }
+        boolean valid = constantTimeEquals(signature, sign(secret, merchantId, branchId));
+        if (!valid && !previousSecret.isBlank()) {
+            valid = constantTimeEquals(signature, sign(previousSecret, merchantId, branchId));
+        }
+        return valid;
+    }
+
+    private String sign(String masterSecret, UUID merchantId, Long branchId) {
+        if (merchantId == null) {
+            throw new IllegalArgumentException("merchantId is required to sign a QR payload");
+        }
+        // Prefixed "dm:" so this payload space can never collide with the
+        // existing "{merchantId}:{branchId}:{tableId}" scheme even when
+        // branchId happens to render the same — e.g. a tableId of null would
+        // otherwise produce the literal same string as this method's output.
+        String payload = "dm:" + merchantId + ":" + branchId;
+        return mac(deriveTenantKey(masterSecret, merchantId), payload.getBytes(StandardCharsets.UTF_8));
+    }
+
     /**
      * {@code HMAC-SHA256(masterSecret, merchantId)}. The raw MAC bytes become the
      * signing key for this tenant.
