@@ -9,6 +9,7 @@ import { Spinner } from '../components/ui/States';
 // Route-level code splitting: each page is loaded on demand so the initial
 // bundle only contains the landing/login pages and the shared shell.
 const CustomerMenuPage = lazy(() => import('../pages/CustomerMenuPage').then((m) => ({ default: m.CustomerMenuPage })));
+const DigitalMenuPage = lazy(() => import('../pages/DigitalMenuPage').then((m) => ({ default: m.DigitalMenuPage })));
 const DashboardPage = lazy(() => import('../pages/DashboardPage').then((m) => ({ default: m.DashboardPage })));
 const MerchantManagement = lazy(() => import('../pages/MerchantManagement').then((m) => ({ default: m.MerchantManagement })));
 const BranchManagement = lazy(() => import('../pages/BranchManagement').then((m) => ({ default: m.BranchManagement })));
@@ -65,6 +66,10 @@ export const AppRouter: React.FC = () => {
           {/* Public QR Menu - /menu/{merchantSlug}/{tableNumber} */}
           <Route path="/menu/:merchantSlug/:branchSlug/:tableNumber" element={<CustomerMenuPage />} />
           <Route path="/menu/:merchantSlug/:tableNumber" element={<CustomerMenuPage />} />
+
+          {/* Public Digital Menu - /m/{merchantSlug}[/{branchSlug}] (read-only, no cart/ordering) */}
+          <Route path="/m/:merchantSlug" element={<DigitalMenuPage />} />
+          <Route path="/m/:merchantSlug/:branchSlug" element={<DigitalMenuPage />} />
 
           {/* ===== SUPER_ADMIN Routes ===== */}
           <Route
