@@ -63,6 +63,14 @@ qr:
   # reprinting is done. Signing always uses signature-secret above.
   signature-secret-previous: ${QR_SIGNATURE_SECRET_PREVIOUS:}
 
+# One-off, opt-in migration (BranchMenuBackfillRunner): does nothing on every
+# normal boot. Flip to true for exactly one deploy to give every existing
+# branch its own independent copy of its merchant's current catalog, then
+# flip back off.
+backfill:
+  branch-menus:
+    enabled: ${BACKFILL_BRANCH_MENUS_ENABLED:false}
+
 eureka:
   client:
     service-url:
