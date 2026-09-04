@@ -352,62 +352,55 @@ colour at all.
 
 ### 4.1 Families
 
-**Proxima Nova** is the Safaricom brand typeface and the product's target family. **One weight of it
-is currently installed**, so the system runs on three stacks rather than one until the family is
-completed.
+**Proxima Nova** is the Safaricom brand typeface and the product's only family. It is self-hosted
+from `src/fonts/` as vendor-supplied WOFF2 and fingerprinted by Vite — no CDN, no third party in the
+critical path.
 
-| Token | Stack | Role | Live? |
-|---|---|---|---|
-| `--font-display-black` | **Proxima Nova** (900), Outfit, `ui-sans-serif`, `system-ui` | wordmark, `display-xl`, `display-l`, `kds-number`, `kds-action` | **yes — real brand face** |
-| `--font-display` | Outfit, `ui-sans-serif`, `system-ui`, `sans-serif` | `title-l`, `title-m`, `title-s` | interim |
-| `--font-sans` | Inter, `ui-sans-serif`, `system-ui`, `sans-serif` | body, UI, forms, tables | interim |
-
-#### What is installed
-
-`ProximaNova-Black.woff2` and `ProximaNova-BlackItalic.woff2`, self-hosted from `src/fonts/` and
-fingerprinted by Vite. Both are **usWeightClass 900**, verified from the `OS/2` table rather than the
-filename. 70 KB and 71 KB respectively, converted from the supplied 144 KB / 147 KB OTFs — a 52%
-saving that matters because the customer menu is opened on cellular in a restaurant.
-
-Coverage of the installed face: Latin basic, Latin-1 Supplement and Latin Extended-A complete;
-Cyrillic 218/384; Greek 76/144; **Ethiopic 0/384**. `tnum` is present, so §4.4's tabular figures are
-a real feature, not a synthesised one.
-
-#### Why the body stack does not name Proxima Nova
-
-The CSS font-matching algorithm resolves **weight within a matched family** before falling through
-to the next family in the stack. A family holding only a 900 face therefore answers a 400 request
-with that 900 face — it does not skip to Inter. Pointing `--font-sans` at Proxima Nova today would
-render every paragraph, label and table cell in Black, which §4.3 forbids.
-
-So the family is reachable through exactly one token, `--font-display-black`, paired with weight 900
-at the call site.
-
-#### To complete the family
-
-Add these four faces to the same `"Proxima Nova"` family name, then repoint `--font-display` and
-`--font-sans` at it. No token rename is needed — the installed family is already called
-`Proxima Nova`.
-
-| Face | Weight | Roles waiting on it |
+| Token | Stack | Role |
 |---|---|---|
-| Regular | 400 | `body-l`, `body-m` — **the most-used weight in the product** |
-| Semibold | 600 | `title-s`, `label-m`, `label-s`, `kds-meta` |
-| Bold | 700 | `title-l`, `title-m`, `kds-item` |
-| Extrabold | 800 | `display-xl`, `display-l`, `kds-number`, `kds-action` |
+| `--font-display` | **Proxima Nova**, `ui-sans-serif`, `system-ui`, `sans-serif` | headings, order numbers, marketing |
+| `--font-sans` | **Proxima Nova**, `ui-sans-serif`, `system-ui`, `sans-serif` | body, UI, forms, tables |
 
-Regular is the one that matters most: it is the weight of nearly all reading text. Until it lands,
-the product is on-brand only in its wordmark and heaviest display type.
+The split is retained even though both stacks name the same family: it keeps a heading's and a table
+cell's fallback behaviour separable, and it is where a second family attaches if the UI is localised
+to Amharic (§9.5).
 
-Every stack must keep a real system fallback, and every face uses `font-display: swap`, never
-`block` — a blocked font request must not produce invisible text. The Google Fonts link in
-`index.html` is load-bearing until Regular/Semibold/Bold arrive, and can be removed after.
+#### Installed faces
 
-> **Licensing.** The supplied files are desktop OTFs. A desktop licence generally does **not** cover
-> serving a font as a webfont from your own origin, where the file is publicly retrievable. Confirm
-> the licence covers web use for a public-facing app before this ships; if it does not, the
-> alternative is an Adobe Fonts web project, which is licensed for exactly this and would also
-> supply the missing weights.
+Weights verified from each file's `OS/2` table, not its filename. Only faces with an assigned role
+are declared — declaring the rest would add ~280 KB of fetchable weight carrying nothing.
+
+| Face | Weight | Style | Size | Serves |
+|---|---|---|---|---|
+| Regular | 400 | normal | 68 KB | `body-l`, `body-m` |
+| Italic | 400 | italic | 72 KB | kitchen-ticket item notes — the only italic role in the product |
+| Semibold | 600 | normal | 69 KB | `title-s`, `label-m`, `label-s`, `kds-meta` |
+| Bold | 700 | normal | 71 KB | `title-l`, `title-m`, `kds-item` |
+| Black | 900 | normal | 70 KB | wordmark, `display-xl`, `display-l`, `kds-number`, `kds-action` |
+
+**Not declared:** Light (300) and the Semibold / Bold / Black italics. The archive also supplies
+these; they have no role in this system and are omitted deliberately rather than by oversight.
+
+349 KB sits on disk but is never one download — a browser fetches only the faces a page uses. The
+customer menu pulls 400/600/700; the kitchen display pulls 700/900.
+
+**There is no Extrabold (800).** The archive provides 300 / 400 / 600 / 700 / 900. §4.2's display
+roles therefore specify **900**, not 800: an 800 request resolves upward to the 900 face regardless,
+and naming 900 keeps the declaration and the rendered result the same thing.
+
+Every face uses `font-display: swap`, never `block` — the customer menu is opened on cellular in a
+restaurant, and a blocked font request must not produce invisible text. Every stack keeps a real
+system fallback for the same reason.
+
+#### Coverage
+
+Per face: Latin basic, Latin-1 Supplement and Latin Extended-A complete; Cyrillic 218; Greek 76;
+**Ethiopic 0 of 384**. `tnum` is present, so §4.4's tabular figures are a real OpenType feature and
+not browser synthesis.
+
+> **Licensing.** The archive's WOFF2 files indicate a webfont licence, which is the right one for
+> self-hosting. Worth a one-time confirmation that it covers a public-facing customer app rather
+> than internal use only, since the customer menu serves the open internet.
 
 ### 4.2 Type scale
 
@@ -415,8 +408,8 @@ Every stack must keep a real system fallback, and every face uses `font-display:
 
 | Role | Size / line-height | Family | Weight | Tracking | Use |
 |---|---|---|---|---|---|
-| `display-xl` | 48 / 52 | display | 800 | −0.02em | landing hero only |
-| `display-l` | 36 / 40 | display | 800 | −0.02em | landing section heads |
+| `display-xl` | 48 / 52 | display | 900 | −0.02em | landing hero only |
+| `display-l` | 36 / 40 | display | 900 | −0.02em | landing section heads |
 | `title-l` | 28 / 34 | display | 700 | −0.01em | customer menu header, page title on mobile |
 | `title-m` | 22 / 28 | display | 700 | −0.01em | console page title |
 | `title-s` | 18 / 24 | display | 600 | 0 | card and section headings |
@@ -430,9 +423,9 @@ Every stack must keep a real system fallback, and every face uses `font-display:
 
 | Role | Size / line-height | Family | Weight |
 |---|---|---|---|
-| `kds-number` | 40 / 40 | display, tabular | 800 |
+| `kds-number` | 40 / 40 | display, tabular | 900 |
 | `kds-item` | 24 / 28 | sans | 700 |
-| `kds-action` | 20 / 24 | sans | 800 |
+| `kds-action` | 20 / 24 | sans | 900 |
 | `kds-meta` | 18 / 24 | sans | 600 |
 
 ### 4.3 Weight discipline
@@ -442,8 +435,10 @@ Every stack must keep a real system fallback, and every face uses `font-display:
 - **Body copy is 400.** The current tree has 212 `font-bold` and 57 `font-black` uses; most are body
   text and metadata that should be regular. Bold is emphasis, and emphasis that is everywhere is
   nowhere.
-- **900 (`font-black`) is reserved for `display-*` and `kds-number`.** Nowhere else.
-- **Never combine 800+ weight with a size below 14px.** Heavy tiny type is the single loudest
+- **900 (`font-black`) is reserved for `display-*`, `kds-number`, `kds-action` and the wordmark.**
+  Nowhere else. It is the heaviest face installed and there is no 800 to step down to, so it carries
+  the display roles outright.
+- **Never combine 700+ weight with a size below 14px.** Heavy tiny type is the single loudest
   artefact of the current design and it reduces legibility rather than increasing it.
 - Uppercase is permitted only at `label-s`, always with the 0.04em tracking.
 
@@ -885,27 +880,24 @@ Recorded because each resolves a live conflict, and reversing one should be deli
 
 These need a product decision and are deliberately unresolved here.
 
-1. **The three missing Proxima Nova weights.** Regular (400), Semibold (600) and Bold (700) are not
-   installed, so every piece of reading text still renders in Inter. **This is the largest remaining
-   gap to brand compliance**, and Regular is the one that matters most — see §4.1.
-2. **Webfont licensing.** The supplied files are desktop OTFs, and a desktop licence generally does
-   not cover self-hosting a publicly retrievable webfont. Either confirm the licence covers web use
-   for a public-facing app, or move to an Adobe Fonts web project — which is licensed for exactly
-   this and would supply the three missing weights in the same step.
-3. **Brand sign-off on the two derived colours.** `--color-danger` `#A81622` and `--color-warn`
+1. **Webfont licence scope.** The archive ships WOFF2, which indicates a webfont licence — the right
+   one for self-hosting. Worth a one-time confirmation that it covers a **public-facing customer**
+   app and not internal use only, since the customer menu serves the open internet.
+2. **Brand sign-off on the two derived colours.** `--color-danger` `#A81622` and `--color-warn`
    `#8A5A00` are shades outside the printed palette, added because no printed colour can carry
    small text for those meanings. The brand sheet permits additions that complement the primary
    palette; this asks whether these two specifically are approved.
-4. **Non-ASCII merchant names.** EMVCo tag 59 is ASCII and capped at 25 characters, so a merchant
+3. **Non-ASCII merchant names.** EMVCo tag 59 is ASCII and capped at 25 characters, so a merchant
    trading under an Amharic-only name cannot be EMVCo-provisioned. Does onboarding require a
    Latin-script trade name, or does the QR fall back to a menu link?
-5. **Amharic UI.** Is the interface itself localised? **Confirmed by inspecting the installed face:
+4. **Amharic UI.** Is the interface itself localised? **Confirmed by inspecting the installed face:
    Proxima Nova carries 0 of 384 Ethiopic codepoints.** Amharic therefore renders in whatever the OS
    substitutes, with no control over its metrics or weight. Localising the UI needs a second family
-   and an Ethiopic-aware type scale — a token change, not a translation task.
-6. **Density mode for the console.** Sustained admin use may want a compact row height. Deferred
+   and an Ethiopic-aware type scale — a token change, not a translation task. Verified against every
+   installed face, not just one.
+5. **Density mode for the console.** Sustained admin use may want a compact row height. Deferred
    until there is a user asking for it.
-7. **Landing page ownership.** It is the only marketing surface in the app and the only consumer of
+6. **Landing page ownership.** It is the only marketing surface in the app and the only consumer of
    `display-xl`. If it moves to a separate site, `display-*` and the brand gradient leave with it.
 
 ---
@@ -932,7 +924,7 @@ The gap between this document and the current tree, so migration can be scoped r
 | Shared UI primitives that exist | 2 | `States.tsx`, `EntitySelect.tsx` |
 | Live AA text failures | at least 4 classes | `slate-400`, `amber-600`, `emerald-600`, `red-500` as text |
 | Dead component modules | 12 (~2,340 lines) | `components/merchant/*`, `components/admin/*`, `components/kitchen/*`, `components/auth/LoginModal`, `pages/{Admin,Branch,Waiter}Dashboard` |
-| Brand typeface in use | **partial** | Proxima Nova Black (900) installed; Regular/Semibold/Bold missing — §4.1 |
+| Brand typeface in use | **yes** | Proxima Nova 400/400i/600/700/900 self-hosted — §4.1 |
 
 Note that the seven files previously counted as "using tokens exclusively" included the customer,
 kitchen and waiter pages. Those consume the token *names*, so they re-coloured to Safaricom
@@ -943,11 +935,12 @@ until that check is done.
 Suggested sequence, highest leverage first:
 
 1. ~~Migrate `DashboardLayout`, `Sidebar`, `MobileBottomNav` and `States` to tokens~~ — **done**.
-2. **Add Proxima Nova Regular / Semibold / Bold** (§4.1). Black (900) is installed and drives the
-   wordmark; the other three carry every heading and every word of reading text, so until they land
-   the product is on-brand in its colour and its wordmark but not in its typography.
-3. Re-check the customer, kitchen and waiter pages against §3. They inherited the new palette through
-   the tokens, so they are already green — but their contrast pairings were chosen for a red brand.
+2. ~~Provision Proxima Nova~~ — **done**. 400 / 400i / 600 / 700 / 900 are self-hosted and both
+   stacks name Proxima Nova, so the migrated shell is on-brand in colour *and* typography.
+3. **Re-check the customer, kitchen and waiter pages against §3 and §4.** They inherited the new
+   palette and the new family through the tokens, so they are already green and already Proxima
+   Nova — but their contrast pairings were chosen for a red brand, and their weights for a scale
+   that had an 800. This is the next slice, and it is where the known failures are.
 4. Extract `Button`, `Chip`, `Card`, `Modal`, `FormField` per §6 — the nine modals and ninety buttons
    collapse into these, and every one of them encodes the "never white on the hero green" rule once
    instead of ninety times.

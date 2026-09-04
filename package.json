@@ -13,8 +13,10 @@
     "test:unit": "tsx src/lib/tenant.test.ts && tsx src/lib/orderSession.test.ts && tsx src/lib/qrDisplay.test.ts && tsx src/lib/phase.test.ts && tsx src/lib/navigation.test.ts && tsx src/lib/superApp.test.ts"
   },
   "dependencies": {
-    "@capacitor/cli": "^8.4.3",
+    "@capacitor/android": "^8.5.1",
+    "@capacitor/cli": "^8.5.1",
     "@capacitor/core": "^8.5.1",
+    "@capacitor/ios": "^8.5.1",
     "@stomp/stompjs": "^7.3.0",
     "@tailwindcss/vite": "^4.1.14",
     "@tanstack/react-query": "^5.101.4",

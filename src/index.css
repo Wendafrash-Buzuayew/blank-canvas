@@ -1,52 +1,71 @@
 @import "tailwindcss";
 
 /* ============================================================
-   PROXIMA NOVA — self-hosted, converted from the supplied OTFs.
+   PROXIMA NOVA — the Safaricom brand typeface, self-hosted.
 
-   WHAT IS ACTUALLY HERE: one weight. Both files provided are Black
-   (usWeightClass 900), upright and italic (-12.5deg). Verified from the
-   OS/2 and post tables, not from the filenames.
+   Vendor-supplied WOFF2, used as shipped. Weights verified from each
+   file's OS/2 table rather than its filename: the archive provides
+   300 / 400 / 600 / 700 / 900, each with a matching -12.5deg italic.
 
-   WHY --font-sans AND --font-display DO NOT USE IT YET:
-   the CSS font-matching algorithm resolves weight WITHIN a matched
-   family before falling through to the next family in the stack. A
-   family holding only a 900 face therefore answers a 400 request with
-   that 900 face — it does not skip to Inter. Pointing the body stack at
-   this family would render every paragraph, label and table cell in
-   Black, which DESIGN.md 4.3 forbids outright.
+   THERE IS NO 800. The type scale below asks for 900 at its display
+   roles rather than 800 for that reason — an 800 request would resolve
+   upward to the 900 face anyway, and stating 900 makes what renders
+   and what is declared the same thing.
 
-   So the family is exposed through ONE token, --font-display-black,
-   and used only where 900 is the correct weight: the wordmark now, and
-   display-xl / display-l / kds-number / kds-action as those surfaces
-   migrate.
+   ONLY FACES WITH AN ASSIGNED ROLE ARE DECLARED. Light (300) has no
+   role, and neither do the Semibold/Bold/Black italics; declaring them
+   would add ~280 KB of fetchable weight for nothing. Regular Italic is
+   here because it has exactly one real caller — the italic note on a
+   kitchen ticket, which would otherwise be a synthetic slant.
 
-   TO COMPLETE THE FAMILY, add these four faces and then repoint
-   --font-display and --font-sans at "Proxima Nova":
-     Regular    400   (body-l, body-m — the most-used weight by far)
-     Semibold   600   (title-s, label-m, label-s, kds-meta)
-     Bold       700   (title-l, title-m, kds-item)
-     Extrabold  800   (display-xl, display-l, kds-number, kds-action)
-   Adding faces to this same family name is all that is required; no
-   token rename, because the family here is already "Proxima Nova".
+   A browser fetches only the faces a page actually uses, so the 349 KB
+   on disk is never one download: the customer menu pulls 400/600/700,
+   and the KDS pulls 700/900.
 
-   Coverage of the supplied face: Latin basic/supplement/ext-A complete,
-   Cyrillic 218/256, Greek 76/144, ETHIOPIC 0/384 — see DESIGN.md 9.4.
-   'tnum' is present, so tabular figures are real, not synthesised.
+   Coverage per face: Latin basic / Latin-1 / Latin Ext-A complete,
+   Cyrillic 218, Greek 76, ETHIOPIC 0 of 384 — see DESIGN.md §9.5.
+   'tnum' is present, so §4.4's tabular figures are a real feature.
    ============================================================ */
 
 @font-face {
   font-family: "Proxima Nova";
-  src: url("./fonts/ProximaNova-Black.woff2") format("woff2");
-  font-weight: 900;
+  src: url("./fonts/ProximaNova-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Sole caller: the italic note on a kitchen ticket. Requested at weight
+   500 there, which CSS resolves down to this 400 face. */
+@font-face {
+  font-family: "Proxima Nova";
+  src: url("./fonts/ProximaNova-RegularIt.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Proxima Nova";
+  src: url("./fonts/ProximaNova-Semibold.woff2") format("woff2");
+  font-weight: 600;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
   font-family: "Proxima Nova";
-  src: url("./fonts/ProximaNova-BlackItalic.woff2") format("woff2");
+  src: url("./fonts/ProximaNova-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Proxima Nova";
+  src: url("./fonts/ProximaNova-Black.woff2") format("woff2");
   font-weight: 900;
-  font-style: italic;
+  font-style: normal;
   font-display: swap;
 }
 
@@ -209,29 +228,16 @@
   --color-partner-mpesa: #0da64b;
 
   /* ----------------------------------------------------------------
-     TYPOGRAPHY — Proxima Nova. See the @font-face block at the top of
-     this file for why only one of these three stacks names it.
+     TYPOGRAPHY — Proxima Nova, across both roles.
 
-     Proxima Nova Black (900) is self-hosted and real. The 400/600/700
-     faces are NOT here yet, so the body and heading stacks stay on
-     Inter and Outfit — the nearest available UI/geometric pair — rather
-     than resolving every weight to Black. DESIGN.md §4.1.
+     The split is retained even though both stacks name the same family:
+     it keeps the fallback behaviour of a heading and a table cell
+     separable, and it is where a second family would attach if the UI
+     is ever localised to Amharic, which Proxima Nova cannot set
+     (0 of 384 Ethiopic codepoints). DESIGN.md §4.1.
      ---------------------------------------------------------------- */
-
-  /* Headings at 600–700. Outfit until Proxima Nova Bold/Semibold land. */
-  --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
-
-  /* Body and UI at 400–600. Inter until Proxima Nova Regular lands. */
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-
-  /*
-   * The one stack that reaches the real brand face. Pair it with
-   * font-black (900) at the call site — that is the only weight this
-   * family currently holds, so the request and the file agree.
-   * Sanctioned uses: the QRServe wordmark, and the display-xl /
-   * display-l / kds-number / kds-action roles.
-   */
-  --font-display-black: "Proxima Nova", "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Proxima Nova", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Proxima Nova", ui-sans-serif, system-ui, sans-serif;
 
   /* ----------------------------------------------------------------
      Type scale (DESIGN.md §4.2). Each role carries size, line-height,
@@ -244,12 +250,12 @@
      ---------------------------------------------------------------- */
   --text-display-xl: 3rem;
   --text-display-xl--line-height: 3.25rem;
-  --text-display-xl--font-weight: 800;
+  --text-display-xl--font-weight: 900;
   --text-display-xl--letter-spacing: -0.02em;
 
   --text-display-l: 2.25rem;
   --text-display-l--line-height: 2.5rem;
-  --text-display-l--font-weight: 800;
+  --text-display-l--font-weight: 900;
   --text-display-l--letter-spacing: -0.02em;
 
   --text-title-l: 1.75rem;
@@ -293,7 +299,7 @@
   /* Kitchen scale — sized for a 1.5–3m read, not a phone. */
   --text-kds-number: 2.5rem;
   --text-kds-number--line-height: 2.5rem;
-  --text-kds-number--font-weight: 800;
+  --text-kds-number--font-weight: 900;
 
   --text-kds-item: 1.5rem;
   --text-kds-item--line-height: 1.75rem;
@@ -301,7 +307,7 @@
 
   --text-kds-action: 1.25rem;
   --text-kds-action--line-height: 1.5rem;
-  --text-kds-action--font-weight: 800;
+  --text-kds-action--font-weight: 900;
 
   --text-kds-meta: 1.125rem;
   --text-kds-meta--line-height: 1.5rem;

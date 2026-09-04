@@ -90,7 +90,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, titl
                 <div className="flex h-8 w-8 items-center justify-center rounded-control bg-brand text-brand-fg">
                   <QrCode className="h-4 w-4" aria-hidden="true" />
                 </div>
-                <span className="font-display-black text-title-s font-black tracking-tight text-ink">
+                <span className="font-display text-title-s font-black tracking-tight text-ink">
                   QRServe
                 </span>
               </div>
@@ -101,7 +101,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, titl
             {user && (
               <div className="flex items-center gap-2">
                 {/* Email is metadata and the header is a --color-surface ground,
-                    where --color-muted is in budget at 4.83 (§3.2). Role is
+                    where --color-muted is in budget at 6.05 (§3.2). Role is
                     identity, so it is a neutral chip, not a coloured badge. */}
                 <span className="hidden max-w-[220px] truncate text-body-m text-muted sm:block">
                   {user.email}

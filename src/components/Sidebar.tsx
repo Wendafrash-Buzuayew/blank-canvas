@@ -15,7 +15,7 @@ interface SidebarProps {
  *
  * 256 wide on an --color-ink ground. Text on that ground uses
  * --color-on-ink / --color-on-ink-muted, NOT --color-muted, which measures
- * 3.96 against ink and fails AA (see the token comment in index.css).
+ * 2.63 against ink and fails AA (see the token comment in index.css).
  *
  * Below `lg` this is an off-canvas drawer, which per §6.4 means it owes the
  * same obligations as a modal: Escape closes it, and focus returns to the
@@ -83,8 +83,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
               </div>
               <div>
                 {/* The wordmark is the one shell element where 900 is the
-                    correct weight, so it uses the real Proxima Nova Black. */}
-                <span className="font-display-black text-title-s font-black tracking-tight">
+                    correct weight — Proxima Nova Black. */}
+                <span className="font-display text-title-s font-black tracking-tight">
                   QRServe
                 </span>
                 <span className="-mt-0.5 block text-label-s text-on-ink-muted">
