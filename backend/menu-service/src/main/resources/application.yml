@@ -40,6 +40,9 @@ spring:
           max-idle: 4
           min-idle: 0
 
+services:
+  merchant-service-url: ${MERCHANT_SERVICE_URL:http://localhost:8085}
+
 jwt:
   secret: ${JWT_SECRET}
   access-expiration-ms: 3600000

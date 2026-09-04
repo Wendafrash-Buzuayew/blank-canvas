@@ -4,11 +4,13 @@ import com.qrserve.menu.dto.MenuResponse;
 import com.qrserve.menu.entity.MenuEntity;
 import com.qrserve.menu.service.MenuService;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
+import com.qrserve.shared.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -41,7 +43,9 @@ public class MenuController {
     @PostMapping("/branch/{branchId}/publish")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
     @Operation(summary = "Publish a branch's menu, making it publicly reachable")
-    public ResponseEntity<MenuEntity> publish(@PathVariable Long branchId) {
-        return ResponseEntity.ok(menuService.publish(branchId));
+    public ResponseEntity<MenuEntity> publish(
+            @PathVariable Long branchId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(menuService.publish(branchId, principal));
     }
 }

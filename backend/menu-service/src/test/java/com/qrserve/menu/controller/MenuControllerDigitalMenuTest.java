@@ -4,6 +4,8 @@ import com.qrserve.menu.dto.MenuResponse;
 import com.qrserve.menu.entity.MenuEntity;
 import com.qrserve.menu.service.MenuService;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
+import com.qrserve.shared.security.UserPrincipal;
+import com.qrserve.shared.security.UserRole;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -58,9 +60,11 @@ class MenuControllerDigitalMenuTest {
     void publishDelegatesToTheService() {
         MenuEntity published = MenuEntity.builder().id(MENU_ID).branchId(BRANCH)
                 .status(MenuEntity.Status.PUBLISHED).build();
-        when(menuService.publish(BRANCH)).thenReturn(published);
+        UserPrincipal principal = UserPrincipal.builder()
+                .userId(UUID.randomUUID()).role(UserRole.SUPER_ADMIN).build();
+        when(menuService.publish(BRANCH, principal)).thenReturn(published);
 
-        MenuEntity body = controller.publish(BRANCH).getBody();
+        MenuEntity body = controller.publish(BRANCH, principal).getBody();
 
         assertEquals(MenuEntity.Status.PUBLISHED, body.getStatus());
     }
