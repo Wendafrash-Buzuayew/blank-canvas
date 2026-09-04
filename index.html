@@ -9,9 +9,21 @@
     <meta property="og:description" content="Scan, order and track from the table. Real-time kitchen and waiter coordination for multi-branch restaurants." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+    <!--
+      TYPEFACE: Proxima Nova (Safaricom brand font).
+
+      Proxima Nova BLACK (900) is self-hosted from src/fonts/ and declared in
+      src/index.css — Vite fingerprints and emits it, so it needs no link here.
+
+      The 400 / 600 / 700 faces are still missing, so Outfit and Inter are
+      loaded below and carry all heading and body type. This link is required
+      until those three faces are added; see the @font-face block in
+      src/index.css for what to drop in and DESIGN.md §4.1 for the roles.
+    -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <meta name="theme-color" content="#3DAE2B" />
   </head>
   <body>
     <div id="root"></div>

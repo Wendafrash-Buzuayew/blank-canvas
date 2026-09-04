@@ -1,0 +1,46 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "& \".claude/hooks/gradlew-guard.ps1\"",
+            "shell": "powershell",
+            "timeout": 15,
+            "statusMessage": "Checking gradlew guard..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "& \".claude/hooks/controller-preauthorize-check.ps1\"",
+            "shell": "powershell",
+            "timeout": 15,
+            "statusMessage": "Checking @PreAuthorize..."
+          },
+          {
+            "type": "command",
+            "command": "& \".claude/hooks/frontend-lint.ps1\"",
+            "shell": "powershell",
+            "timeout": 60,
+            "statusMessage": "Running tsc --noEmit..."
+          },
+          {
+            "type": "command",
+            "command": "& \".claude/hooks/frontend-test.ps1\"",
+            "shell": "powershell",
+            "timeout": 30,
+            "statusMessage": "Running sibling test..."
+          }
+        ]
+      }
+    ]
+  }
+}

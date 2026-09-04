@@ -12,92 +12,107 @@ interface DashboardLayoutProps {
   title?: string;
 }
 
+/**
+ * The two authenticated shells from DESIGN.md §5.4.
+ *
+ * Frame B (mini app): 430 frame, 56 header, 56 bottom nav, 16 gutter.
+ * Frame C (console):  256 sidebar, 64 header, 16/24/32 gutter.
+ *
+ * The QRServe mark is Safaricom Green (--color-brand) in BOTH shells. It used
+ * to be M-PESA green in the mini app, which §3.6 forbids: on this palette that
+ * colour sits 0.06 OKLab from the brand greens, so it would read as the brand
+ * itself rather than as a partner, and at 2.95 it cannot signal anything.
+ *
+ * White on the hero green measures 2.88 and would fail anywhere it labelled
+ * something — but a brand mark is exempt under WCAG 1.4.3 and 1.4.11, the
+ * glyph here is decorative (aria-hidden), and the product name sits beside it
+ * as real text. This is the only sanctioned use of that pair; every label,
+ * button and active state uses --color-brand-dark (§3.1 rule 1).
+ */
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  if (!isPhase2Enabled()) {
-    // Phase 1: no sidebar at all - a fixed bottom tab bar instead, content
-    // constrained to a mobile frame. This is the Merchant Mini App shell,
-    // not the full admin console below.
-    const handleLogout = () => {
-      logout();
-      navigate('/login', { replace: true });
-    };
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
 
+  if (!isPhase2Enabled()) {
+    // Frame B — the Merchant Mini App. No sidebar at all: a fixed bottom tab
+    // bar instead, with content constrained to a phone frame.
     return (
-      <div className="min-h-screen bg-slate-50">
-        <header className="sticky top-0 z-20 bg-white border-b border-slate-200 shadow-xs">
+      <div className="min-h-screen bg-canvas">
+        <header className="sticky top-0 z-20 border-b border-line bg-surface">
           <div className="mx-auto flex h-14 max-w-[430px] items-center gap-2 px-4">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0DA64B] text-white">
-              <QrCode className="w-4 h-4" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-control bg-brand text-brand-fg">
+              <QrCode className="h-4 w-4" aria-hidden="true" />
             </div>
-            {title && <h1 className="text-base font-bold text-slate-900">{title}</h1>}
+            {title && <h1 className="text-title-s text-ink">{title}</h1>}
             <button
               onClick={handleLogout}
               aria-label="Sign out"
-              className="ml-auto p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+              className="ml-auto flex h-11 w-11 items-center justify-center rounded-control text-muted transition-colors hover:bg-surface-2 hover:text-ink"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
         </header>
-        <main className="mx-auto max-w-[430px] px-4 pb-24 pt-4">{children}</main>
+        {/* pb-24 clears the 56 bottom nav plus its safe-area inset (§5.4). */}
+        <main className="mx-auto max-w-[430px] px-4 pt-4 pb-24">{children}</main>
         <MobileBottomNav />
       </div>
     );
   }
 
+  // Frame C — the full console.
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-canvas">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      {/* Main content area - offset for sidebar on desktop */}
+      {/* Content is offset by the sidebar's 256 from lg up. */}
       <div className="lg:ml-64">
-        {/* Top bar */}
-        <header className="sticky top-0 z-20 bg-white border-b border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between h-16 px-4 sm:px-6">
+        <header className="sticky top-0 z-20 border-b border-line bg-surface">
+          <div className="flex h-16 items-center justify-between px-4 sm:px-6">
             <div className="flex items-center gap-3">
-              {/* Mobile menu button */}
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="lg:hidden p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg"
+                aria-label="Open navigation"
+                aria-expanded={sidebarOpen}
+                className="flex h-11 w-11 items-center justify-center rounded-control text-muted transition-colors hover:bg-surface-2 hover:text-ink lg:hidden"
               >
-                <Menu className="w-5 h-5" />
+                <Menu className="h-5 w-5" aria-hidden="true" />
               </button>
 
-              {/* Mobile brand */}
-              <div className="lg:hidden flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#E60028] flex items-center justify-center text-white">
-                  <QrCode className="w-4 h-4" />
+              {/* Brand shows only where the sidebar is hidden. */}
+              <div className="flex items-center gap-2 lg:hidden">
+                <div className="flex h-8 w-8 items-center justify-center rounded-control bg-brand text-brand-fg">
+                  <QrCode className="h-4 w-4" aria-hidden="true" />
                 </div>
-                <span className="font-bold text-sm">QRServe</span>
+                <span className="font-display-black text-title-s font-black tracking-tight text-ink">
+                  QRServe
+                </span>
               </div>
 
-              {/* Page title */}
-              {title && (
-                <h1 className="hidden sm:block text-lg font-bold text-slate-900">{title}</h1>
-              )}
+              {title && <h1 className="hidden text-title-m text-ink sm:block">{title}</h1>}
             </div>
 
-            <div className="flex items-center gap-2">
-              {user && (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
-                  <span className="text-xs font-bold text-slate-700">{user.email}</span>
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 bg-indigo-600 text-white rounded uppercase tracking-wider">
-                    {getRoleLabel(user.role)}
-                  </span>
-                </div>
-              )}
-            </div>
+            {user && (
+              <div className="flex items-center gap-2">
+                {/* Email is metadata and the header is a --color-surface ground,
+                    where --color-muted is in budget at 4.83 (§3.2). Role is
+                    identity, so it is a neutral chip, not a coloured badge. */}
+                <span className="hidden max-w-[220px] truncate text-body-m text-muted sm:block">
+                  {user.email}
+                </span>
+                <span className="identity-chip">{getRoleLabel(user.role)}</span>
+              </div>
+            )}
           </div>
         </header>
 
-        {/* Page content */}
-        <main className="p-4 sm:p-6 lg:p-8">
-          {children}
-        </main>
+        <main className="p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );

@@ -1,0 +1,1 @@
+{"nodes": [{"id": "backend_discovery_service_src_main_resources_application", "label": "discovery-service application.yml", "file_type": "code", "source_file": "backend/discovery-service/src/main/resources/application.yml", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

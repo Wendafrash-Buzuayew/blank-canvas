@@ -24,7 +24,7 @@ const WaiterDashboardPage = lazy(() => import('../pages/WaiterDashboardPage').th
 
 // Fallback shown while a lazy route chunk is loading.
 const RouteFallback: React.FC = () => (
-  <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+  <div className="min-h-screen bg-canvas flex items-center justify-center">
     <Spinner label="Loading…" />
   </div>
 );
@@ -35,7 +35,7 @@ const RootRedirect: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-canvas flex items-center justify-center">
         <Spinner label="Loading..." />
       </div>
     );

@@ -1,0 +1,1988 @@
+{
+  ".lovable/project.json": {
+    "mtime": 1786276908.4452038,
+    "seen": 1787837461.6737554,
+    "ast_hash": "00a80ba8b8438f5364a24301e9ba806d",
+    "semantic_hash": "00a80ba8b8438f5364a24301e9ba806d"
+  },
+  ".vscode/settings.json": {
+    "mtime": 1785745230.8367488,
+    "seen": 1787837461.6737554,
+    "ast_hash": "74e9c64568833f4e7ca9ce5dac85ed71",
+    "semantic_hash": "74e9c64568833f4e7ca9ce5dac85ed71"
+  },
+  "backend/analytics-service/src/main/java/com/qrserve/analytics/AnalyticsServiceApplication.java": {
+    "mtime": 1785757303.4243314,
+    "seen": 1787837461.6737554,
+    "ast_hash": "25ce9796bc1479b4a692c68e9353162d",
+    "semantic_hash": "25ce9796bc1479b4a692c68e9353162d"
+  },
+  "backend/analytics-service/src/main/java/com/qrserve/analytics/config/AppConfig.java": {
+    "mtime": 1785756479.273519,
+    "seen": 1787837461.6737554,
+    "ast_hash": "18e802d040e61600148aa5bf87c042da",
+    "semantic_hash": "18e802d040e61600148aa5bf87c042da"
+  },
+  "backend/analytics-service/src/main/java/com/qrserve/analytics/controller/AnalyticsController.java": {
+    "mtime": 1787848406.2763894,
+    "seen": 1788506415.116437,
+    "ast_hash": "ecd5c042bead107d8a7bcf8c348cfd72",
+    "semantic_hash": "ecd5c042bead107d8a7bcf8c348cfd72"
+  },
+  "backend/analytics-service/src/main/java/com/qrserve/analytics/dto/PopularItemDto.java": {
+    "mtime": 1785496637.0675519,
+    "seen": 1787837461.6737554,
+    "ast_hash": "1c3931bfca6945a369dbf72f7fcf4a64",
+    "semantic_hash": "1c3931bfca6945a369dbf72f7fcf4a64"
+  },
+  "backend/analytics-service/src/main/java/com/qrserve/analytics/dto/RevenueAnalyticsResponse.java": {
+    "mtime": 1785496637.0273943,
+    "seen": 1787837461.6737554,
+    "ast_hash": "d432f4258a8d5a59dae9f0b9d6c2ef96",
+    "semantic_hash": "d432f4258a8d5a59dae9f0b9d6c2ef96"
+  },
+  "backend/analytics-service/src/main/java/com/qrserve/analytics/dto/TodayAnalyticsResponse.java": {
+    "mtime": 1785496636.9879491,
+    "seen": 1787837461.6737554,
+    "ast_hash": "99587c8bfca0aa7d0b4a454baca492e1",
+    "semantic_hash": "99587c8bfca0aa7d0b4a454baca492e1"
+  },
+  "backend/analytics-service/src/main/java/com/qrserve/analytics/service/AnalyticsService.java": {
+    "mtime": 1787848406.2812245,
+    "seen": 1788506415.116437,
+    "ast_hash": "3cc3fbeca858c081b3791d10b2217d72",
+    "semantic_hash": "3cc3fbeca858c081b3791d10b2217d72"
+  },
+  "backend/api-gateway/src/main/java/com/qrserve/gateway/ApiGatewayApplication.java": {
+    "mtime": 1785828056.36542,
+    "seen": 1787837461.6737554,
+    "ast_hash": "8deae0afe96f37b86349b61beca455b6",
+    "semantic_hash": "8deae0afe96f37b86349b61beca455b6"
+  },
+  "backend/api-gateway/src/main/java/com/qrserve/gateway/controller/FallbackController.java": {
+    "mtime": 1787848406.2905824,
+    "seen": 1788506415.116437,
+    "ast_hash": "84344334ace7d213844d347cef58a37c",
+    "semantic_hash": "84344334ace7d213844d347cef58a37c"
+  },
+  "backend/api-gateway/src/main/java/com/qrserve/gateway/tenant/TenantHost.java": {
+    "mtime": 1787848406.2966545,
+    "seen": 1788506415.116437,
+    "ast_hash": "1c9cd4b3400b7ccdb661ca59ab903c70",
+    "semantic_hash": "1c9cd4b3400b7ccdb661ca59ab903c70"
+  },
+  "backend/api-gateway/src/main/java/com/qrserve/gateway/tenant/TenantResolutionGlobalFilter.java": {
+    "mtime": 1787848406.3023243,
+    "seen": 1788506415.116437,
+    "ast_hash": "34fdef8a6ec950acb0dacb4eac7088be",
+    "semantic_hash": "34fdef8a6ec950acb0dacb4eac7088be"
+  },
+  "backend/api-gateway/src/main/java/com/qrserve/gateway/tenant/TenantSlugResolver.java": {
+    "mtime": 1787848406.3062136,
+    "seen": 1788506415.116437,
+    "ast_hash": "1e9b24f96779447bb6ea4220828c2b7d",
+    "semantic_hash": "1e9b24f96779447bb6ea4220828c2b7d"
+  },
+  "backend/api-gateway/src/test/java/com/qrserve/gateway/tenant/TenantHostTest.java": {
+    "mtime": 1787848406.3192487,
+    "seen": 1788506415.116437,
+    "ast_hash": "542781c97f8eac7d9f3f8da42ded20ae",
+    "semantic_hash": "542781c97f8eac7d9f3f8da42ded20ae"
+  },
+  "backend/api-gateway/src/test/java/com/qrserve/gateway/tenant/TenantResolutionGlobalFilterTest.java": {
+    "mtime": 1787848406.3227816,
+    "seen": 1788506415.116437,
+    "ast_hash": "c6bec310794bcc97d09a9d980318ea88",
+    "semantic_hash": "c6bec310794bcc97d09a9d980318ea88"
+  },
+  "backend/api-gateway/src/test/java/com/qrserve/gateway/tenant/TenantSlugResolverWiringTest.java": {
+    "mtime": 1787848406.329142,
+    "seen": 1788506415.116437,
+    "ast_hash": "cd5ce01cc8f5bcebbb9112af7939f788",
+    "semantic_hash": "cd5ce01cc8f5bcebbb9112af7939f788"
+  },
+  "backend/auth-service/src/main/java/com/qrserve/auth/AuthServiceApplication.java": {
+    "mtime": 1786629212.313304,
+    "seen": 1787837461.6737554,
+    "ast_hash": "25c2ebc82e50c8301397ea742a9e8089",
+    "semantic_hash": "25c2ebc82e50c8301397ea742a9e8089"
+  },
+  "backend/auth-service/src/main/java/com/qrserve/auth/controller/AuthController.java": {
+    "mtime": 1787921160.036261,
+    "seen": 1788506415.116437,
+    "ast_hash": "a572bb18fa239f4f4b65c63a2a26e218",
+    "semantic_hash": "a572bb18fa239f4f4b65c63a2a26e218"
+  },
+  "backend/auth-service/src/main/java/com/qrserve/auth/dto/CreateUserRequest.java": {
+    "mtime": 1785613095.4053974,
+    "seen": 1787837461.6737554,
+    "ast_hash": "0e95de25a1a0047fd35e5bcc166bd6b2",
+    "semantic_hash": "0e95de25a1a0047fd35e5bcc166bd6b2"
+  },
+  "backend/auth-service/src/main/java/com/qrserve/auth/dto/LoginRequest.java": {
+    "mtime": 1785496632.224991,
+    "seen": 1787837461.6737554,
+    "ast_hash": "a3df673d2e49829e36a1b464645b8eae",
+    "semantic_hash": "a3df673d2e49829e36a1b464645b8eae"
+  },
+  "backend/auth-service/src/main/java/com/qrserve/auth/dto/LoginResponse.java": {
+    "mtime": 1785496632.2616096,
+    "seen": 1787837461.6737554,
+    "ast_hash": "78bf19d485303134af887594171c3176",
+    "semantic_hash": "78bf19d485303134af887594171c3176"
+  },
+  "backend/auth-service/src/main/java/com/qrserve/auth/dto/RefreshRequest.java": {
+    "mtime": 1785496632.2980704,
+    "seen": 1787837461.6737554,
+    "ast_hash": "9e2e1fc8214ae1afcd9680595d3ea95b",
+    "semantic_hash": "9e2e1fc8214ae1afcd9680595d3ea95b"
+  },
+  "backend/auth-service/src/main/java/com/qrserve/auth/dto/UserInfoResponse.java": {
+    "mtime": 1785861868.304772,
+    "seen": 1787837461.6737554,
+    "ast_hash": "d59a2d4f87c211b91b87e46597e202ca",
+    "semantic_hash": "d59a2d4f87c211b91b87e46597e202ca"
+  },
+  "backend/auth-service/src/main/java/com/qrserve/auth/entity/UserEntity.java": {
+    "mtime": 1787921160.046801,
+    "seen": 1788506415.116437,
+    "ast_hash": "76f5d89df524df4b89ef28c164a95784",
+    "semantic_hash": "76f5d89df524df4b89ef28c164a95784"
+  },
+  "backend/auth-service/src/main/java/com/qrserve/auth/repository/UserRepository.java": {
+    "mtime": 1787921160.0513244,
+    "seen": 1788506415.116437,
+    "ast_hash": "f267f4bec69ebc8627417c7bf67d3441",
+    "semantic_hash": "f267f4bec69ebc8627417c7bf67d3441"
+  },
+  "backend/auth-service/src/main/java/com/qrserve/auth/service/AuthService.java": {
+    "mtime": 1787848406.3400638,
+    "seen": 1788506415.116437,
+    "ast_hash": "faac3d80c0a66fa17554621400414ef3",
+    "semantic_hash": "faac3d80c0a66fa17554621400414ef3"
+  },
+  "backend/auth-service/src/test/java/com/qrserve/auth/service/AuthServiceRoleHierarchyTest.java": {
+    "mtime": 1787848406.357481,
+    "seen": 1788506415.116437,
+    "ast_hash": "2fd4bae075283cd9d17ffe9479f4052b",
+    "semantic_hash": "2fd4bae075283cd9d17ffe9479f4052b"
+  },
+  "backend/build.gradle": {
+    "mtime": 1787848406.365155,
+    "seen": 1788506415.116437,
+    "ast_hash": "480f949430fd63bc0c97c2962d9a14f3",
+    "semantic_hash": "480f949430fd63bc0c97c2962d9a14f3"
+  },
+  "backend/discovery-service/src/main/java/com/qrserve/discovery/DiscoveryServiceApplication.java": {
+    "mtime": 1785669343.6500885,
+    "seen": 1787837461.6737554,
+    "ast_hash": "4267d1677d5190681ee3e3926f7cecab",
+    "semantic_hash": "4267d1677d5190681ee3e3926f7cecab"
+  },
+  "backend/gradlew": {
+    "mtime": 1785501846.1444638,
+    "seen": 1787837461.6737554,
+    "ast_hash": "f092910dfa8e47c5a37a452c3f6baf8a",
+    "semantic_hash": "f092910dfa8e47c5a37a452c3f6baf8a"
+  },
+  "backend/init-db.sql": {
+    "mtime": 1785617181.0307484,
+    "seen": 1787837461.6737554,
+    "ast_hash": "1cbc69834691f20509786836e9ca128e",
+    "semantic_hash": "1cbc69834691f20509786836e9ca128e"
+  },
+  "backend/menu-service/src/main/java/com/qrserve/menu/MenuServiceApplication.java": {
+    "mtime": 1786629368.8756008,
+    "seen": 1787837461.6737554,
+    "ast_hash": "bf24b2ba6416b7f8e0e947953504f8a4",
+    "semantic_hash": "bf24b2ba6416b7f8e0e947953504f8a4"
+  },
+  "backend/menu-service/src/main/java/com/qrserve/menu/controller/CategoryController.java": {
+    "mtime": 1787848406.4057655,
+    "seen": 1788506415.116437,
+    "ast_hash": "dccb1b8cb10090f3f6ee294d773a51ec",
+    "semantic_hash": "dccb1b8cb10090f3f6ee294d773a51ec"
+  },
+  "backend/menu-service/src/main/java/com/qrserve/menu/controller/MenuController.java": {
+    "mtime": 1785496634.682314,
+    "seen": 1787837461.6737554,
+    "ast_hash": "57a1fd2b4473c8a59a29885b20b078e0",
+    "semantic_hash": "57a1fd2b4473c8a59a29885b20b078e0"
+  },
+  "backend/menu-service/src/main/java/com/qrserve/menu/controller/ProductController.java": {
+    "mtime": 1787848406.4121423,
+    "seen": 1788506415.116437,
+    "ast_hash": "f760b07a73866f9b6da4d5e314c195f7",
+    "semantic_hash": "f760b07a73866f9b6da4d5e314c195f7"
+  },
+  "backend/menu-service/src/main/java/com/qrserve/menu/dto/CreateCategoryRequest.java": {
+    "mtime": 1785496634.3298864,
+    "seen": 1787837461.6737554,
+    "ast_hash": "7840caf2dfdf1eae78c1a65bed4a4fa1",
+    "semantic_hash": "7840caf2dfdf1eae78c1a65bed4a4fa1"
+  },
+  "backend/menu-service/src/main/java/com/qrserve/menu/dto/CreateProductRequest.java": {
+    "mtime": 1785496634.3659558,
+    "seen": 1787837461.6737554,
+    "ast_hash": "05cee70b6a331145142863bab0a404b1",
+    "semantic_hash": "05cee70b6a331145142863bab0a404b1"
+  },
+  "backend/menu-service/src/main/java/com/qrserve/menu/dto/MenuResponse.java": {
+    "mtime": 1786707369.0164244,
+    "seen": 1787837461.6737554,
+    "ast_hash": "ed3d816c35a8a9f8fb1e815019dc68be",
+    "semantic_hash": "ed3d816c35a8a9f8fb1e815019dc68be"
+  },
+  "backend/menu-service/src/main/java/com/qrserve/menu/dto/UpdateCategoryRequest.java": {
+    "mtime": 1786617586.0731182,
+    "seen": 1787837461.6737554,
+    "ast_hash": "052b9aad81d05bf7295faeb4784859e5",
+    "semantic_hash": "052b9aad81d05bf7295faeb4784859e5"
+  },
+  "backend/menu-service/src/main/java/com/qrserve/menu/dto/UpdateProductRequest.java": {
+    "mtime": 1786618458.0000136,
+    "seen": 1787837461.6737554,
+    "ast_hash": "c3065ac98d61db93c31e10b4777ae057",
+    "semantic_hash": "c3065ac98d61db93c31e10b4777ae057"
+  },
+  "backend/menu-service/src/main/java/com/qrserve/menu/entity/CategoryEntity.java": {
+    "mtime": 1785496634.0764031,
+    "seen": 1787837461.6737554,
+    "ast_hash": "56d4f41c0e8b979e21112aa5b6d5f227",
+    "semantic_hash": "56d4f41c0e8b979e21112aa5b6d5f227"
+  },
+  "backend/menu-service/src/main/java/com/qrserve/menu/entity/ProductEntity.java": {
+    "mtime": 1785496634.1125736,
+    "seen": 1787837461.6737554,
+    "ast_hash": "60617d7bcc7a4952e0a5e7774333d2e6",
+    "semantic_hash": "60617d7bcc7a4952e0a5e7774333d2e6"
+  },
+  "backend/menu-service/src/main/java/com/qrserve/menu/repository/CategoryRepository.java": {
+    "mtime": 1785496634.2014163,
+    "seen": 1787837461.6737554,
+    "ast_hash": "abd12d3199ea2fdaa8434cf1725f2989",
+    "semantic_hash": "abd12d3199ea2fdaa8434cf1725f2989"
+  },
+  "backend/menu-service/src/main/java/com/qrserve/menu/repository/ProductRepository.java": {
+    "mtime": 1786617833.20572,
+    "seen": 1787837461.6737554,
+    "ast_hash": "e835cd1e1b576872df48f78a04804ba8",
+    "semantic_hash": "e835cd1e1b576872df48f78a04804ba8"
+  },
+  "backend/menu-service/src/main/java/com/qrserve/menu/service/MenuService.java": {
+    "mtime": 1786617701.5306475,
+    "seen": 1787837461.6737554,
+    "ast_hash": "3bbcfe56a0e5a48d0de23654e27d3df5",
+    "semantic_hash": "3bbcfe56a0e5a48d0de23654e27d3df5"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/MerchantServiceApplication.java": {
+    "mtime": 1786629323.662691,
+    "seen": 1787837461.6737554,
+    "ast_hash": "b28f7709d267877742bdce27b4dc1039",
+    "semantic_hash": "b28f7709d267877742bdce27b4dc1039"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/config/KafkaProducerConfig.java": {
+    "mtime": 1787848406.4323003,
+    "seen": 1788506415.116437,
+    "ast_hash": "0f721386b6ec21b214c0df8516c5d097",
+    "semantic_hash": "0f721386b6ec21b214c0df8516c5d097"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/controller/BranchController.java": {
+    "mtime": 1787848406.4355817,
+    "seen": 1788506415.116437,
+    "ast_hash": "ff36b16b33cae37448a4fd93f0de7a19",
+    "semantic_hash": "ff36b16b33cae37448a4fd93f0de7a19"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/controller/CustomerRequestController.java": {
+    "mtime": 1787848406.441893,
+    "seen": 1788506415.116437,
+    "ast_hash": "3dd5ab3bddc7b965f3a45a7d0f46de96",
+    "semantic_hash": "3dd5ab3bddc7b965f3a45a7d0f46de96"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/controller/MerchantController.java": {
+    "mtime": 1787848406.446359,
+    "seen": 1788506415.116437,
+    "ast_hash": "cf6ffadf583a2c94a2a64fe425824034",
+    "semantic_hash": "cf6ffadf583a2c94a2a64fe425824034"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/controller/PublicCustomerRequestController.java": {
+    "mtime": 1787848406.4483874,
+    "seen": 1788506415.116437,
+    "ast_hash": "114fc446bf9b201d4564e745a707c276",
+    "semantic_hash": "114fc446bf9b201d4564e745a707c276"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/controller/PublicMenuController.java": {
+    "mtime": 1786269542.938963,
+    "seen": 1787837461.6737554,
+    "ast_hash": "66719b65a49fd1d5276fd687d282f5a0",
+    "semantic_hash": "66719b65a49fd1d5276fd687d282f5a0"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/controller/PublicTenantController.java": {
+    "mtime": 1787848406.4543087,
+    "seen": 1788506415.116437,
+    "ast_hash": "98a26602828c33f24601d7982deb1264",
+    "semantic_hash": "98a26602828c33f24601d7982deb1264"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/controller/TableAssignmentController.java": {
+    "mtime": 1787848406.4578707,
+    "seen": 1788506415.116437,
+    "ast_hash": "5439e0fb63cbf4f0090d867071345576",
+    "semantic_hash": "5439e0fb63cbf4f0090d867071345576"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/controller/TableAssignmentV1Controller.java": {
+    "mtime": 1787848406.4621694,
+    "seen": 1788506415.116437,
+    "ast_hash": "5afebb5b79ea4ecefc04f8eb924cd470",
+    "semantic_hash": "5afebb5b79ea4ecefc04f8eb924cd470"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/controller/TableController.java": {
+    "mtime": 1787848406.467188,
+    "seen": 1788506415.116437,
+    "ast_hash": "66334d8e54036a5edca2d83513da176b",
+    "semantic_hash": "66334d8e54036a5edca2d83513da176b"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/controller/WaiterController.java": {
+    "mtime": 1787848406.4764364,
+    "seen": 1788506415.116437,
+    "ast_hash": "ba0cbc624dee2630c9b946b54cfbd4aa",
+    "semantic_hash": "ba0cbc624dee2630c9b946b54cfbd4aa"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/controller/WaiterTaskV1Controller.java": {
+    "mtime": 1787848406.4830325,
+    "seen": 1788506415.116437,
+    "ast_hash": "7bf2c7c04e52e985dcaa3d12ecf11d6a",
+    "semantic_hash": "7bf2c7c04e52e985dcaa3d12ecf11d6a"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/dto/AssignTableRequest.java": {
+    "mtime": 1785860978.2958663,
+    "seen": 1787837461.6737554,
+    "ast_hash": "4e8de09eeae0bd248fdcdf0dbc7c4059",
+    "semantic_hash": "4e8de09eeae0bd248fdcdf0dbc7c4059"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/dto/CreateBranchRequest.java": {
+    "mtime": 1786437793.0909414,
+    "seen": 1787837461.6737554,
+    "ast_hash": "11ac7bf5fdb8f54c69ef20ce2cc96484",
+    "semantic_hash": "11ac7bf5fdb8f54c69ef20ce2cc96484"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/dto/CreateCustomerRequestDto.java": {
+    "mtime": 1785860992.5555856,
+    "seen": 1787837461.6737554,
+    "ast_hash": "e5e561c8c135fb1f8a5ea247ded196fd",
+    "semantic_hash": "e5e561c8c135fb1f8a5ea247ded196fd"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/dto/CreateMerchantRequest.java": {
+    "mtime": 1787848406.486666,
+    "seen": 1788506415.116437,
+    "ast_hash": "2881fb3b63ca7d448656655e6109779b",
+    "semantic_hash": "2881fb3b63ca7d448656655e6109779b"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/dto/CreateTableRequest.java": {
+    "mtime": 1787848406.4923904,
+    "seen": 1788506415.116437,
+    "ast_hash": "6eee520839490ba9acb6293445c129fe",
+    "semantic_hash": "6eee520839490ba9acb6293445c129fe"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/dto/CreateTableResponse.java": {
+    "mtime": 1787848406.497383,
+    "seen": 1788506415.116437,
+    "ast_hash": "c8efaea9ba2dc1c7398ccc15b08ff58d",
+    "semantic_hash": "c8efaea9ba2dc1c7398ccc15b08ff58d"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/dto/CreateWaiterRequest.java": {
+    "mtime": 1785860955.1846092,
+    "seen": 1787837461.6737554,
+    "ast_hash": "c2b135760722ca7531bccb001a6f57e7",
+    "semantic_hash": "c2b135760722ca7531bccb001a6f57e7"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/dto/ResolvedMerchantSettings.java": {
+    "mtime": 1787848406.5025043,
+    "seen": 1788506415.116437,
+    "ast_hash": "ba08a046d9782bd34bd61c970751407c",
+    "semantic_hash": "ba08a046d9782bd34bd61c970751407c"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/dto/TableQrResponse.java": {
+    "mtime": 1787848406.5053248,
+    "seen": 1788506415.116437,
+    "ast_hash": "945424f504baabd0c36aa13f1e61553b",
+    "semantic_hash": "945424f504baabd0c36aa13f1e61553b"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/dto/UpdateRequestStatusDto.java": {
+    "mtime": 1785861039.8543313,
+    "seen": 1787837461.6737554,
+    "ast_hash": "8f8f839e4be5a7d4edbf8c4fe6dd11d4",
+    "semantic_hash": "8f8f839e4be5a7d4edbf8c4fe6dd11d4"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/dto/UpdateTableStatusRequest.java": {
+    "mtime": 1787848406.5085871,
+    "seen": 1788506415.116437,
+    "ast_hash": "a0c7ad3094e97fb07bf0bd86815e3e02",
+    "semantic_hash": "a0c7ad3094e97fb07bf0bd86815e3e02"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/dto/UpdateWaiterRequest.java": {
+    "mtime": 1785860966.3871388,
+    "seen": 1787837461.6737554,
+    "ast_hash": "4832b55784f2f275a6b12abee782e973",
+    "semantic_hash": "4832b55784f2f275a6b12abee782e973"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/entity/BranchEntity.java": {
+    "mtime": 1787848406.5144594,
+    "seen": 1788506415.116437,
+    "ast_hash": "0268b9ef658e808fa0e5888234d0b145",
+    "semantic_hash": "0268b9ef658e808fa0e5888234d0b145"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/entity/CustomerRequestEntity.java": {
+    "mtime": 1785860787.437042,
+    "seen": 1787837461.6737554,
+    "ast_hash": "8b00ecda48a04a9747b355f8549a322f",
+    "semantic_hash": "8b00ecda48a04a9747b355f8549a322f"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/entity/MerchantEntity.java": {
+    "mtime": 1787848406.5210004,
+    "seen": 1788506415.116437,
+    "ast_hash": "0b338d1dd1b1ac4781839e3e67e14d92",
+    "semantic_hash": "0b338d1dd1b1ac4781839e3e67e14d92"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/entity/MerchantSettingsEntity.java": {
+    "mtime": 1787848406.5235689,
+    "seen": 1788506415.116437,
+    "ast_hash": "02eaa1656f86629600ca0f89b236570a",
+    "semantic_hash": "02eaa1656f86629600ca0f89b236570a"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/entity/TableAssignmentEntity.java": {
+    "mtime": 1785860777.1442864,
+    "seen": 1787837461.6737554,
+    "ast_hash": "203e2c2877d3c3a5f417ebe929517037",
+    "semantic_hash": "203e2c2877d3c3a5f417ebe929517037"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/entity/TableEntity.java": {
+    "mtime": 1785496633.1436775,
+    "seen": 1787837461.6737554,
+    "ast_hash": "9c5005cd5388e8f1887002c2ec1f277e",
+    "semantic_hash": "9c5005cd5388e8f1887002c2ec1f277e"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/entity/TableQrEntity.java": {
+    "mtime": 1787848406.5328293,
+    "seen": 1788506415.116437,
+    "ast_hash": "0b8f7efe9121da6dd05620663b032c0d",
+    "semantic_hash": "0b8f7efe9121da6dd05620663b032c0d"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/entity/WaiterEntity.java": {
+    "mtime": 1785860740.866391,
+    "seen": 1787837461.6737554,
+    "ast_hash": "d75c2c3d4a0e8eee3ca1ae19db384cd4",
+    "semantic_hash": "d75c2c3d4a0e8eee3ca1ae19db384cd4"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/repository/BranchRepository.java": {
+    "mtime": 1786268858.9969625,
+    "seen": 1787837461.6737554,
+    "ast_hash": "079be7902a0e67ecdc05291df2c6f0e7",
+    "semantic_hash": "079be7902a0e67ecdc05291df2c6f0e7"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/repository/CustomerRequestRepository.java": {
+    "mtime": 1785860834.9254436,
+    "seen": 1787837461.6737554,
+    "ast_hash": "b6de417433f1fc626083a8a32ca17407",
+    "semantic_hash": "b6de417433f1fc626083a8a32ca17407"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/repository/MerchantRepository.java": {
+    "mtime": 1785496633.2316842,
+    "seen": 1787837461.6737554,
+    "ast_hash": "a393556063e9c808844893ff40f9617a",
+    "semantic_hash": "a393556063e9c808844893ff40f9617a"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/repository/MerchantSettingsRepository.java": {
+    "mtime": 1787848406.546119,
+    "seen": 1788506415.116437,
+    "ast_hash": "9b10ac69df82157fba978ae8a1328ce6",
+    "semantic_hash": "9b10ac69df82157fba978ae8a1328ce6"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/repository/TableAssignmentRepository.java": {
+    "mtime": 1785860824.924243,
+    "seen": 1787837461.6737554,
+    "ast_hash": "43da40c9ca269a88f7cb6e9c91915d9d",
+    "semantic_hash": "43da40c9ca269a88f7cb6e9c91915d9d"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/repository/TableQrRepository.java": {
+    "mtime": 1787848406.5490968,
+    "seen": 1788506415.116437,
+    "ast_hash": "473948ff1c2e30a428ca005e156bcc7a",
+    "semantic_hash": "473948ff1c2e30a428ca005e156bcc7a"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/repository/TableRepository.java": {
+    "mtime": 1785496633.308657,
+    "seen": 1787837461.6737554,
+    "ast_hash": "b51f62c657db275898e82c3f9c4c90dd",
+    "semantic_hash": "b51f62c657db275898e82c3f9c4c90dd"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/repository/WaiterRepository.java": {
+    "mtime": 1786440598.717873,
+    "seen": 1787837461.6737554,
+    "ast_hash": "a9208c95ef6d35c57539a490b6c2a8a9",
+    "semantic_hash": "a9208c95ef6d35c57539a490b6c2a8a9"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/service/BranchService.java": {
+    "mtime": 1787848406.5540586,
+    "seen": 1788506415.116437,
+    "ast_hash": "9eb3c7dcc8252e420e6ba926840dec09",
+    "semantic_hash": "9eb3c7dcc8252e420e6ba926840dec09"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/service/CustomerRequestService.java": {
+    "mtime": 1787848406.557828,
+    "seen": 1788506415.116437,
+    "ast_hash": "274314c8c3e095693ec3cfd517b89493",
+    "semantic_hash": "274314c8c3e095693ec3cfd517b89493"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/service/MerchantEventPublisher.java": {
+    "mtime": 1786286773.1786494,
+    "seen": 1787837461.6737554,
+    "ast_hash": "9edd6cb1003dd4bce29900522d80c4d0",
+    "semantic_hash": "9edd6cb1003dd4bce29900522d80c4d0"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/service/MerchantService.java": {
+    "mtime": 1787848406.5620043,
+    "seen": 1788506415.116437,
+    "ast_hash": "925f4e2027b2c1f674a48f6c00029fe2",
+    "semantic_hash": "925f4e2027b2c1f674a48f6c00029fe2"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/service/MerchantSettingsResolver.java": {
+    "mtime": 1787848406.5661144,
+    "seen": 1788506415.116437,
+    "ast_hash": "2393d363c50c11243b39025e413f4275",
+    "semantic_hash": "2393d363c50c11243b39025e413f4275"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/service/MerchantSettingsService.java": {
+    "mtime": 1787848406.5704682,
+    "seen": 1788506415.116437,
+    "ast_hash": "17433e5a8f98a7eeb2d445ec3233d36d",
+    "semantic_hash": "17433e5a8f98a7eeb2d445ec3233d36d"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/service/PublicMenuResolutionService.java": {
+    "mtime": 1787848406.5743155,
+    "seen": 1788506415.116437,
+    "ast_hash": "99820ca39363d62eb54ffc82dba335e7",
+    "semantic_hash": "99820ca39363d62eb54ffc82dba335e7"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/service/TableAssignmentService.java": {
+    "mtime": 1787848406.578951,
+    "seen": 1788506415.116437,
+    "ast_hash": "f08a40e72021a2c7a2e3ff85a36b070e",
+    "semantic_hash": "f08a40e72021a2c7a2e3ff85a36b070e"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/service/TableQrEventPublisher.java": {
+    "mtime": 1787848406.584297,
+    "seen": 1788506415.116437,
+    "ast_hash": "96e6442e45f337f34389b6efe1261f11",
+    "semantic_hash": "96e6442e45f337f34389b6efe1261f11"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/service/TableQrProvisioningService.java": {
+    "mtime": 1787848406.5870903,
+    "seen": 1788506415.116437,
+    "ast_hash": "3f1d5e4e9e7c3e5c3e6635d70bcaf7fe",
+    "semantic_hash": "3f1d5e4e9e7c3e5c3e6635d70bcaf7fe"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/service/TableService.java": {
+    "mtime": 1787848406.5918643,
+    "seen": 1788506415.116437,
+    "ast_hash": "4bfaebb84588d466e515974ca7d1071a",
+    "semantic_hash": "4bfaebb84588d466e515974ca7d1071a"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/service/TenantCacheInvalidator.java": {
+    "mtime": 1787848406.595534,
+    "seen": 1788506415.116437,
+    "ast_hash": "0e6774e6876a294ebac4cb1f0360eb6b",
+    "semantic_hash": "0e6774e6876a294ebac4cb1f0360eb6b"
+  },
+  "backend/merchant-service/src/main/java/com/qrserve/merchant/service/WaiterService.java": {
+    "mtime": 1787848406.6011472,
+    "seen": 1788506415.116437,
+    "ast_hash": "11b25f9e39f407c81e5675be2aadfd4f",
+    "semantic_hash": "11b25f9e39f407c81e5675be2aadfd4f"
+  },
+  "backend/merchant-service/src/main/resources/db/manual/001-branch-slug-per-merchant.sql": {
+    "mtime": 1787848406.6274102,
+    "seen": 1788506415.116437,
+    "ast_hash": "7ac0e589f3f903b09ac98b78353528b4",
+    "semantic_hash": "7ac0e589f3f903b09ac98b78353528b4"
+  },
+  "backend/merchant-service/src/main/resources/db/manual/002-merchant-settings-and-table-qr.sql": {
+    "mtime": 1787848406.6303759,
+    "seen": 1788506415.116437,
+    "ast_hash": "bdfdf18cfa842b3885ed050eb03340a9",
+    "semantic_hash": "bdfdf18cfa842b3885ed050eb03340a9"
+  },
+  "backend/merchant-service/src/test/java/com/qrserve/merchant/TenantIsolationIT.java": {
+    "mtime": 1787848406.641872,
+    "seen": 1788506415.116437,
+    "ast_hash": "3d9033281648c57933d964d0825281d9",
+    "semantic_hash": "3d9033281648c57933d964d0825281d9"
+  },
+  "backend/merchant-service/src/test/java/com/qrserve/merchant/controller/TableControllerTest.java": {
+    "mtime": 1787848406.646555,
+    "seen": 1788506415.116437,
+    "ast_hash": "a94e90d06fd7afbbc7c4df184e773667",
+    "semantic_hash": "a94e90d06fd7afbbc7c4df184e773667"
+  },
+  "backend/merchant-service/src/test/java/com/qrserve/merchant/service/MerchantSettingsResolverTest.java": {
+    "mtime": 1787848406.651119,
+    "seen": 1788506415.116437,
+    "ast_hash": "c458a38a46e98d22272fe6c228606c7c",
+    "semantic_hash": "c458a38a46e98d22272fe6c228606c7c"
+  },
+  "backend/merchant-service/src/test/java/com/qrserve/merchant/service/MerchantSettingsServiceTest.java": {
+    "mtime": 1787848406.6550038,
+    "seen": 1788506415.116437,
+    "ast_hash": "bb25f5509bb1e2837426a5899ea33529",
+    "semantic_hash": "bb25f5509bb1e2837426a5899ea33529"
+  },
+  "backend/merchant-service/src/test/java/com/qrserve/merchant/service/TableQrProvisioningServiceTest.java": {
+    "mtime": 1787848406.6638713,
+    "seen": 1788506415.116437,
+    "ast_hash": "c65f544a9caf306838eb018760ce2df6",
+    "semantic_hash": "c65f544a9caf306838eb018760ce2df6"
+  },
+  "backend/merchant-service/src/test/java/com/qrserve/merchant/service/TableQrUrlTest.java": {
+    "mtime": 1787848406.6673672,
+    "seen": 1788506415.116437,
+    "ast_hash": "2744d89c680cc5f0bd40009f62312ebe",
+    "semantic_hash": "2744d89c680cc5f0bd40009f62312ebe"
+  },
+  "backend/merchant-service/src/test/java/com/qrserve/merchant/service/TableServiceHarness.java": {
+    "mtime": 1787848406.6708558,
+    "seen": 1788506415.1174502,
+    "ast_hash": "acf165f8c51b9fd970e541558c9409bb",
+    "semantic_hash": "acf165f8c51b9fd970e541558c9409bb"
+  },
+  "backend/merchant-service/src/test/java/com/qrserve/merchant/service/TableServiceQrProvisioningTest.java": {
+    "mtime": 1787848406.6733086,
+    "seen": 1788506415.1174502,
+    "ast_hash": "9dd0bdf66b6e191a49594d4e7f12d6eb",
+    "semantic_hash": "9dd0bdf66b6e191a49594d4e7f12d6eb"
+  },
+  "backend/notification-service/src/main/java/com/qrserve/notification/NotificationServiceApplication.java": {
+    "mtime": 1785757353.2058012,
+    "seen": 1787837461.6737554,
+    "ast_hash": "5987c622a7997f686ae2155ace15c266",
+    "semantic_hash": "5987c622a7997f686ae2155ace15c266"
+  },
+  "backend/notification-service/src/main/java/com/qrserve/notification/config/KafkaConsumerConfig.java": {
+    "mtime": 1786698692.0454173,
+    "seen": 1787837461.6737554,
+    "ast_hash": "3cb841d18f9bab7f2662327090730bcb",
+    "semantic_hash": "3cb841d18f9bab7f2662327090730bcb"
+  },
+  "backend/notification-service/src/main/java/com/qrserve/notification/config/RedisConfig.java": {
+    "mtime": 1786811166.0575469,
+    "seen": 1787837461.6737554,
+    "ast_hash": "fe6b45db2f81f6da8bab1380105da499",
+    "semantic_hash": "fe6b45db2f81f6da8bab1380105da499"
+  },
+  "backend/notification-service/src/main/java/com/qrserve/notification/config/StompWebSocketConfig.java": {
+    "mtime": 1786794999.253677,
+    "seen": 1787837461.6737554,
+    "ast_hash": "d8ceb379fc634d079cb03856e5a63b1f",
+    "semantic_hash": "d8ceb379fc634d079cb03856e5a63b1f"
+  },
+  "backend/notification-service/src/main/java/com/qrserve/notification/interceptor/JwtHandshakeInterceptor.java": {
+    "mtime": 1787848406.6831126,
+    "seen": 1788506415.1174502,
+    "ast_hash": "5ddd6c4ba6d12fd7ab963c153c6a49c6",
+    "semantic_hash": "5ddd6c4ba6d12fd7ab963c153c6a49c6"
+  },
+  "backend/notification-service/src/main/java/com/qrserve/notification/interceptor/StompAuthInterceptor.java": {
+    "mtime": 1787848406.6872113,
+    "seen": 1788506415.1174502,
+    "ast_hash": "2c46f4269dd858120ad22467c292c62f",
+    "semantic_hash": "2c46f4269dd858120ad22467c292c62f"
+  },
+  "backend/notification-service/src/main/java/com/qrserve/notification/kafka/DomainEventListener.java": {
+    "mtime": 1786286773.1867256,
+    "seen": 1787837461.6737554,
+    "ast_hash": "ce0283956ae89cc886248c2917c06816",
+    "semantic_hash": "ce0283956ae89cc886248c2917c06816"
+  },
+  "backend/notification-service/src/main/java/com/qrserve/notification/redis/NotificationEnvelope.java": {
+    "mtime": 1786286773.1891687,
+    "seen": 1787837461.6737554,
+    "ast_hash": "e15c1d945e39c77c89ed6f1acc2a26a2",
+    "semantic_hash": "e15c1d945e39c77c89ed6f1acc2a26a2"
+  },
+  "backend/notification-service/src/main/java/com/qrserve/notification/redis/RedisEventPublisher.java": {
+    "mtime": 1786286773.1922624,
+    "seen": 1787837461.6737554,
+    "ast_hash": "4d5a852011badbf99e434bbacb4873a3",
+    "semantic_hash": "4d5a852011badbf99e434bbacb4873a3"
+  },
+  "backend/notification-service/src/main/java/com/qrserve/notification/redis/RedisEventSubscriber.java": {
+    "mtime": 1786286773.194935,
+    "seen": 1787837461.6737554,
+    "ast_hash": "765aab5d420b0051f2b4fa24819574f7",
+    "semantic_hash": "765aab5d420b0051f2b4fa24819574f7"
+  },
+  "backend/notification-service/src/main/java/com/qrserve/notification/service/StompDestinations.java": {
+    "mtime": 1786286773.1959343,
+    "seen": 1787837461.6737554,
+    "ast_hash": "de9ff8fae7b4ed8571530ea75a82274c",
+    "semantic_hash": "de9ff8fae7b4ed8571530ea75a82274c"
+  },
+  "backend/notification-service/src/test/java/com/qrserve/notification/interceptor/StompAuthInterceptorTest.java": {
+    "mtime": 1787848406.7037282,
+    "seen": 1788506415.1174502,
+    "ast_hash": "69ed4b2cb1cc3eb2a4b4d10ca509bd6e",
+    "semantic_hash": "69ed4b2cb1cc3eb2a4b4d10ca509bd6e"
+  },
+  "backend/order-service/src/main/java/com/qrserve/order/OrderServiceApplication.java": {
+    "mtime": 1786629269.6372442,
+    "seen": 1787837461.6737554,
+    "ast_hash": "cb39f3f3840340ff5fd21139b313982a",
+    "semantic_hash": "cb39f3f3840340ff5fd21139b313982a"
+  },
+  "backend/order-service/src/main/java/com/qrserve/order/config/AppConfig.java": {
+    "mtime": 1787848406.7101805,
+    "seen": 1788506415.1174502,
+    "ast_hash": "19851096fa4983bf34401e5172887eef",
+    "semantic_hash": "19851096fa4983bf34401e5172887eef"
+  },
+  "backend/order-service/src/main/java/com/qrserve/order/config/KafkaConsumerConfig.java": {
+    "mtime": 1787848406.712743,
+    "seen": 1788506415.1174502,
+    "ast_hash": "daa49a4fb6b55ebdc56c91d8b7cbfd8d",
+    "semantic_hash": "daa49a4fb6b55ebdc56c91d8b7cbfd8d"
+  },
+  "backend/order-service/src/main/java/com/qrserve/order/config/KafkaProducerConfig.java": {
+    "mtime": 1787848406.7202513,
+    "seen": 1788506415.1174502,
+    "ast_hash": "2d6aab4b7cc8503ffee0a8b44192f788",
+    "semantic_hash": "2d6aab4b7cc8503ffee0a8b44192f788"
+  },
+  "backend/order-service/src/main/java/com/qrserve/order/controller/KitchenController.java": {
+    "mtime": 1787848406.7251499,
+    "seen": 1788506415.1174502,
+    "ast_hash": "8b8f349d51939a104ed837be87c6a48b",
+    "semantic_hash": "8b8f349d51939a104ed837be87c6a48b"
+  },
+  "backend/order-service/src/main/java/com/qrserve/order/controller/OrderController.java": {
+    "mtime": 1787848406.7280688,
+    "seen": 1788506415.1174502,
+    "ast_hash": "92904887c872e4129f4b706907cf6cb1",
+    "semantic_hash": "92904887c872e4129f4b706907cf6cb1"
+  },
+  "backend/order-service/src/main/java/com/qrserve/order/controller/PublicOrderTrackingController.java": {
+    "mtime": 1787848406.7321644,
+    "seen": 1788506415.1174502,
+    "ast_hash": "2477491eb21df376eabc8d4118f3e1fe",
+    "semantic_hash": "2477491eb21df376eabc8d4118f3e1fe"
+  },
+  "backend/order-service/src/main/java/com/qrserve/order/dto/CreateOrderRequest.java": {
+    "mtime": 1785496635.8176675,
+    "seen": 1787837461.6737554,
+    "ast_hash": "f9e60a3d4fbc60a50523efbdd5234185",
+    "semantic_hash": "f9e60a3d4fbc60a50523efbdd5234185"
+  },
+  "backend/order-service/src/main/java/com/qrserve/order/dto/CreateOrderResponse.java": {
+    "mtime": 1787848406.737865,
+    "seen": 1788506415.1174502,
+    "ast_hash": "68f8daccac0aa0d4e6277c980a778556",
+    "semantic_hash": "68f8daccac0aa0d4e6277c980a778556"
+  },
+  "backend/order-service/src/main/java/com/qrserve/order/dto/KitchenOrderResponse.java": {
+    "mtime": 1785496635.9241178,
+    "seen": 1787837461.6737554,
+    "ast_hash": "a36e45cfbbae075219b944d0ea4f73fe",
+    "semantic_hash": "a36e45cfbbae075219b944d0ea4f73fe"
+  },
+  "backend/order-service/src/main/java/com/qrserve/order/dto/OrderTrackingResponse.java": {
+    "mtime": 1787848406.74241,
+    "seen": 1788506415.1174502,
+    "ast_hash": "da6183ec8a072067b1d854d9c8b2548a",
+    "semantic_hash": "da6183ec8a072067b1d854d9c8b2548a"
+  },
+  "backend/order-service/src/main/java/com/qrserve/order/dto/UpdateOrderStatusRequest.java": {
+    "mtime": 1787848406.7471166,
+    "seen": 1788506415.1174502,
+    "ast_hash": "6b565e062bd7d4bf758823f4f3f19b6c",
+    "semantic_hash": "6b565e062bd7d4bf758823f4f3f19b6c"
+  },
+  "backend/order-service/src/main/java/com/qrserve/order/entity/OrderEntity.java": {
+    "mtime": 1785496635.5895455,
+    "seen": 1787837461.6737554,
+    "ast_hash": "d19bb31c80f1003b891d93a660b9dcca",
+    "semantic_hash": "d19bb31c80f1003b891d93a660b9dcca"
+  },
+  "backend/order-service/src/main/java/com/qrserve/order/entity/OrderItemEntity.java": {
+    "mtime": 1785496635.6234906,
+    "seen": 1787837461.6737554,
+    "ast_hash": "f6e0d13a6856fffe648cea4c96f07c05",
+    "semantic_hash": "f6e0d13a6856fffe648cea4c96f07c05"
+  },
+  "backend/order-service/src/main/java/com/qrserve/order/payment/terminal/TerminalMapEntity.java": {
+    "mtime": 1787848406.752089,
+    "seen": 1788506415.1174502,
+    "ast_hash": "b9a524e02482eb234e4b26c4705dd5f8",
+    "semantic_hash": "b9a524e02482eb234e4b26c4705dd5f8"
+  },
+  "backend/order-service/src/main/java/com/qrserve/order/payment/terminal/TerminalMapListener.java": {
+    "mtime": 1787848406.7552793,
+    "seen": 1788506415.1174502,
+    "ast_hash": "c5c4276ca08fb543f0353d59274acee9",
+    "semantic_hash": "c5c4276ca08fb543f0353d59274acee9"
+  },
+  "backend/order-service/src/main/java/com/qrserve/order/payment/terminal/TerminalMapRepository.java": {
+    "mtime": 1787848406.7584019,
+    "seen": 1788506415.1174502,
+    "ast_hash": "068c6569fa7d18801be69e920f79f25f",
+    "semantic_hash": "068c6569fa7d18801be69e920f79f25f"
+  },
+  "backend/order-service/src/main/java/com/qrserve/order/payment/terminal/TerminalMapService.java": {
+    "mtime": 1787848406.7630403,
+    "seen": 1788506415.1174502,
+    "ast_hash": "608d0ce2049992a32ba5a4eb76293c4a",
+    "semantic_hash": "608d0ce2049992a32ba5a4eb76293c4a"
+  },
+  "backend/order-service/src/main/java/com/qrserve/order/repository/OrderItemRepository.java": {
+    "mtime": 1785496635.7320855,
+    "seen": 1787837461.6737554,
+    "ast_hash": "4a57bbe31ef454ae9160a89385dfd02d",
+    "semantic_hash": "4a57bbe31ef454ae9160a89385dfd02d"
+  },
+  "backend/order-service/src/main/java/com/qrserve/order/repository/OrderRepository.java": {
+    "mtime": 1785496635.7012992,
+    "seen": 1787837461.6737554,
+    "ast_hash": "047807493d930717335797d606ad1ba9",
+    "semantic_hash": "047807493d930717335797d606ad1ba9"
+  },
+  "backend/order-service/src/main/java/com/qrserve/order/service/KitchenService.java": {
+    "mtime": 1785871201.3246486,
+    "seen": 1787837461.6737554,
+    "ast_hash": "e3e133a6fa472b90f77857bba6f97de7",
+    "semantic_hash": "e3e133a6fa472b90f77857bba6f97de7"
+  },
+  "backend/order-service/src/main/java/com/qrserve/order/service/OrderEventPublisher.java": {
+    "mtime": 1786230074.0543833,
+    "seen": 1787837461.6737554,
+    "ast_hash": "0dc7af86a599c9dfbcdc9dc32b607659",
+    "semantic_hash": "0dc7af86a599c9dfbcdc9dc32b607659"
+  },
+  "backend/order-service/src/main/java/com/qrserve/order/service/OrderService.java": {
+    "mtime": 1787848406.7671914,
+    "seen": 1788506415.1174502,
+    "ast_hash": "67fce30b73fc0ff198e5f0347043cc4f",
+    "semantic_hash": "67fce30b73fc0ff198e5f0347043cc4f"
+  },
+  "backend/order-service/src/test/java/com/qrserve/order/config/KafkaConsumerConfigTest.java": {
+    "mtime": 1787848406.7823348,
+    "seen": 1788506415.1174502,
+    "ast_hash": "6149eac4238be5afeae01a3a71050c3c",
+    "semantic_hash": "6149eac4238be5afeae01a3a71050c3c"
+  },
+  "backend/order-service/src/test/java/com/qrserve/order/controller/PublicOrderTrackingControllerTest.java": {
+    "mtime": 1787848406.7874832,
+    "seen": 1788506415.1174502,
+    "ast_hash": "76c9004b4703c2a2a5584e1e44cb9b0b",
+    "semantic_hash": "76c9004b4703c2a2a5584e1e44cb9b0b"
+  },
+  "backend/order-service/src/test/java/com/qrserve/order/payment/terminal/TerminalMapServiceTest.java": {
+    "mtime": 1787848406.7942717,
+    "seen": 1788506415.1174502,
+    "ast_hash": "56b3c306f5a33aa1e1f09c5d62fe74fd",
+    "semantic_hash": "56b3c306f5a33aa1e1f09c5d62fe74fd"
+  },
+  "backend/order-service/src/test/java/com/qrserve/order/service/OrderServiceMenuLookupTest.java": {
+    "mtime": 1787848406.8005128,
+    "seen": 1788506415.1174502,
+    "ast_hash": "af165a1044d86099ae77a48a50401c11",
+    "semantic_hash": "af165a1044d86099ae77a48a50401c11"
+  },
+  "backend/qr-service/src/main/java/com/qrserve/qr/QrServiceApplication.java": {
+    "mtime": 1785757269.6495466,
+    "seen": 1787837461.6737554,
+    "ast_hash": "ccce5d0fbe69e3eeaadbba8cddbfec49",
+    "semantic_hash": "ccce5d0fbe69e3eeaadbba8cddbfec49"
+  },
+  "backend/qr-service/src/main/java/com/qrserve/qr/config/AppConfig.java": {
+    "mtime": 1785755187.3180244,
+    "seen": 1787837461.6737554,
+    "ast_hash": "a29735fc1ec6daf3cb6535c6e1c6d6a1",
+    "semantic_hash": "a29735fc1ec6daf3cb6535c6e1c6d6a1"
+  },
+  "backend/qr-service/src/main/java/com/qrserve/qr/controller/QrController.java": {
+    "mtime": 1787848406.804674,
+    "seen": 1788506415.1174502,
+    "ast_hash": "28ffb0239b99f2b650db6444c3f7e2dc",
+    "semantic_hash": "28ffb0239b99f2b650db6444c3f7e2dc"
+  },
+  "backend/qr-service/src/main/java/com/qrserve/qr/dto/QrExportRequest.java": {
+    "mtime": 1785496635.0175261,
+    "seen": 1787837461.6737554,
+    "ast_hash": "428d021898f82e75f7ed109af1ea96a0",
+    "semantic_hash": "428d021898f82e75f7ed109af1ea96a0"
+  },
+  "backend/qr-service/src/main/java/com/qrserve/qr/dto/QrMetadataResponse.java": {
+    "mtime": 1787848406.808633,
+    "seen": 1788506415.1174502,
+    "ast_hash": "573337b48b2341988e1654968058aa67",
+    "semantic_hash": "573337b48b2341988e1654968058aa67"
+  },
+  "backend/qr-service/src/main/java/com/qrserve/qr/service/QrGeneratorService.java": {
+    "mtime": 1787848406.8139665,
+    "seen": 1788506415.1174502,
+    "ast_hash": "97f9126080781b5f8fa449b57f87e241",
+    "semantic_hash": "97f9126080781b5f8fa449b57f87e241"
+  },
+  "backend/qr-service/src/test/java/com/qrserve/qr/service/QrGeneratorServiceTest.java": {
+    "mtime": 1787848406.82436,
+    "seen": 1788506415.1174502,
+    "ast_hash": "fde2e38846a8a078767c4627aa32c1f7",
+    "semantic_hash": "fde2e38846a8a078767c4627aa32c1f7"
+  },
+  "backend/qr-service/src/test/java/com/qrserve/qr/service/QrTargetUrlTest.java": {
+    "mtime": 1787848406.8300734,
+    "seen": 1788506415.1174502,
+    "ast_hash": "074de772e08c8a0bc2efee406e8c853f",
+    "semantic_hash": "074de772e08c8a0bc2efee406e8c853f"
+  },
+  "backend/scripts/smoke-tenant-isolation.sh": {
+    "mtime": 1787848406.839286,
+    "seen": 1788506415.1174502,
+    "ast_hash": "96c33a395042d56be6570ad1d8a7bdcc",
+    "semantic_hash": "96c33a395042d56be6570ad1d8a7bdcc"
+  },
+  "backend/settings.gradle": {
+    "mtime": 1785668775.1858718,
+    "seen": 1787837461.6737554,
+    "ast_hash": "80a1fe59d15fa117bbda0f0dff4a80a8",
+    "semantic_hash": "80a1fe59d15fa117bbda0f0dff4a80a8"
+  },
+  "backend/shared/common/src/main/java/com/qrserve/shared/common/FulfilmentType.java": {
+    "mtime": 1787848406.8441105,
+    "seen": 1788506415.1174502,
+    "ast_hash": "3598e947c0ca9128beb7601d1fda3fe3",
+    "semantic_hash": "3598e947c0ca9128beb7601d1fda3fe3"
+  },
+  "backend/shared/common/src/main/java/com/qrserve/shared/common/OrderStatus.java": {
+    "mtime": 1787848406.8481462,
+    "seen": 1788506415.1174502,
+    "ast_hash": "ddcf2222b96ad193bae2eb20c6bb2218",
+    "semantic_hash": "ddcf2222b96ad193bae2eb20c6bb2218"
+  },
+  "backend/shared/common/src/main/java/com/qrserve/shared/common/PublicMenuUrl.java": {
+    "mtime": 1787848406.8513384,
+    "seen": 1788506415.1174502,
+    "ast_hash": "51ae29319d99de90cd38d59ab8a865eb",
+    "semantic_hash": "51ae29319d99de90cd38d59ab8a865eb"
+  },
+  "backend/shared/common/src/main/java/com/qrserve/shared/common/QrSignatureService.java": {
+    "mtime": 1787848406.856504,
+    "seen": 1788506415.1174502,
+    "ast_hash": "83548a9dcbcf727abd3fced7901ebe58",
+    "semantic_hash": "83548a9dcbcf727abd3fced7901ebe58"
+  },
+  "backend/shared/common/src/main/java/com/qrserve/shared/common/SettlementMode.java": {
+    "mtime": 1787848406.8606806,
+    "seen": 1788506415.1174502,
+    "ast_hash": "1702ef2ba964556e3a18130e51892873",
+    "semantic_hash": "1702ef2ba964556e3a18130e51892873"
+  },
+  "backend/shared/common/src/main/java/com/qrserve/shared/common/Slugs.java": {
+    "mtime": 1787848406.8635318,
+    "seen": 1788506415.1174502,
+    "ast_hash": "a5870606a1df6e4a0eaff6d942d453bc",
+    "semantic_hash": "a5870606a1df6e4a0eaff6d942d453bc"
+  },
+  "backend/shared/common/src/main/java/com/qrserve/shared/common/TableStatus.java": {
+    "mtime": 1787848406.8676481,
+    "seen": 1788506415.1174502,
+    "ast_hash": "1237ad69ceb08acb402c766c17a374b9",
+    "semantic_hash": "1237ad69ceb08acb402c766c17a374b9"
+  },
+  "backend/shared/common/src/main/java/com/qrserve/shared/common/TenantCacheKeys.java": {
+    "mtime": 1787848406.8713949,
+    "seen": 1788506415.1174502,
+    "ast_hash": "4cbfe07eebbf57d210e0257b9511685a",
+    "semantic_hash": "4cbfe07eebbf57d210e0257b9511685a"
+  },
+  "backend/shared/common/src/main/java/com/qrserve/shared/common/TenantContext.java": {
+    "mtime": 1785496630.3075984,
+    "seen": 1787837461.6737554,
+    "ast_hash": "26262aa7198070bc35f12ae17f05559c",
+    "semantic_hash": "26262aa7198070bc35f12ae17f05559c"
+  },
+  "backend/shared/common/src/main/java/com/qrserve/shared/common/TerminalLabel.java": {
+    "mtime": 1787848406.8745632,
+    "seen": 1788506415.1174502,
+    "ast_hash": "7e56d36df7bfbcf268c7ffc6df016971",
+    "semantic_hash": "7e56d36df7bfbcf268c7ffc6df016971"
+  },
+  "backend/shared/common/src/main/java/com/qrserve/shared/common/TraceContext.java": {
+    "mtime": 1786293876.493171,
+    "seen": 1787837461.6737554,
+    "ast_hash": "442c25031b40b9bea2a5f82679fadfb7",
+    "semantic_hash": "442c25031b40b9bea2a5f82679fadfb7"
+  },
+  "backend/shared/common/src/main/java/com/qrserve/shared/common/WaiterRequestType.java": {
+    "mtime": 1786263971.7441597,
+    "seen": 1787837461.6737554,
+    "ast_hash": "542d8f1483b58a9230a55c876f67f721",
+    "semantic_hash": "542d8f1483b58a9230a55c876f67f721"
+  },
+  "backend/shared/common/src/main/java/com/qrserve/shared/common/dto/CustomerRequestDto.java": {
+    "mtime": 1786264558.8860705,
+    "seen": 1787837461.6737554,
+    "ast_hash": "a84d521aa081331db14a1caa4230188a",
+    "semantic_hash": "a84d521aa081331db14a1caa4230188a"
+  },
+  "backend/shared/common/src/main/java/com/qrserve/shared/common/dto/PublicMenuResolutionResponse.java": {
+    "mtime": 1786264362.0076466,
+    "seen": 1787837461.6737554,
+    "ast_hash": "7699c8a9a35275c77334510d4da53e95",
+    "semantic_hash": "7699c8a9a35275c77334510d4da53e95"
+  },
+  "backend/shared/common/src/main/java/com/qrserve/shared/common/dto/ResolveRequestDto.java": {
+    "mtime": 1786264744.544766,
+    "seen": 1787837461.6737554,
+    "ast_hash": "6dbda5321996356533581d8e8f1733eb",
+    "semantic_hash": "6dbda5321996356533581d8e8f1733eb"
+  },
+  "backend/shared/common/src/main/java/com/qrserve/shared/common/dto/TenantResolutionResponse.java": {
+    "mtime": 1787848406.878758,
+    "seen": 1788506415.1174502,
+    "ast_hash": "d1ca5c3247387edafb31a0092c5870cb",
+    "semantic_hash": "d1ca5c3247387edafb31a0092c5870cb"
+  },
+  "backend/shared/common/src/main/java/com/qrserve/shared/common/dto/WaiterAssignmentDto.java": {
+    "mtime": 1786264957.0355644,
+    "seen": 1787837461.6737554,
+    "ast_hash": "a603b076dd42c0d2e829c943b9c2bb2d",
+    "semantic_hash": "a603b076dd42c0d2e829c943b9c2bb2d"
+  },
+  "backend/shared/common/src/main/java/com/qrserve/shared/common/emvco/Emvco.java": {
+    "mtime": 1787848406.882773,
+    "seen": 1788506415.1174502,
+    "ast_hash": "7c53dbb9faf127c2d767145160ee37c3",
+    "semantic_hash": "7c53dbb9faf127c2d767145160ee37c3"
+  },
+  "backend/shared/common/src/main/java/com/qrserve/shared/common/emvco/EmvcoMerchant.java": {
+    "mtime": 1787848406.886321,
+    "seen": 1788506415.1174502,
+    "ast_hash": "aa9ed37d7f473dbf8e05875543f59475",
+    "semantic_hash": "aa9ed37d7f473dbf8e05875543f59475"
+  },
+  "backend/shared/common/src/main/java/com/qrserve/shared/common/emvco/EmvcoPayload.java": {
+    "mtime": 1787848406.8937776,
+    "seen": 1788506415.1174502,
+    "ast_hash": "32542429a3b494a48dd96d30af3f8c91",
+    "semantic_hash": "32542429a3b494a48dd96d30af3f8c91"
+  },
+  "backend/shared/common/src/main/resources/db/migration/V1__init_schema.sql": {
+    "mtime": 1785496629.899307,
+    "seen": 1787837461.6737554,
+    "ast_hash": "e211ae5fccf15bf3979e038a03daba84",
+    "semantic_hash": "e211ae5fccf15bf3979e038a03daba84"
+  },
+  "backend/shared/common/src/test/java/com/qrserve/shared/common/PublicMenuUrlTest.java": {
+    "mtime": 1787848406.9018414,
+    "seen": 1788506415.1174502,
+    "ast_hash": "8b1bf3af50e2c1c3dfe70c967bb1f720",
+    "semantic_hash": "8b1bf3af50e2c1c3dfe70c967bb1f720"
+  },
+  "backend/shared/common/src/test/java/com/qrserve/shared/common/QrSignatureServiceTest.java": {
+    "mtime": 1787848406.90536,
+    "seen": 1788506415.1174502,
+    "ast_hash": "818faeaac377d0b9df49d098b6db273d",
+    "semantic_hash": "818faeaac377d0b9df49d098b6db273d"
+  },
+  "backend/shared/common/src/test/java/com/qrserve/shared/common/SlugsTest.java": {
+    "mtime": 1787848406.910438,
+    "seen": 1788506415.1174502,
+    "ast_hash": "837123c0a24d2e249e323979ca5f4e36",
+    "semantic_hash": "837123c0a24d2e249e323979ca5f4e36"
+  },
+  "backend/shared/common/src/test/java/com/qrserve/shared/common/TerminalLabelTest.java": {
+    "mtime": 1787848406.9148624,
+    "seen": 1788506415.1174502,
+    "ast_hash": "1bc9316a7d5bee0e6b2d0bbbbcd6f331",
+    "semantic_hash": "1bc9316a7d5bee0e6b2d0bbbbcd6f331"
+  },
+  "backend/shared/common/src/test/java/com/qrserve/shared/common/emvco/EmvcoPayloadTest.java": {
+    "mtime": 1787848406.9189963,
+    "seen": 1788506415.1174502,
+    "ast_hash": "5c248883768d0abf8f455c18d21df995",
+    "semantic_hash": "5c248883768d0abf8f455c18d21df995"
+  },
+  "backend/shared/events/src/main/java/com/qrserve/shared/events/CustomerRequestEvent.java": {
+    "mtime": 1786229768.6882415,
+    "seen": 1787837461.6737554,
+    "ast_hash": "ba0d82c471c43f82b79fed20d60d8297",
+    "semantic_hash": "ba0d82c471c43f82b79fed20d60d8297"
+  },
+  "backend/shared/events/src/main/java/com/qrserve/shared/events/OrderCreatedEvent.java": {
+    "mtime": 1786229482.3694808,
+    "seen": 1787837461.6737554,
+    "ast_hash": "3067c4fdfecdbf3f2778592e22e7b399",
+    "semantic_hash": "3067c4fdfecdbf3f2778592e22e7b399"
+  },
+  "backend/shared/events/src/main/java/com/qrserve/shared/events/OrderStatusUpdatedEvent.java": {
+    "mtime": 1786229627.9169917,
+    "seen": 1787837461.6737554,
+    "ast_hash": "a3ef43e4ed4121cc7fc98b5f4d3a2d76",
+    "semantic_hash": "a3ef43e4ed4121cc7fc98b5f4d3a2d76"
+  },
+  "backend/shared/events/src/main/java/com/qrserve/shared/events/TableQrProvisionedEvent.java": {
+    "mtime": 1787848406.923176,
+    "seen": 1788506415.1174502,
+    "ast_hash": "7eefe7beeef12945c6ee98eddafdcc12",
+    "semantic_hash": "7eefe7beeef12945c6ee98eddafdcc12"
+  },
+  "backend/shared/events/src/main/java/com/qrserve/shared/events/WaiterAlertEvent.java": {
+    "mtime": 1786229860.8577912,
+    "seen": 1787837461.6737554,
+    "ast_hash": "eb3760e4afef4f9e39c19679e8de8bfc",
+    "semantic_hash": "eb3760e4afef4f9e39c19679e8de8bfc"
+  },
+  "backend/shared/exceptions/src/main/java/com/qrserve/shared/exceptions/BusinessException.java": {
+    "mtime": 1787848406.9311476,
+    "seen": 1788506415.1174502,
+    "ast_hash": "d3188160294823a9e1691a92b7de8d58",
+    "semantic_hash": "d3188160294823a9e1691a92b7de8d58"
+  },
+  "backend/shared/exceptions/src/main/java/com/qrserve/shared/exceptions/GlobalExceptionHandler.java": {
+    "mtime": 1787848406.9348722,
+    "seen": 1788506415.1174502,
+    "ast_hash": "246abf6573818deab2547106b7bf2e27",
+    "semantic_hash": "246abf6573818deab2547106b7bf2e27"
+  },
+  "backend/shared/exceptions/src/main/java/com/qrserve/shared/exceptions/ResourceNotFoundException.java": {
+    "mtime": 1785496631.379644,
+    "seen": 1787837461.6737554,
+    "ast_hash": "b14ffc980de76419e2f2f529ce32e5fa",
+    "semantic_hash": "b14ffc980de76419e2f2f529ce32e5fa"
+  },
+  "backend/shared/exceptions/src/main/java/com/qrserve/shared/exceptions/ServiceUnavailableException.java": {
+    "mtime": 1787848406.9384177,
+    "seen": 1788506415.1174502,
+    "ast_hash": "96ad22822529c397cfb26580ed5b4b60",
+    "semantic_hash": "96ad22822529c397cfb26580ed5b4b60"
+  },
+  "backend/shared/exceptions/src/main/java/com/qrserve/shared/exceptions/UnauthorizedException.java": {
+    "mtime": 1785496631.424039,
+    "seen": 1787837461.6737554,
+    "ast_hash": "e323e96d1dda1b3bbf221dfd5eba5455",
+    "semantic_hash": "e323e96d1dda1b3bbf221dfd5eba5455"
+  },
+  "backend/shared/security/src/main/java/com/qrserve/shared/security/JwtAuthenticationFilter.java": {
+    "mtime": 1787848406.943842,
+    "seen": 1788506415.1174502,
+    "ast_hash": "5dbabcc8a65f0f6e3980ba0a5e92e89e",
+    "semantic_hash": "5dbabcc8a65f0f6e3980ba0a5e92e89e"
+  },
+  "backend/shared/security/src/main/java/com/qrserve/shared/security/JwtTokenProvider.java": {
+    "mtime": 1787921160.1201644,
+    "seen": 1788506415.1174502,
+    "ast_hash": "696743f0d9e570aed25590359b92bdfb",
+    "semantic_hash": "696743f0d9e570aed25590359b92bdfb"
+  },
+  "backend/shared/security/src/main/java/com/qrserve/shared/security/SecurityConfig.java": {
+    "mtime": 1787921160.1263745,
+    "seen": 1788506415.1174502,
+    "ast_hash": "43ed68e5b306d546e5b3f30271e3dbaa",
+    "semantic_hash": "43ed68e5b306d546e5b3f30271e3dbaa"
+  },
+  "backend/shared/security/src/main/java/com/qrserve/shared/security/TenantContextFilter.java": {
+    "mtime": 1787848406.9563725,
+    "seen": 1788506415.1174502,
+    "ast_hash": "b69f5ba23e8b1a575cfa6df59015d1f4",
+    "semantic_hash": "b69f5ba23e8b1a575cfa6df59015d1f4"
+  },
+  "backend/shared/security/src/main/java/com/qrserve/shared/security/UserPrincipal.java": {
+    "mtime": 1785496630.7953463,
+    "seen": 1787837461.6737554,
+    "ast_hash": "36beac9fb959e82fb39331b432f467d5",
+    "semantic_hash": "36beac9fb959e82fb39331b432f467d5"
+  },
+  "backend/shared/security/src/main/java/com/qrserve/shared/security/UserRole.java": {
+    "mtime": 1785496630.753859,
+    "seen": 1787837461.6737554,
+    "ast_hash": "2969b10700b2093a1ece92bf2e3a3e76",
+    "semantic_hash": "2969b10700b2093a1ece92bf2e3a3e76"
+  },
+  "backend/shared/security/src/test/java/com/qrserve/shared/security/JwtTokenProviderTokenTypeTest.java": {
+    "mtime": 1787848406.9647093,
+    "seen": 1788506415.1174502,
+    "ast_hash": "af95e695fec71f64bb123860c7f838fc",
+    "semantic_hash": "af95e695fec71f64bb123860c7f838fc"
+  },
+  "backend/shared/security/src/test/java/com/qrserve/shared/security/TenantContextFilterTest.java": {
+    "mtime": 1787848406.9734223,
+    "seen": 1788506415.1174502,
+    "ast_hash": "9a3c1d7e605e90bcba03e5eff91e566a",
+    "semantic_hash": "9a3c1d7e605e90bcba03e5eff91e566a"
+  },
+  "metadata.json": {
+    "mtime": 1785496627.1509697,
+    "seen": 1787837461.6737554,
+    "ast_hash": "23dababe44047711220a635a948df4a2",
+    "semantic_hash": "23dababe44047711220a635a948df4a2"
+  },
+  "package.json": {
+    "mtime": 1787921160.1346793,
+    "seen": 1788506415.1174502,
+    "ast_hash": "8ae7140fc4deab98966bf0ec23aa019e",
+    "semantic_hash": "8ae7140fc4deab98966bf0ec23aa019e"
+  },
+  "src/App.tsx": {
+    "mtime": 1785859628.1799028,
+    "seen": 1787837461.6737554,
+    "ast_hash": "741b643de77550fb677138b50a5b5105",
+    "semantic_hash": "741b643de77550fb677138b50a5b5105"
+  },
+  "src/components/DashboardLayout.tsx": {
+    "mtime": 1788478117.5572393,
+    "seen": 1788506415.1174502,
+    "ast_hash": "6aca1338ac3f07faeaa557889fc2b86f",
+    "semantic_hash": "6aca1338ac3f07faeaa557889fc2b86f"
+  },
+  "src/components/Navbar.tsx": {
+    "mtime": 1785856860.6002567,
+    "seen": 1787837461.6737554,
+    "ast_hash": "2a29add94eec1242555c2fc771091c46",
+    "semantic_hash": "2a29add94eec1242555c2fc771091c46"
+  },
+  "src/components/Sidebar.tsx": {
+    "mtime": 1788478051.8804748,
+    "seen": 1788506415.1174502,
+    "ast_hash": "a2ab7b3998aff9ef93f6baa2d0f73a8c",
+    "semantic_hash": "a2ab7b3998aff9ef93f6baa2d0f73a8c"
+  },
+  "src/components/admin/SuperAdminView.tsx": {
+    "mtime": 1785496628.1354878,
+    "seen": 1787837461.6737554,
+    "ast_hash": "f0b23bcfc0f9e7c445703af14dfc6fe1",
+    "semantic_hash": "f0b23bcfc0f9e7c445703af14dfc6fe1"
+  },
+  "src/components/auth/LoginModal.tsx": {
+    "mtime": 1785856595.344191,
+    "seen": 1787837461.6737554,
+    "ast_hash": "70f0bc5c48e0502c6e22c7cd4b1991c3",
+    "semantic_hash": "70f0bc5c48e0502c6e22c7cd4b1991c3"
+  },
+  "src/components/customer/CartSheet.tsx": {
+    "mtime": 1786890658.7417448,
+    "seen": 1787837461.6737554,
+    "ast_hash": "ec8fd77b25e7ef2ca7b942ee2dbe2d64",
+    "semantic_hash": "ec8fd77b25e7ef2ca7b942ee2dbe2d64"
+  },
+  "src/components/customer/OrderProgress.tsx": {
+    "mtime": 1787848407.036498,
+    "seen": 1788506415.1174502,
+    "ast_hash": "256edb98ea4734524a5442ab0e2dfdbc",
+    "semantic_hash": "256edb98ea4734524a5442ab0e2dfdbc"
+  },
+  "src/components/customer/ServiceDock.tsx": {
+    "mtime": 1786890658.7455766,
+    "seen": 1787837461.6737554,
+    "ast_hash": "e3377aabd5e6722ea166e722c8aea171",
+    "semantic_hash": "e3377aabd5e6722ea166e722c8aea171"
+  },
+  "src/components/kitchen/KitchenDisplaySystem.tsx": {
+    "mtime": 1785496628.2845056,
+    "seen": 1787837461.6737554,
+    "ast_hash": "c93a4ffd7a2f3285ad32e9e2259709a6",
+    "semantic_hash": "c93a4ffd7a2f3285ad32e9e2259709a6"
+  },
+  "src/components/landing/LandingPage.tsx": {
+    "mtime": 1785496628.2089908,
+    "seen": 1787837461.6737554,
+    "ast_hash": "60f1f4f51d8b24cfd0e8a9515e2fc1dc",
+    "semantic_hash": "60f1f4f51d8b24cfd0e8a9515e2fc1dc"
+  },
+  "src/components/merchant/AnalyticsView.tsx": {
+    "mtime": 1785857067.0226858,
+    "seen": 1787837461.6737554,
+    "ast_hash": "4f82d11c44e0e764854ab19901594b15",
+    "semantic_hash": "4f82d11c44e0e764854ab19901594b15"
+  },
+  "src/components/merchant/DashboardOverview.tsx": {
+    "mtime": 1785857025.2222521,
+    "seen": 1787837461.6737554,
+    "ast_hash": "a451738f56a16f72014efe4f6af71ffb",
+    "semantic_hash": "a451738f56a16f72014efe4f6af71ffb"
+  },
+  "src/components/merchant/MenuManager.tsx": {
+    "mtime": 1785496627.904309,
+    "seen": 1787837461.6737554,
+    "ast_hash": "9e415297edc8660fdbc235456e6bcdcb",
+    "semantic_hash": "9e415297edc8660fdbc235456e6bcdcb"
+  },
+  "src/components/merchant/MerchantSettings.tsx": {
+    "mtime": 1785496628.056192,
+    "seen": 1787837461.6737554,
+    "ast_hash": "1516d09991114184d1ee29acd61f148c",
+    "semantic_hash": "1516d09991114184d1ee29acd61f148c"
+  },
+  "src/components/merchant/OrderManagement.tsx": {
+    "mtime": 1785496627.8699527,
+    "seen": 1787837461.6737554,
+    "ast_hash": "451d8214cd7b31ac9da58f705b94132e",
+    "semantic_hash": "451d8214cd7b31ac9da58f705b94132e"
+  },
+  "src/components/merchant/QRDesigner.tsx": {
+    "mtime": 1787848407.0420444,
+    "seen": 1788506415.1174502,
+    "ast_hash": "e51732ffd351c9356008e44c69c0b906",
+    "semantic_hash": "e51732ffd351c9356008e44c69c0b906"
+  },
+  "src/components/merchant/TableManager.tsx": {
+    "mtime": 1785496627.934162,
+    "seen": 1787837461.6737554,
+    "ast_hash": "7f630a66abdef93b1ade2dc88c99dc90",
+    "semantic_hash": "7f630a66abdef93b1ade2dc88c99dc90"
+  },
+  "src/components/ui/EntitySelect.tsx": {
+    "mtime": 1786433406.2830417,
+    "seen": 1787837461.6737554,
+    "ast_hash": "d1a9a56b094a1dc6246057f5e70a39a6",
+    "semantic_hash": "d1a9a56b094a1dc6246057f5e70a39a6"
+  },
+  "src/components/ui/States.tsx": {
+    "mtime": 1788478301.4379835,
+    "seen": 1788506415.1174502,
+    "ast_hash": "6a14a927a3edc8c173eb3ceb5ac567be",
+    "semantic_hash": "6a14a927a3edc8c173eb3ceb5ac567be"
+  },
+  "src/context/AuthContext.tsx": {
+    "mtime": 1787921160.140143,
+    "seen": 1788506415.1174502,
+    "ast_hash": "78d1a4136c1a2098c52b34b9a31af59d",
+    "semantic_hash": "78d1a4136c1a2098c52b34b9a31af59d"
+  },
+  "src/hooks/useApiData.ts": {
+    "mtime": 1787848407.0503128,
+    "seen": 1788506415.1174502,
+    "ast_hash": "af19c1e24ffd1b6b38f3e4705c090bc5",
+    "semantic_hash": "af19c1e24ffd1b6b38f3e4705c090bc5"
+  },
+  "src/hooks/useLookups.ts": {
+    "mtime": 1786907698.8899865,
+    "seen": 1787837461.6737554,
+    "ast_hash": "0870a651253368cbf690e71482fdeb15",
+    "semantic_hash": "0870a651253368cbf690e71482fdeb15"
+  },
+  "src/hooks/useRealtime.ts": {
+    "mtime": 1787848407.0556395,
+    "seen": 1788506415.1174502,
+    "ast_hash": "80f6d98bcb5b4d68d1dda9f2042595b1",
+    "semantic_hash": "80f6d98bcb5b4d68d1dda9f2042595b1"
+  },
+  "src/lib/api.ts": {
+    "mtime": 1787921160.1446018,
+    "seen": 1788506415.1174502,
+    "ast_hash": "2067bc8e03ff34021a7f7b3a5c226135",
+    "semantic_hash": "2067bc8e03ff34021a7f7b3a5c226135"
+  },
+  "src/lib/errors.ts": {
+    "mtime": 1786433406.3423002,
+    "seen": 1787837461.6737554,
+    "ast_hash": "34f46636c12ffb73a76e22cc14de55e5",
+    "semantic_hash": "34f46636c12ffb73a76e22cc14de55e5"
+  },
+  "src/lib/navigation.ts": {
+    "mtime": 1787858244.2520378,
+    "seen": 1788506415.1174502,
+    "ast_hash": "20cba876782cb816f5972ec34ea9d4b0",
+    "semantic_hash": "20cba876782cb816f5972ec34ea9d4b0"
+  },
+  "src/lib/orderSession.test.ts": {
+    "mtime": 1787848407.072631,
+    "seen": 1788506415.1174502,
+    "ast_hash": "83cd7ef5ecbd6510c8db67f58899d01a",
+    "semantic_hash": "83cd7ef5ecbd6510c8db67f58899d01a"
+  },
+  "src/lib/orderSession.ts": {
+    "mtime": 1787848407.078737,
+    "seen": 1788506415.1174502,
+    "ast_hash": "1d435144d033fa2fcdbd831d0641347f",
+    "semantic_hash": "1d435144d033fa2fcdbd831d0641347f"
+  },
+  "src/lib/orderStatus.ts": {
+    "mtime": 1787848407.0815256,
+    "seen": 1788506415.1174502,
+    "ast_hash": "1dac45192aed3f6e565c60b4314bdb6a",
+    "semantic_hash": "1dac45192aed3f6e565c60b4314bdb6a"
+  },
+  "src/lib/qrDisplay.test.ts": {
+    "mtime": 1787848407.0849295,
+    "seen": 1788506415.1174502,
+    "ast_hash": "e9404035c03771682cec1f97a2835dc2",
+    "semantic_hash": "e9404035c03771682cec1f97a2835dc2"
+  },
+  "src/lib/qrDisplay.ts": {
+    "mtime": 1787848407.0920515,
+    "seen": 1788506415.1174502,
+    "ast_hash": "a160a4cdbf43a550d83cbadb3044eff2",
+    "semantic_hash": "a160a4cdbf43a550d83cbadb3044eff2"
+  },
+  "src/lib/queryClient.ts": {
+    "mtime": 1785856401.021706,
+    "seen": 1787837461.6737554,
+    "ast_hash": "29e6e992077fe05aa9d0844baeb7bf34",
+    "semantic_hash": "29e6e992077fe05aa9d0844baeb7bf34"
+  },
+  "src/lib/realtime.ts": {
+    "mtime": 1787848407.0964208,
+    "seen": 1788506415.1174502,
+    "ast_hash": "9e6a060529319c175db0a84a1f59d490",
+    "semantic_hash": "9e6a060529319c175db0a84a1f59d490"
+  },
+  "src/lib/tenant.test.ts": {
+    "mtime": 1787848407.099643,
+    "seen": 1788506415.1174502,
+    "ast_hash": "f5fec673fe90fabf865f6fa6a302756f",
+    "semantic_hash": "f5fec673fe90fabf865f6fa6a302756f"
+  },
+  "src/lib/tenant.ts": {
+    "mtime": 1788475809.9277153,
+    "seen": 1788506415.1174502,
+    "ast_hash": "434a1cb8c1d43ba5b818000554acac92",
+    "semantic_hash": "434a1cb8c1d43ba5b818000554acac92"
+  },
+  "src/lib/urgency.ts": {
+    "mtime": 1787848407.1137905,
+    "seen": 1788506415.1174502,
+    "ast_hash": "bde97fe716df95933f2faa2b60c99ba8",
+    "semantic_hash": "bde97fe716df95933f2faa2b60c99ba8"
+  },
+  "src/lib/utils.ts": {
+    "mtime": 1785496627.5687962,
+    "seen": 1787837461.6737554,
+    "ast_hash": "063271a21b063988fb59adb5a0f23a34",
+    "semantic_hash": "063271a21b063988fb59adb5a0f23a34"
+  },
+  "src/main.tsx": {
+    "mtime": 1785856469.9718275,
+    "seen": 1787837461.6737554,
+    "ast_hash": "02cbfc48f350ed444d2f94e997d8570a",
+    "semantic_hash": "02cbfc48f350ed444d2f94e997d8570a"
+  },
+  "src/pages/AdminDashboard.tsx": {
+    "mtime": 1785859345.2632952,
+    "seen": 1787837461.6737554,
+    "ast_hash": "855227cc4a05874fcbab4f882b31838d",
+    "semantic_hash": "855227cc4a05874fcbab4f882b31838d"
+  },
+  "src/pages/AnalyticsPage.tsx": {
+    "mtime": 1786433406.3544123,
+    "seen": 1787837461.6737554,
+    "ast_hash": "91593febcf9e007a004ebf54a98212da",
+    "semantic_hash": "91593febcf9e007a004ebf54a98212da"
+  },
+  "src/pages/BranchDashboard.tsx": {
+    "mtime": 1785859391.755716,
+    "seen": 1787837461.6737554,
+    "ast_hash": "6a209e3d32c7a4343ce875393a4c1490",
+    "semantic_hash": "6a209e3d32c7a4343ce875393a4c1490"
+  },
+  "src/pages/BranchManagement.tsx": {
+    "mtime": 1786433406.3622787,
+    "seen": 1787837461.6737554,
+    "ast_hash": "d3228690d0eb76809a6127071ffe80d4",
+    "semantic_hash": "d3228690d0eb76809a6127071ffe80d4"
+  },
+  "src/pages/CustomerMenuPage.tsx": {
+    "mtime": 1787858244.264713,
+    "seen": 1788506415.1174502,
+    "ast_hash": "e9e6e4be26b61107f8a5c09234d915f1",
+    "semantic_hash": "e9e6e4be26b61107f8a5c09234d915f1"
+  },
+  "src/pages/DashboardPage.tsx": {
+    "mtime": 1786433406.3787758,
+    "seen": 1787837461.6737554,
+    "ast_hash": "ff00348eac6fe1c7e8a8c59c72305cef",
+    "semantic_hash": "ff00348eac6fe1c7e8a8c59c72305cef"
+  },
+  "src/pages/KitchenLivePage.tsx": {
+    "mtime": 1787848407.1266706,
+    "seen": 1788506415.1174502,
+    "ast_hash": "ff65ec92fbeba097a1e032974aa17fe1",
+    "semantic_hash": "ff65ec92fbeba097a1e032974aa17fe1"
+  },
+  "src/pages/LoginPage.tsx": {
+    "mtime": 1787921160.1692376,
+    "seen": 1788506415.1174502,
+    "ast_hash": "e6d5609b9df8a643210b390dfcdb633b",
+    "semantic_hash": "e6d5609b9df8a643210b390dfcdb633b"
+  },
+  "src/pages/MenuBuilderPage.tsx": {
+    "mtime": 1786454219.5712366,
+    "seen": 1787837461.6752725,
+    "ast_hash": "c13c247e30b4f7b6cb50e495091dfdea",
+    "semantic_hash": "c13c247e30b4f7b6cb50e495091dfdea"
+  },
+  "src/pages/MerchantManagement.tsx": {
+    "mtime": 1786433406.3860734,
+    "seen": 1787837461.6752725,
+    "ast_hash": "d31af72ed88bec1733b56db25186f8af",
+    "semantic_hash": "d31af72ed88bec1733b56db25186f8af"
+  },
+  "src/pages/SettingsPage.tsx": {
+    "mtime": 1785918107.5207498,
+    "seen": 1787837461.6752725,
+    "ast_hash": "6f20fa3e0a4c2531a39499fca280edb3",
+    "semantic_hash": "6f20fa3e0a4c2531a39499fca280edb3"
+  },
+  "src/pages/TableManagement.tsx": {
+    "mtime": 1787848407.132763,
+    "seen": 1788506415.1174502,
+    "ast_hash": "2c552700816ea6cf8f966ef50e276fd0",
+    "semantic_hash": "2c552700816ea6cf8f966ef50e276fd0"
+  },
+  "src/pages/UserManagement.tsx": {
+    "mtime": 1786433406.400985,
+    "seen": 1787837461.6752725,
+    "ast_hash": "695dc67511eae393a220d27759b1a4b7",
+    "semantic_hash": "695dc67511eae393a220d27759b1a4b7"
+  },
+  "src/pages/WaiterDashboard.tsx": {
+    "mtime": 1785859435.4999728,
+    "seen": 1787837461.6752725,
+    "ast_hash": "5110d36bd7c493022c54de391e73ac3f",
+    "semantic_hash": "5110d36bd7c493022c54de391e73ac3f"
+  },
+  "src/pages/WaiterDashboardPage.tsx": {
+    "mtime": 1787848407.1398606,
+    "seen": 1788506415.1174502,
+    "ast_hash": "b353ad13335fc21be384b5729f5b4dac",
+    "semantic_hash": "b353ad13335fc21be384b5729f5b4dac"
+  },
+  "src/pages/WaiterManagement.tsx": {
+    "mtime": 1786441831.6393275,
+    "seen": 1787837461.6752725,
+    "ast_hash": "2d7883dbf450623633a4e369edadd674",
+    "semantic_hash": "2d7883dbf450623633a4e369edadd674"
+  },
+  "src/pages/WaiterRequestsPage.tsx": {
+    "mtime": 1787848407.156155,
+    "seen": 1788506415.1174502,
+    "ast_hash": "debb43d3c8b8d3e45744413d64fc2ae6",
+    "semantic_hash": "debb43d3c8b8d3e45744413d64fc2ae6"
+  },
+  "src/router/AppRouter.tsx": {
+    "mtime": 1788478812.6108372,
+    "seen": 1788506415.1174502,
+    "ast_hash": "576c8b35e95c4349e8528dbf7afd554d",
+    "semantic_hash": "576c8b35e95c4349e8528dbf7afd554d"
+  },
+  "src/router/ProtectedRoute.tsx": {
+    "mtime": 1788478395.640666,
+    "seen": 1788506415.1174502,
+    "ast_hash": "d66c92961e369475891e24c4bef18592",
+    "semantic_hash": "d66c92961e369475891e24c4bef18592"
+  },
+  "src/types.ts": {
+    "mtime": 1787848407.1618738,
+    "seen": 1788506415.1174502,
+    "ast_hash": "9c46c804be46c44bd70e9da150c595e9",
+    "semantic_hash": "9c46c804be46c44bd70e9da150c595e9"
+  },
+  "src/vite-env.d.ts": {
+    "mtime": 1785856028.9767988,
+    "seen": 1787837461.6752725,
+    "ast_hash": "37cfacd4f56181f5faa708a4843f5f02",
+    "semantic_hash": "37cfacd4f56181f5faa708a4843f5f02"
+  },
+  "tsconfig.json": {
+    "mtime": 1785496628.4209077,
+    "seen": 1787837461.6752725,
+    "ast_hash": "8827451c4e35790dd3f3538c265e7d15",
+    "semantic_hash": "8827451c4e35790dd3f3538c265e7d15"
+  },
+  "vite.config.ts": {
+    "mtime": 1787848407.1654994,
+    "seen": 1788506415.1174502,
+    "ast_hash": "7c62d4015bdf06a5c05ca002bd13b49f",
+    "semantic_hash": "7c62d4015bdf06a5c05ca002bd13b49f"
+  },
+  "README.md": {
+    "mtime": 1785496637.477316,
+    "seen": 1787837461.6752725,
+    "ast_hash": "94963d764aa036607443663bf217c1ff",
+    "semantic_hash": "94963d764aa036607443663bf217c1ff"
+  },
+  "backend/README.md": {
+    "mtime": 1787848406.2697315,
+    "seen": 1788506415.1174502,
+    "ast_hash": "694a4633f624767576e513e0d828de9c",
+    "semantic_hash": "694a4633f624767576e513e0d828de9c"
+  },
+  "backend/analytics-service/src/main/resources/application.yml": {
+    "mtime": 1787848406.2863278,
+    "seen": 1788506415.1174502,
+    "ast_hash": "877925edf1f47a63034af9bd40c38964",
+    "semantic_hash": "877925edf1f47a63034af9bd40c38964"
+  },
+  "backend/api-gateway/src/main/resources/application.yml": {
+    "mtime": 1787848406.3108802,
+    "seen": 1788506415.1174502,
+    "ast_hash": "4550fa485ae788e5e41dd343f5772f44",
+    "semantic_hash": "4550fa485ae788e5e41dd343f5772f44"
+  },
+  "backend/auth-service/src/main/resources/application.yml": {
+    "mtime": 1787921160.0842822,
+    "seen": 1788506415.1174502,
+    "ast_hash": "582e0e4b442dc26c315eb7fe6016dc94",
+    "semantic_hash": "582e0e4b442dc26c315eb7fe6016dc94"
+  },
+  "backend/discovery-service/src/main/resources/application.yml": {
+    "mtime": 1787848406.3726392,
+    "seen": 1788506415.1174502,
+    "ast_hash": "3f1b23ed804a68a986984c224aab537b",
+    "semantic_hash": "3f1b23ed804a68a986984c224aab537b"
+  },
+  "backend/docker-compose.yml": {
+    "mtime": 1787848406.376457,
+    "seen": 1788506415.1174502,
+    "ast_hash": "576bed4f37fcb768fd1e7f3f621c55fd",
+    "semantic_hash": "576bed4f37fcb768fd1e7f3f621c55fd"
+  },
+  "backend/docs/audit/gap-analysis-report.md": {
+    "mtime": 1786262699.7681198,
+    "seen": 1787837461.6752725,
+    "ast_hash": "1488b738304c2372d322bc7b6e539b2b",
+    "semantic_hash": "1488b738304c2372d322bc7b6e539b2b"
+  },
+  "backend/k8s/config.yml": {
+    "mtime": 1787848406.3802884,
+    "seen": 1788506415.1174502,
+    "ast_hash": "311450821d50ab38c70bb33a5512e9d4",
+    "semantic_hash": "311450821d50ab38c70bb33a5512e9d4"
+  },
+  "backend/k8s/deployment.yml": {
+    "mtime": 1787848406.384369,
+    "seen": 1788506415.1174502,
+    "ast_hash": "cc24db49cb7694c22c47583719654dbb",
+    "semantic_hash": "cc24db49cb7694c22c47583719654dbb"
+  },
+  "backend/k8s/hpa.yml": {
+    "mtime": 1786818556.9769304,
+    "seen": 1787837461.6752725,
+    "ast_hash": "edce6a3ef0635a141a91f2ddb14b12b1",
+    "semantic_hash": "edce6a3ef0635a141a91f2ddb14b12b1"
+  },
+  "backend/k8s/postgres-deployment.yaml": {
+    "mtime": 1787848406.3939397,
+    "seen": 1788506415.1174502,
+    "ast_hash": "0bbb9c097b22fe41a0b63088712a7e80",
+    "semantic_hash": "0bbb9c097b22fe41a0b63088712a7e80"
+  },
+  "backend/k8s/proxy-ingress.yml": {
+    "mtime": 1787848406.3983128,
+    "seen": 1788506415.1174502,
+    "ast_hash": "30e8046c1977c52618bfb9a0b0c91d04",
+    "semantic_hash": "30e8046c1977c52618bfb9a0b0c91d04"
+  },
+  "backend/k8s/qrserve-backend-app.yaml": {
+    "mtime": 1785496637.4424498,
+    "seen": 1787837461.6752725,
+    "ast_hash": "8f6fea9dcdff7ef79c33f971b879cf6c",
+    "semantic_hash": "8f6fea9dcdff7ef79c33f971b879cf6c"
+  },
+  "backend/k8s/redis-deployment.yaml": {
+    "mtime": 1785496637.397106,
+    "seen": 1787837461.6752725,
+    "ast_hash": "b238a61c8885d3068bf8e43cefd96cb3",
+    "semantic_hash": "b238a61c8885d3068bf8e43cefd96cb3"
+  },
+  "backend/k8s/service.yml": {
+    "mtime": 1786818377.7036438,
+    "seen": 1787837461.6752725,
+    "ast_hash": "90680dea619caf45ec2e92462d85e175",
+    "semantic_hash": "90680dea619caf45ec2e92462d85e175"
+  },
+  "backend/menu-service/src/main/resources/application.yml": {
+    "mtime": 1787848406.4163167,
+    "seen": 1788506415.1174502,
+    "ast_hash": "0f8cf2e345d0bdfc893be5cfe58102f9",
+    "semantic_hash": "0f8cf2e345d0bdfc893be5cfe58102f9"
+  },
+  "backend/merchant-service/src/main/resources/application.yml": {
+    "mtime": 1787848406.6067815,
+    "seen": 1788506415.1174502,
+    "ast_hash": "918504b571f3a44e236703fed3af14be",
+    "semantic_hash": "918504b571f3a44e236703fed3af14be"
+  },
+  "backend/merchant-service/src/test/resources/application-test.yml": {
+    "mtime": 1787848406.677878,
+    "seen": 1788506415.1174502,
+    "ast_hash": "ebcf60a329efd1bf06a797d2b168d5ef",
+    "semantic_hash": "ebcf60a329efd1bf06a797d2b168d5ef"
+  },
+  "backend/notification-service/src/main/resources/application.yml": {
+    "mtime": 1787848406.6911397,
+    "seen": 1788506415.1174502,
+    "ast_hash": "df0395b6e10dbd689f0135dcf944d354",
+    "semantic_hash": "df0395b6e10dbd689f0135dcf944d354"
+  },
+  "backend/order-service/src/main/resources/application.yml": {
+    "mtime": 1787848406.7722147,
+    "seen": 1788506415.1174502,
+    "ast_hash": "306f90c44ebe73200cb2eade256ecd19",
+    "semantic_hash": "306f90c44ebe73200cb2eade256ecd19"
+  },
+  "backend/qr-service/src/main/resources/application.yml": {
+    "mtime": 1787848406.8185282,
+    "seen": 1788506415.1174502,
+    "ast_hash": "d9fd8c526cd158d21d0df12c56e9088d",
+    "semantic_hash": "d9fd8c526cd158d21d0df12c56e9088d"
+  },
+  "docs/codebase-review.md": {
+    "mtime": 1786814595.7375684,
+    "seen": 1787837461.6752725,
+    "ast_hash": "dc32eb33a45d63763575984355273394",
+    "semantic_hash": "dc32eb33a45d63763575984355273394"
+  },
+  "docs/frontend-optimization-summary.md": {
+    "mtime": 1786908106.3872695,
+    "seen": 1787837461.6752725,
+    "ast_hash": "c17b65f33f1b05b16a20d8c503bc1d11",
+    "semantic_hash": "c17b65f33f1b05b16a20d8c503bc1d11"
+  },
+  "docs/spring-boot-4-migration-plan.md": {
+    "mtime": 1786906740.7007866,
+    "seen": 1787837461.6752725,
+    "ast_hash": "6c0c07abea20beaf3c44b2c1b759280c",
+    "semantic_hash": "6c0c07abea20beaf3c44b2c1b759280c"
+  },
+  "docs/superpowers/plans/2026-08-18-codebase-review-remediation.md": {
+    "mtime": 1787848406.9843073,
+    "seen": 1788506415.1174502,
+    "ast_hash": "a74003162f4c43098b0e2fcbf90c8b6b",
+    "semantic_hash": "a74003162f4c43098b0e2fcbf90c8b6b"
+  },
+  "docs/superpowers/plans/2026-08-18-multi-tenant-subdomains-and-qr.md": {
+    "mtime": 1787848406.9933438,
+    "seen": 1788506415.1174502,
+    "ast_hash": "539f30e14f8882acf3a78e4edf70d05b",
+    "semantic_hash": "539f30e14f8882acf3a78e4edf70d05b"
+  },
+  "docs/superpowers/plans/2026-08-20-table-qr-provisioning-and-merchant-settings.md": {
+    "mtime": 1787307212.6029413,
+    "seen": 1787837461.6752725,
+    "ast_hash": "771c7e33e2331f05ca18c7c827bf7eaf",
+    "semantic_hash": "771c7e33e2331f05ca18c7c827bf7eaf"
+  },
+  "docs/superpowers/specs/2026-08-18-multi-tenant-subdomain-qr-design.md": {
+    "mtime": 1787848407.0096712,
+    "seen": 1788506415.1174502,
+    "ast_hash": "289756d732a3491f8360b9914b8838d6",
+    "semantic_hash": "289756d732a3491f8360b9914b8838d6"
+  },
+  "docs/superpowers/specs/2026-08-20-superapp-miniapp-payments-design.md": {
+    "mtime": 1787848407.014986,
+    "seen": 1788506415.1174502,
+    "ast_hash": "cda24b8073af29043ee1756e4f1a2f0c",
+    "semantic_hash": "cda24b8073af29043ee1756e4f1a2f0c"
+  },
+  "index.html": {
+    "mtime": 1786890658.735134,
+    "seen": 1787837461.6752725,
+    "ast_hash": "0f9294dbfb06e5a1776762abaa0181fc",
+    "semantic_hash": "0f9294dbfb06e5a1776762abaa0181fc"
+  },
+  ".claude/hooks/controller-preauthorize-check.ps1": {
+    "mtime": 1788475616.5384874,
+    "seen": 1788506415.116437,
+    "ast_hash": "cebf1c322d1fcbb8fc26cf011d3f3a75",
+    "semantic_hash": "cebf1c322d1fcbb8fc26cf011d3f3a75"
+  },
+  ".claude/hooks/frontend-lint.ps1": {
+    "mtime": 1788475620.0538132,
+    "seen": 1788506415.116437,
+    "ast_hash": "575242ffe587815d09fe3d62a5736d24",
+    "semantic_hash": "575242ffe587815d09fe3d62a5736d24"
+  },
+  ".claude/hooks/frontend-test.ps1": {
+    "mtime": 1788475622.9598231,
+    "seen": 1788506415.116437,
+    "ast_hash": "e0da560644d36ece8a88d1d2a11ec8c8",
+    "semantic_hash": "e0da560644d36ece8a88d1d2a11ec8c8"
+  },
+  ".claude/hooks/gradlew-guard.ps1": {
+    "mtime": 1788475614.3732579,
+    "seen": 1788506415.116437,
+    "ast_hash": "9cccd9e8fc211fa36ffa765fd8a0ede5",
+    "semantic_hash": "9cccd9e8fc211fa36ffa765fd8a0ede5"
+  },
+  ".claude/settings.json": {
+    "mtime": 1788475762.5432994,
+    "seen": 1788506415.116437,
+    "ast_hash": "4f447352e571aac2d91ec1cfd4ff2a02",
+    "semantic_hash": "4f447352e571aac2d91ec1cfd4ff2a02"
+  },
+  ".mcp.json": {
+    "mtime": 1788476264.1714015,
+    "seen": 1788506415.116437,
+    "ast_hash": "2f0519120c7e66facf2430f32b9cf35b",
+    "semantic_hash": "2f0519120c7e66facf2430f32b9cf35b"
+  },
+  "backend/auth-service/src/main/java/com/qrserve/auth/config/AppConfig.java": {
+    "mtime": 1787921160.028588,
+    "seen": 1788506415.116437,
+    "ast_hash": "de9f38eb70f0c1da03f0c77e59fa1199",
+    "semantic_hash": "de9f38eb70f0c1da03f0c77e59fa1199"
+  },
+  "backend/auth-service/src/main/java/com/qrserve/auth/dto/SuperAppExchangeRequest.java": {
+    "mtime": 1787921160.0406194,
+    "seen": 1788506415.116437,
+    "ast_hash": "9eadf326979c57882fdd862f81929ba5",
+    "semantic_hash": "9eadf326979c57882fdd862f81929ba5"
+  },
+  "backend/auth-service/src/main/java/com/qrserve/auth/superapp/BranchProvisionResponse.java": {
+    "mtime": 1787921160.0570333,
+    "seen": 1788506415.116437,
+    "ast_hash": "287b72794e0426a447b4a66641c8b109",
+    "semantic_hash": "287b72794e0426a447b4a66641c8b109"
+  },
+  "backend/auth-service/src/main/java/com/qrserve/auth/superapp/DevFakeSuperAppAuthPort.java": {
+    "mtime": 1787921160.0610425,
+    "seen": 1788506415.116437,
+    "ast_hash": "a3f6d1414019fceb57bb1826157d53b3",
+    "semantic_hash": "a3f6d1414019fceb57bb1826157d53b3"
+  },
+  "backend/auth-service/src/main/java/com/qrserve/auth/superapp/MerchantProvisionResponse.java": {
+    "mtime": 1787921160.0665798,
+    "seen": 1788506415.116437,
+    "ast_hash": "5588d75651d0d8ec492f0560705e3165",
+    "semantic_hash": "5588d75651d0d8ec492f0560705e3165"
+  },
+  "backend/auth-service/src/main/java/com/qrserve/auth/superapp/SuperAppAuthPort.java": {
+    "mtime": 1787921160.0700843,
+    "seen": 1788506415.116437,
+    "ast_hash": "da4d1f8d952f913c51a6779b64adc82e",
+    "semantic_hash": "da4d1f8d952f913c51a6779b64adc82e"
+  },
+  "backend/auth-service/src/main/java/com/qrserve/auth/superapp/SuperAppMerchantClaim.java": {
+    "mtime": 1787921160.0736122,
+    "seen": 1788506415.116437,
+    "ast_hash": "07a0e8813b01a9ec392013045d1e6ff0",
+    "semantic_hash": "07a0e8813b01a9ec392013045d1e6ff0"
+  },
+  "backend/auth-service/src/main/java/com/qrserve/auth/superapp/SuperAppProvisioningService.java": {
+    "mtime": 1787921160.0779676,
+    "seen": 1788506415.116437,
+    "ast_hash": "b7c45e19f245979e6dbe9cba443999c4",
+    "semantic_hash": "b7c45e19f245979e6dbe9cba443999c4"
+  },
+  "backend/auth-service/src/test/java/com/qrserve/auth/superapp/DevFakeSuperAppAuthPortTest.java": {
+    "mtime": 1787921160.0892892,
+    "seen": 1788506415.116437,
+    "ast_hash": "2a9fd8592e017c4c1212cf40c78d7ddd",
+    "semantic_hash": "2a9fd8592e017c4c1212cf40c78d7ddd"
+  },
+  "backend/auth-service/src/test/java/com/qrserve/auth/superapp/SuperAppProvisioningServiceTest.java": {
+    "mtime": 1787921160.1015656,
+    "seen": 1788506415.116437,
+    "ast_hash": "a6da7e5836fde617ca73494643ad2efe",
+    "semantic_hash": "a6da7e5836fde617ca73494643ad2efe"
+  },
+  "backend/menu-service/src/test/java/com/qrserve/menu/controller/CategoryControllerTest.java": {
+    "mtime": 1787848406.4235382,
+    "seen": 1788506415.116437,
+    "ast_hash": "54384b18810811e8aeec28520bfd4a88",
+    "semantic_hash": "54384b18810811e8aeec28520bfd4a88"
+  },
+  "backend/menu-service/src/test/java/com/qrserve/menu/controller/ProductControllerTest.java": {
+    "mtime": 1787848406.4256358,
+    "seen": 1788506415.116437,
+    "ast_hash": "5deef8984ed9c588a8424e91bd56c00e",
+    "semantic_hash": "5deef8984ed9c588a8424e91bd56c00e"
+  },
+  "backend/scripts/JUnitRunner.java": {
+    "mtime": 1788476042.4504867,
+    "seen": 1788506415.1174502,
+    "ast_hash": "54929493c89f714b9032dbd1c6d1b863",
+    "semantic_hash": "54929493c89f714b9032dbd1c6d1b863"
+  },
+  "backend/scripts/gradle-classpath.mjs": {
+    "mtime": 1788476005.6615129,
+    "seen": 1788506415.1174502,
+    "ast_hash": "185247d564a047743fa43bb9843e4bc2",
+    "semantic_hash": "185247d564a047743fa43bb9843e4bc2"
+  },
+  "src/components/MobileBottomNav.tsx": {
+    "mtime": 1788478189.4465406,
+    "seen": 1788506415.1174502,
+    "ast_hash": "0a237a18d459b9b122a6b149966482c7",
+    "semantic_hash": "0a237a18d459b9b122a6b149966482c7"
+  },
+  "src/lib/navigation.test.ts": {
+    "mtime": 1787858244.2471664,
+    "seen": 1788506415.1174502,
+    "ast_hash": "17c670eff0bb204ff7e22ad706713a73",
+    "semantic_hash": "17c670eff0bb204ff7e22ad706713a73"
+  },
+  "src/lib/phase.test.ts": {
+    "mtime": 1787858244.2560797,
+    "seen": 1788506415.1174502,
+    "ast_hash": "85746b0d303b8bcefcfe3c5e8caa9e3d",
+    "semantic_hash": "85746b0d303b8bcefcfe3c5e8caa9e3d"
+  },
+  "src/lib/phase.ts": {
+    "mtime": 1787858244.2600322,
+    "seen": 1788506415.1174502,
+    "ast_hash": "52347e7f261669591dcfcaff82e42ddc",
+    "semantic_hash": "52347e7f261669591dcfcaff82e42ddc"
+  },
+  "src/lib/superApp.test.ts": {
+    "mtime": 1787921160.157682,
+    "seen": 1788506415.1174502,
+    "ast_hash": "6aaa8151f586730e734d2812d97dfd62",
+    "semantic_hash": "6aaa8151f586730e734d2812d97dfd62"
+  },
+  "src/lib/superApp.ts": {
+    "mtime": 1787921160.1647215,
+    "seen": 1788506415.1174502,
+    "ast_hash": "44dd92ea1d8e22674d1403dd6cdaef8c",
+    "semantic_hash": "44dd92ea1d8e22674d1403dd6cdaef8c"
+  },
+  ".claude/agents/qrserve-security-reviewer.md": {
+    "mtime": 1788476227.8160133,
+    "seen": 1788506415.1174502,
+    "ast_hash": "d00a99c7f1271f28ac6b86ef97c62246",
+    "semantic_hash": "d00a99c7f1271f28ac6b86ef97c62246"
+  },
+  ".claude/skills/tenant-smoke-test/SKILL.md": {
+    "mtime": 1788476197.5739105,
+    "seen": 1788506415.1174502,
+    "ast_hash": "dfd7dd37a7960ab5e1e079018af2caab",
+    "semantic_hash": "dfd7dd37a7960ab5e1e079018af2caab"
+  },
+  ".claude/skills/verify-backend/SKILL.md": {
+    "mtime": 1788476174.0436296,
+    "seen": 1788506415.1174502,
+    "ast_hash": "1521894146ec9880a280acca1562fcd9",
+    "semantic_hash": "1521894146ec9880a280acca1562fcd9"
+  },
+  "DESIGN.md": {
+    "mtime": 1788477970.7706819,
+    "seen": 1788506415.1174502,
+    "ast_hash": "12a4df395a6656f62f3239f990edb198",
+    "semantic_hash": "12a4df395a6656f62f3239f990edb198"
+  },
+  "docs/superpowers/plans/2026-08-27-phase1-frontend-shell.md": {
+    "mtime": 1787852835.798874,
+    "seen": 1788506415.1174502,
+    "ast_hash": "894c89fb403469d20dca4e9e580fe7e9",
+    "semantic_hash": "894c89fb403469d20dca4e9e580fe7e9"
+  },
+  "docs/superpowers/plans/2026-08-27-superapp-auth-and-qr.md": {
+    "mtime": 1787861538.9651964,
+    "seen": 1788506415.1174502,
+    "ast_hash": "d9f54c09a5eecc413d864e02ab263f5d",
+    "semantic_hash": "d9f54c09a5eecc413d864e02ab263f5d"
+  },
+  "docs/superpowers/specs/2026-08-27-mini-app-phase1-decoupling-design.md": {
+    "mtime": 1787852222.8453252,
+    "seen": 1788506415.1174502,
+    "ast_hash": "fcf822dee60f77ce430e2968ff0e06c1",
+    "semantic_hash": "fcf822dee60f77ce430e2968ff0e06c1"
+  }
+}

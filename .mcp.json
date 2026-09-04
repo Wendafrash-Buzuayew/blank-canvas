@@ -1,0 +1,32 @@
+{
+  "mcpServers": {
+    "postgres-auth": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://postgres:postgres@localhost:5432/qrserve_auth"]
+    },
+    "postgres-merchant": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://postgres:postgres@localhost:5432/qrserve_merchant"]
+    },
+    "postgres-menu": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://postgres:postgres@localhost:5432/qrserve_menu"]
+    },
+    "postgres-order": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://postgres:postgres@localhost:5432/qrserve_order"]
+    },
+    "postgres-qr": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://postgres:postgres@localhost:5432/qrserve_qr"]
+    },
+    "postgres-notification": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://postgres:postgres@localhost:5432/qrserve_notification"]
+    },
+    "postgres-analytics": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://postgres:postgres@localhost:5432/qrserve_analytics"]
+    }
+  }
+}

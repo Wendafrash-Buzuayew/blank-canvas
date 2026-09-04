@@ -1,0 +1,1 @@
+{"nodes": [{"id": "$graphify-root$_claude_hooks_controller_preauthorize_check_ps1", "label": "controller-preauthorize-check.ps1", "file_type": "code", "source_file": ".claude/hooks/controller-preauthorize-check.ps1", "source_location": "L1"}], "edges": [], "raw_calls": []}

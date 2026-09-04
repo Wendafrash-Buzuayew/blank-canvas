@@ -1,93 +1,339 @@
 @import "tailwindcss";
 
 /* ============================================================
-   QRServe design system
+   PROXIMA NOVA — self-hosted, converted from the supplied OTFs.
+
+   WHAT IS ACTUALLY HERE: one weight. Both files provided are Black
+   (usWeightClass 900), upright and italic (-12.5deg). Verified from the
+   OS/2 and post tables, not from the filenames.
+
+   WHY --font-sans AND --font-display DO NOT USE IT YET:
+   the CSS font-matching algorithm resolves weight WITHIN a matched
+   family before falling through to the next family in the stack. A
+   family holding only a 900 face therefore answers a 400 request with
+   that 900 face — it does not skip to Inter. Pointing the body stack at
+   this family would render every paragraph, label and table cell in
+   Black, which DESIGN.md 4.3 forbids outright.
+
+   So the family is exposed through ONE token, --font-display-black,
+   and used only where 900 is the correct weight: the wordmark now, and
+   display-xl / display-l / kds-number / kds-action as those surfaces
+   migrate.
+
+   TO COMPLETE THE FAMILY, add these four faces and then repoint
+   --font-display and --font-sans at "Proxima Nova":
+     Regular    400   (body-l, body-m — the most-used weight by far)
+     Semibold   600   (title-s, label-m, label-s, kds-meta)
+     Bold       700   (title-l, title-m, kds-item)
+     Extrabold  800   (display-xl, display-l, kds-number, kds-action)
+   Adding faces to this same family name is all that is required; no
+   token rename, because the family here is already "Proxima Nova".
+
+   Coverage of the supplied face: Latin basic/supplement/ext-A complete,
+   Cyrillic 218/256, Greek 76/144, ETHIOPIC 0/384 — see DESIGN.md 9.4.
+   'tnum' is present, so tabular figures are real, not synthesised.
+   ============================================================ */
+
+@font-face {
+  font-family: "Proxima Nova";
+  src: url("./fonts/ProximaNova-Black.woff2") format("woff2");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Proxima Nova";
+  src: url("./fonts/ProximaNova-BlackItalic.woff2") format("woff2");
+  font-weight: 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* ============================================================
+   QRServe design system — implementation of DESIGN.md
+   Safaricom brand palette (PANTONE 361 C green, Red 032 C) and
+   Proxima Nova.
+
    One product family, four physical contexts:
    customer (inviting) · waiter (triage) · kitchen (glanceable)
    · admin (dense & controlled)
+
+   Stock Tailwind scales (text-xs, slate-*, rounded-md …) are still
+   generated on purpose: 32 files have not been migrated yet and
+   removing the defaults would break them all at once. They are
+   retired by DESIGN.md §3.9/§4.5, not by the compiler — do not
+   reach for them in new or migrated code.
+
+   NOTE ON THE BRAND SHEET: it prints a HEX and an RGB triple for both
+   primaries and they disagree — green #3DAE2B vs R44 G179 B74
+   (#2CB34A), red #F5333F vs R239 G55 B62 (#EF373E). The differences
+   measure 0.024 and 0.011 OKLab, i.e. imperceptible, so either is
+   visually the brand. The HEX values are used here because hex is the
+   digital reference. See DESIGN.md §3.1.
    ============================================================ */
 
 @theme {
-  /* Brand — QRServe crimson, preserved */
-  --color-brand: #e60028;
-  --color-brand-dark: #b8001f;
-  --color-brand-soft: #fff1f2;
-  --color-brand-fg: #ffffff;
-  /* Lighter crimson used ONLY as the mid-stop of --gradient-brand.
-     Not a semantic colour: on its own it is perceptually ~0.09 OKLab from
-     --color-brand, too close to read as a distinct state. */
-  --color-brand-glow: #f2564f;
+  /* ----------------------------------------------------------------
+     BRAND — Safaricom primary palette.
 
-  /* Neutral ramp */
-  --color-ink: #0b0f19;
-  --color-ink-2: #1f2430;
-  --color-canvas: #f6f6f4;
+     The hero green CANNOT carry white text (2.88), cannot be text
+     itself (2.88 on white), and cannot be a focus ring (2.44 at worst).
+     It is a FILL, and the foreground on it is always ink (5.52).
+     Interaction uses --color-brand-dark, which is the only green in the
+     palette that carries white text (4.87) and still separates from the
+     ink sidebar ground (3.27).
+     ---------------------------------------------------------------- */
+
+  /* Safaricom Green, PANTONE 361 C — the hero. Brand marks, large
+     surfaces, backgrounds, the KDS "ready" fill. Ink foreground only. */
+  --color-brand: #3dae2b;
+
+  /* Dark Green, PANTONE 348 C — the INTERACTIVE green: buttons, links,
+     active navigation, focus ring. White on it measures 4.87.
+     As text it is LARGE-ONLY: 4.4966 on --color-canvas, which is under
+     4.5. For brand-coloured body copy use --color-brand-press. */
+  --color-brand-dark: #00833e;
+
+  /* Derived shade of PANTONE 348 C. Hover and pressed states, and the
+     only brand green safe as body text (7.06 on canvas). */
+  --color-brand-press: #00612e;
+
+  /* Tint of the hero green. Ink text only — brand-dark over it measures
+     4.34 and fails. */
+  --color-brand-soft: #e8f6e5;
+
+  --color-brand-fg: #ffffff;
+
+  /* Safaricom Red, PANTONE Red 032 C — the second primary, for brand
+     moments, not for errors. Large text or fill only: ink over it is
+     4.11 and white is 3.87, so neither clears 4.5. */
+  --color-brand-accent: #f5333f;
+
+  /* ----------------------------------------------------------------
+     NEUTRAL RAMP — built on Neutral Black C and PANTONE 48 C.
+     ---------------------------------------------------------------- */
+  --color-ink: #222222; /* Neutral Black C — 15.91 on white */
+  --color-ink-2: #3c4043; /* derived — 10.47 */
+  /* Derived. 5.59 on --color-canvas, so unlike the previous ramp this
+     token IS safe as secondary text directly on the page ground. */
+  --color-muted: #5f6368;
+  --color-line: #dfe2e4; /* PANTONE 48 C tint — hairlines */
+  --color-line-strong: #c1c5c8; /* Cool Grey, PANTONE 48 C — defined borders */
+  --color-canvas: #f5f6f7;
   --color-surface: #ffffff;
-  --color-surface-2: #fbfbfa;
-  --color-muted: #6b7280;
-  --color-line: #e8e6e3;
+  --color-surface-2: #fafbfb;
 
   /*
-   * Semantic status.
-   *
-   * TEXT-CONTRAST BUDGET on --color-canvas (#f6f6f4), measured:
-   *   danger 9.26 · brand-dark 6.35 · info 4.78  -> safe as body text
-   *   brand 4.42 · success 3.24 · brand-glow 3.12 -> large text (>=18.66px bold
-   *      / 24px) only. For brand-coloured body copy — e.g. a menu price at 14px
-   *      — use --color-brand-dark, not --color-brand.
-   *   warn 2.72 -> NEVER as text on a light surface. Fill, border or icon only,
-   *      with ink text over it.
+   * Text on a dark ground (the console sidebar, --color-ink / --color-ink-2).
+   * --color-muted CANNOT be used there: it measures 2.63 on ink and 1.73 on
+   * ink-2, both failing badly. These are the on-dark equivalents.
+   *   on-ink        15.91 on ink · 10.47 on ink-2  -> primary, active
+   *   on-ink-muted   9.16 on ink ·  6.02 on ink-2  -> secondary, inactive
+   * on-ink-muted is Cool Grey itself — the brand's own grey, which lands
+   * exactly where a dark-ground secondary needs to be.
    */
-  --color-success: #0f9d58;
-  --color-success-soft: #e8f7ef;
-  --color-warn: #d98200;
-  /* Amber tint, not #fff5e6: that was 0.022 OKLab from --color-brand-soft, so a
-     warning banner and a brand banner had the same background. Pair with ink
-     text, not --color-warn text. */
-  --color-warn-soft: #fef3c7;
-  /* Deep red, NOT #dc2626. With a red brand, a bright red danger is
-     indistinguishable from it: #dc2626 sits 0.024 OKLab / 2.7 hue degrees from
-     --color-brand, so "Delete" and "Confirm" rendered as the same colour.
-     #7f1d1d is 0.214 from brand AND 0.118 from --color-brand-dark (the hover
-     state), clearing both, at 10.0:1 on surface. Separation comes from
-     lightness, not hue — hue is spoken for by the brand. */
-  --color-danger: #7f1d1d;
-  --color-danger-soft: #fee2e2;
-  --color-info: #2563eb;
-  --color-info-soft: #eaf1ff;
+  --color-on-ink: #ffffff;
+  --color-on-ink-muted: #c1c5c8;
 
-  /* Kitchen register — high contrast, viewed from a distance */
-  --color-kds-bg: #07090f;
-  --color-kds-panel: #12161f;
-  --color-kds-line: #232a38;
-  --color-kds-new: #ff2d55;
-  --color-kds-prep: #ffab00;
-  --color-kds-ready: #00d47e;
-  /* Foreground for text sitting ON a status fill. Must be ink, never white:
-     white measures 3.65 / 1.90 / 1.96 against new / prep / ready — all below
-     4.5:1. Ink gives 5.46 / 10.50 / 10.16. */
-  --color-kds-fg: #07090f;
+  /*
+   * SEMANTIC STATUS.
+   *
+   * With a GREEN brand, the collisions invert relative to a red-branded
+   * product. Measured OKLab separations (<0.10 reads as the same colour):
+   *   a distinct "success" green is IMPOSSIBLE — every green in the
+   *     palette sits 0.08 from the brand greens, so success IS the brand
+   *     green rather than pretending to be a separate signal.
+   *   ORANGE sits 0.06 from Safaricom Red — one signal, not two. Orange
+   *     appears only as --color-kds-new, in the kitchen register, where
+   *     Safaricom Red never appears.
+   *   FRESH GREEN sits 0.11 from YELLOW, too close to stand beside warn.
+   *     It is not a status colour; it is the customer accent, scoped.
+   *   TURQUOISE sits 0.13 from the hero green — the tightest pair that
+   *     ships. Mitigated by the rule that a chip always states its state
+   *     in text (DESIGN.md §7.3), never in colour alone.
+   *
+   * Each meaning has a text-safe value AND a fill value, because none of
+   * the brand's saturated colours can do both jobs.
+   */
 
+  /* success — the brand green family, by measurement, not by choice. */
+  --color-success: #00833e; /* text: LARGE only (4.4966 on canvas) */
+  --color-success-fill: #3dae2b; /* fill: ink on it 5.52 */
+  --color-success-soft: #e8f6e5; /* ground: ink 14.20 */
+
+  /* warn — PANTONE 7549 C. The yellow is 1.76 on white: it can NEVER be
+     text, only a fill with ink over it (9.05). */
+  --color-warn: #8a5a00; /* derived dark amber — 5.48 on canvas */
+  --color-warn-fill: #ffb600; /* Yellow, PANTONE 7549 C */
+  --color-warn-soft: #fff3d6;
+
+  /* danger — a derived dark shade of PANTONE Red 032 C, because the brand
+     red itself clears neither white (3.87) nor ink (4.11) at 4.5, so it
+     cannot label a destructive button. */
+  --color-danger: #a81622; /* 6.92 on canvas; white on it 7.49 */
+  --color-danger-fill: #f5333f; /* Safaricom Red — large text or fill only */
+  --color-danger-soft: #fde7e8;
+
+  /* info — PANTONE 3275 C. There is no blue in the Safaricom palette, so
+     info is the turquoise. See the 0.13 note above. */
+  --color-info: #00695c; /* derived — 6.11 on canvas */
+  --color-info-fill: #00af9a; /* Turquoise, PANTONE 3275 C — ink on it 5.76 */
+  --color-info-soft: #e0f5f2;
+
+  /* Kitchen register — high contrast, viewed from a distance.
+     Not a dark theme: the app has no dark mode (DESIGN.md §3.8).
+     Fills are drawn from the brand's own warm-to-green run, and the three
+     are well separated: new/prep 0.22, prep/ready 0.25, new/ready 0.33. */
+  --color-kds-bg: #101314;
+  --color-kds-panel: #1c2022;
+  /* 3.91 on kds-bg and 3.44 on kds-panel. A darker line (#333A3D measured
+     1.61) would not clear the 3.0 non-text minimum on either ground. */
+  --color-kds-line: #6b7479;
+  --color-kds-new: #ff4d00; /* Orange, PANTONE 1655 C — ink on it 4.78 */
+  --color-kds-prep: #ffb600; /* Yellow, PANTONE 7549 C — ink on it 9.05 */
+  --color-kds-ready: #3dae2b; /* Safaricom Green — ink on it 5.52 */
+  /* Foreground for text sitting ON a status fill. Must be ink, never
+     white: white measures 3.33 / 1.76 / 2.88 against new / prep / ready —
+     all below 4.5. Ink gives 4.78 / 9.05 / 5.52. White IS correct on
+     --color-kds-bg (18.66) and --color-kds-panel (16.42). */
+  --color-kds-fg: #222222;
+
+  /*
+   * Partner colour. Co-branding and attribution ONLY — a logo lockup, a
+   * payment-method row, a "powered by" line. Never a state, a selection
+   * or a success signal. M-PESA green is now within 0.06 OKLab of the
+   * Safaricom brand greens, so on this palette it is doubly unusable as
+   * an independent signal: it would read as the brand itself.
+   */
+  --color-partner-mpesa: #0da64b;
+
+  /* ----------------------------------------------------------------
+     TYPOGRAPHY — Proxima Nova. See the @font-face block at the top of
+     this file for why only one of these three stacks names it.
+
+     Proxima Nova Black (900) is self-hosted and real. The 400/600/700
+     faces are NOT here yet, so the body and heading stacks stay on
+     Inter and Outfit — the nearest available UI/geometric pair — rather
+     than resolving every weight to Black. DESIGN.md §4.1.
+     ---------------------------------------------------------------- */
+
+  /* Headings at 600–700. Outfit until Proxima Nova Bold/Semibold land. */
   --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
+
+  /* Body and UI at 400–600. Inter until Proxima Nova Regular lands. */
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 
-  --radius-xl2: 1.25rem;
-  /* Card radius lifted to match the reference design's 24px surfaces. */
-  --radius-card: 1.5rem;
-  /* Chips, badges and buttons are fully round in the reference design. Named
-     rather than relying on rounded-full so the intent is explicit at call sites. */
+  /*
+   * The one stack that reaches the real brand face. Pair it with
+   * font-black (900) at the call site — that is the only weight this
+   * family currently holds, so the request and the file agree.
+   * Sanctioned uses: the QRServe wordmark, and the display-xl /
+   * display-l / kds-number / kds-action roles.
+   */
+  --font-display-black: "Proxima Nova", "Outfit", ui-sans-serif, system-ui, sans-serif;
+
+  /* ----------------------------------------------------------------
+     Type scale (DESIGN.md §4.2). Each role carries size, line-height,
+     weight and tracking in one utility, so a call site states a role
+     rather than assembling one. Tailwind wraps each value in a
+     var(--tw-...) fallback, so the leading-, tracking- and font-
+     utilities still override a role where a call site needs it.
+
+     12px is the floor. Nothing renders below it.
+     ---------------------------------------------------------------- */
+  --text-display-xl: 3rem;
+  --text-display-xl--line-height: 3.25rem;
+  --text-display-xl--font-weight: 800;
+  --text-display-xl--letter-spacing: -0.02em;
+
+  --text-display-l: 2.25rem;
+  --text-display-l--line-height: 2.5rem;
+  --text-display-l--font-weight: 800;
+  --text-display-l--letter-spacing: -0.02em;
+
+  --text-title-l: 1.75rem;
+  --text-title-l--line-height: 2.125rem;
+  --text-title-l--font-weight: 700;
+  --text-title-l--letter-spacing: -0.01em;
+
+  --text-title-m: 1.375rem;
+  --text-title-m--line-height: 1.75rem;
+  --text-title-m--font-weight: 700;
+  --text-title-m--letter-spacing: -0.01em;
+
+  --text-title-s: 1.125rem;
+  --text-title-s--line-height: 1.5rem;
+  --text-title-s--font-weight: 600;
+
+  /* Customer-facing body — the default inside [data-view="customer"]. */
+  --text-body-l: 1rem;
+  --text-body-l--line-height: 1.5rem;
+  --text-body-l--font-weight: 400;
+
+  /* Default body everywhere else. Body copy is 400: bold is emphasis, and
+     emphasis that is everywhere is nowhere (DESIGN.md §4.3). */
+  --text-body-m: 0.875rem;
+  --text-body-m--line-height: 1.25rem;
+  --text-body-m--font-weight: 400;
+
+  /* Same metrics as body-m, deliberately a separate role: form labels,
+     button text and nav items are 600, body copy is not. */
+  --text-label-m: 0.875rem;
+  --text-label-m--line-height: 1.25rem;
+  --text-label-m--font-weight: 600;
+
+  /* The only role permitted to be uppercase, and the type floor: table
+     column heads, chip text, metadata. Replaces every text-[10px]/[11px]. */
+  --text-label-s: 0.75rem;
+  --text-label-s--line-height: 1rem;
+  --text-label-s--font-weight: 600;
+  --text-label-s--letter-spacing: 0.04em;
+
+  /* Kitchen scale — sized for a 1.5–3m read, not a phone. */
+  --text-kds-number: 2.5rem;
+  --text-kds-number--line-height: 2.5rem;
+  --text-kds-number--font-weight: 800;
+
+  --text-kds-item: 1.5rem;
+  --text-kds-item--line-height: 1.75rem;
+  --text-kds-item--font-weight: 700;
+
+  --text-kds-action: 1.25rem;
+  --text-kds-action--line-height: 1.5rem;
+  --text-kds-action--font-weight: 800;
+
+  --text-kds-meta: 1.125rem;
+  --text-kds-meta--line-height: 1.5rem;
+  --text-kds-meta--font-weight: 600;
+
+  /* ----------------------------------------------------------------
+     Radius (DESIGN.md §5.2). Five values, down from the eight in use.
+     rounded-md and rounded-3xl are retired.
+     ---------------------------------------------------------------- */
+  --radius-control: 0.75rem; /* 12px — buttons, inputs, selects */
+  --radius-surface-sm: 1rem; /* 16px — list rows, nested panels, KDS tickets */
+  --radius-xl2: 1.25rem; /* 20px — media thumbnails */
+  --radius-card: 1.5rem; /* 24px — standard card, modal, sheet */
+  /* Chips, badges and pills are fully round. Named rather than relying on
+     rounded-full so the intent is explicit at call sites. */
   --radius-pill: 9999px;
 
-  --shadow-card: 0 1px 2px rgb(11 15 25 / 0.04), 0 8px 24px -12px rgb(11 15 25 / 0.18);
-  --shadow-lift: 0 12px 40px -14px rgb(11 15 25 / 0.35);
-  /* Brand-tinted elevation — the reference design's most distinctive move.
-     Customer/marketing surfaces only; never in the KDS, where a coloured
-     shadow competes with status fill for the same signal. */
-  --shadow-lift-brand: 0 2px 4px rgb(11 15 25 / 0.05), 0 28px 60px -24px rgb(230 0 40 / 0.32);
+  --shadow-card: 0 1px 2px rgb(34 34 34 / 0.04), 0 8px 24px -12px rgb(34 34 34 / 0.18);
+  --shadow-lift: 0 12px 40px -14px rgb(34 34 34 / 0.35);
+  /* Brand-tinted elevation. Customer/marketing surfaces only; never in
+     the KDS, which uses no shadows at all, because a coloured shadow
+     competes with status fill for the same signal. */
+  --shadow-lift-brand: 0 2px 4px rgb(34 34 34 / 0.05), 0 28px 60px -24px rgb(0 131 62 / 0.32);
 
   --animate-pop: pop 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
   --animate-rise: rise 260ms cubic-bezier(0.22, 1, 0.36, 1);
   --animate-slide-up: slide-up 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  /* The two infinite animations are STATUS INDICATORS, not decoration:
+     breathe means "the live connection is down", flash means "an unclaimed
+     order is waiting". Use signal-degraded / signal-attention below rather
+     than these tokens directly — those carry the reduced-motion fallback the
+     signal needs to survive. */
   --animate-breathe: breathe 2.2s ease-in-out infinite;
   --animate-flash: flash 1.6s ease-in-out infinite;
 }
@@ -110,36 +356,65 @@
   50% { opacity: 0.45; }
 }
 @keyframes flash {
-  0%, 100% { box-shadow: 0 0 0 0 rgb(255 45 85 / 0.55); }
-  50% { box-shadow: 0 0 0 12px rgb(255 45 85 / 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgb(255 77 0 / 0.55); }
+  50% { box-shadow: 0 0 0 12px rgb(255 77 0 / 0); }
 }
+
+/*
+ * Z-INDEX SCALE (DESIGN.md §5.6) — a closed scale. Never write an arbitrary
+ * z-index; these map onto Tailwind's own numeric utilities:
+ *
+ *   base    0   page content
+ *   raised  10  sticky table headers, floating labels
+ *   header  20  sticky app header
+ *   scrim   30  modal and drawer backdrop
+ *   drawer  40  off-canvas sidebar, fixed bottom nav, cart bar
+ *   modal   50  dialogs, sheets, popovers
+ *   toast   60  transient notifications
+ *
+ * Nothing exists above 60.
+ */
 
 @layer base {
   /* Gradients live here rather than in @theme: Tailwind v4 has no gradient
      token namespace, so a --gradient-* entry in @theme generates no utility. */
   :root {
+    /*
+     * The Safaricom brand gradient as printed on the primary palette sheet:
+     * dark green (R0 G131 B69) to Safaricom Green (R44 G179 B74).
+     *
+     * The third stop resolves to --color-brand everywhere EXCEPT the customer
+     * subtree, where --customer-accent warms it into Fresh Green. So the
+     * gradient is the official two-stop green in the console and on marketing
+     * surfaces, and only becomes expressive where §1 permits it.
+     */
     --gradient-brand: linear-gradient(
       135deg,
-      var(--color-brand),
-      var(--color-brand-glow) 55%,
-      var(--customer-accent-warm, #f5b544)
+      var(--color-brand-dark),
+      var(--color-brand) 60%,
+      var(--customer-accent, var(--color-brand))
     );
     --gradient-ink: linear-gradient(160deg, var(--color-ink-2), var(--color-ink));
   }
 
   /*
-   * Warm amber accent from the reference design.
+   * Fresh Green, PANTONE 382 C — the customer accent.
    *
-   * Deliberately NOT a --color-* token in @theme. It is 0.030 OKLab from
-   * --color-kds-prep — effectively the same colour — so a global `accent-warm`
-   * utility would let someone paint it onto a kitchen ticket and silently
-   * destroy the new/preparing/ready distinction. Scoping it to the customer
-   * subtree means the utility does not exist anywhere it could collide.
+   * Deliberately NOT a --color-* token in @theme. It is 0.11 OKLab from
+   * --color-kds-prep / --color-warn-fill, close enough that a global
+   * `accent` utility would let someone paint it onto a kitchen ticket or a
+   * warning chip and silently destroy the prep/ready and warn distinctions.
+   * Scoping it to the customer subtree means the utility does not exist
+   * anywhere it could collide.
    *
-   * Usage: <div data-view="customer"> … var(--customer-accent-warm) … </div>
+   * Usage: <div data-view="customer"> … var(--customer-accent) … </div>
    */
   [data-view="customer"] {
-    --customer-accent-warm: #f5b544;
+    --customer-accent: #c2d500;
+    /* body-l, not body-m: the guest reads at arm's length on their own phone,
+       one-handed, in a restaurant. DESIGN.md §4.2. */
+    font-size: var(--text-body-l);
+    line-height: 1.5rem;
   }
 
   html {
@@ -148,15 +423,44 @@
   }
   body {
     font-family: var(--font-sans);
+    /* body-m is the product default. The customer subtree steps back up to
+       body-l above. */
+    font-size: var(--text-body-m);
+    line-height: 1.25rem;
     background-color: var(--color-canvas);
     color: var(--color-ink);
   }
   h1, h2, h3, h4, .font-display {
     font-family: var(--font-display);
   }
+  /*
+   * The focus ring is --color-brand-dark, NOT the hero green. Measured
+   * against every ground the ring can land on, the hero green bottoms out
+   * at 2.44 (on --color-danger-soft) and fails the 3.0 non-text minimum on
+   * all three light grounds. brand-dark's worst case is 3.27, on the ink
+   * sidebar.
+   */
   :focus-visible {
-    outline: 2px solid var(--color-brand);
+    outline: 2px solid var(--color-brand-dark);
     outline-offset: 2px;
+  }
+
+  /*
+   * Reduced motion. Decorative animation and transitions are neutralised
+   * wholesale; the two STATUS animations then re-assert themselves as static
+   * high-contrast markers via signal-attention / signal-degraded and
+   * kds-state-new below, because the information they carry is not optional
+   * (DESIGN.md §5.8).
+   */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+    html {
+      scroll-behavior: auto;
+    }
   }
 }
 
@@ -170,12 +474,12 @@
 }
 
 /* ------------------------------------------------------------------
-   Surface & brand utilities ported from the reference design.
+   Surface & brand utilities.
    ------------------------------------------------------------------ */
 
-/* The reference design's standard card: 24px radius, hairline border,
-   soft shadow. Use for customer menu items, waiter request cards, KDS
-   tickets — the shape is shared even though the palette is not. */
+/* The standard card: 24px radius, hairline border, soft shadow. Use for
+   customer menu items, waiter request cards, KDS tickets — the shape is
+   shared even though the palette is not. */
 @utility card-surface {
   background-color: var(--color-surface);
   border: 1px solid var(--color-line);
@@ -199,7 +503,71 @@
   color: transparent;
   @media (forced-colors: active) {
     background-image: none;
-    color: var(--color-brand);
+    color: var(--color-brand-press);
+  }
+}
+
+/* ------------------------------------------------------------------
+   Chips (DESIGN.md §6.2). Two kinds, and conflating them is the mistake
+   the pre-migration code makes.
+
+   identity-chip — what a thing IS: role, fulfilment type, settlement mode,
+   branch, tenant. Always neutral. Colour is reserved for state.
+
+   status-chip — what state a thing is IN. Carries its own soft ground and
+   ink text; see the §3.7 mapping for which ground goes with which status.
+   ------------------------------------------------------------------ */
+@utility identity-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface-2);
+  color: var(--color-muted);
+  font-size: var(--text-label-s);
+  line-height: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+@utility status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-pill);
+  /* Ground is set per status by the caller; ink is the default foreground on
+     every soft ground. */
+  color: var(--color-ink);
+  font-size: var(--text-label-s);
+  line-height: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------
+   Status animations, with their reduced-motion fallbacks. Prefer these
+   over the raw --animate-flash / --animate-breathe tokens.
+   ------------------------------------------------------------------ */
+
+/* "An unclaimed order is waiting." */
+@utility signal-attention {
+  animation: var(--animate-flash);
+  @media (prefers-reduced-motion: reduce) {
+    box-shadow: 0 0 0 4px rgb(255 77 0 / 0.9);
+  }
+}
+
+/* "The live connection is down." */
+@utility signal-degraded {
+  animation: var(--animate-breathe);
+  @media (prefers-reduced-motion: reduce) {
+    outline: 2px dashed currentColor;
+    outline-offset: 2px;
   }
 }
 
@@ -209,7 +577,7 @@
    Foreground is always ink — see --color-kds-fg for the measurements.
    ------------------------------------------------------------------ */
 @utility kds-ticket {
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-surface-sm);
   color: var(--color-kds-fg);
   font-variant-numeric: tabular-nums;
 }
@@ -217,6 +585,11 @@
 @utility kds-state-new {
   background-color: var(--color-kds-new);
   animation: var(--animate-flash);
+  /* The flash says "unclaimed". Under reduced motion that must become a
+     static marker, not disappear. */
+  @media (prefers-reduced-motion: reduce) {
+    box-shadow: inset 0 0 0 4px var(--color-kds-fg);
+  }
 }
 
 @utility kds-state-prep {
