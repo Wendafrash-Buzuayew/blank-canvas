@@ -25,6 +25,9 @@ public class ProductEntity {
     @Column(name = "merchant_id", nullable = false)
     private UUID merchantId;
 
+    @Column(name = "menu_id", nullable = false)
+    private UUID menuId;
+
     @Column(name = "category_id", nullable = false)
     private Long categoryId;
 

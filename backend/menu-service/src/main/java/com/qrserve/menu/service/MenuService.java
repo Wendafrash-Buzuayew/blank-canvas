@@ -99,6 +99,7 @@ public class MenuService {
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with ID: " + request.getCategoryId()));
 
         ProductEntity product = ProductEntity.builder()
+                .menuId(category.getMenuId())
                 .merchantId(category.getMerchantId())
                 .categoryId(category.getId())
                 .name(request.getName())
