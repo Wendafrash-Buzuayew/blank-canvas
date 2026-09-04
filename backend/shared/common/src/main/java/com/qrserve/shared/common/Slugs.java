@@ -45,7 +45,7 @@ public final class Slugs {
      * operators.
      */
     public static final Set<String> RESERVED_LABELS = Set.of(
-            "admin", "api", "app", "www", "static", "assets", "ws", "mail", "status");
+            "admin", "api", "app", "www", "static", "assets", "ws", "mail", "status", "menu");
 
     private Slugs() {
     }
