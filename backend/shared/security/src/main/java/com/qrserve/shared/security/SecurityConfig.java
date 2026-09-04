@@ -107,6 +107,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/orders", "/api/v1/orders").permitAll()
                 // Public QR-resolved menu (merchant-service PublicMenuResolution).
                 .requestMatchers("/api/v1/public/**").permitAll()
+                // Public digital-menu content (menu-service). Single-segment
+                // wildcard so this cannot widen to match a write endpoint.
+                .requestMatchers(HttpMethod.GET, "/api/menu/branch/*").permitAll()
 
                 // 6. Explicitly authenticated. Role checks live on the controllers
                 //    via @PreAuthorize; this only guarantees a valid JWT.
