@@ -49,4 +49,17 @@ public class QrController {
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(data);
     }
+
+    // Overrides the class-level @PreAuthorize: this is the one endpoint on this
+    // controller SecurityConfig makes public (GET /api/qr/digital-menu/*/*), so
+    // it must not inherit the staff-only role gate above, or that permitAll rule
+    // would be silently defeated by method security 403ing every anonymous call.
+    @GetMapping("/digital-menu/{merchantSlug}/{branchSlug}")
+    @PreAuthorize("permitAll")
+    @Operation(summary = "Render a QR PNG for a branch's phase-1 digital menu URL")
+    public ResponseEntity<byte[]> getDigitalMenuQr(
+            @PathVariable String merchantSlug, @PathVariable String branchSlug) {
+        byte[] png = qrGeneratorService.getQrForBranch(merchantSlug, branchSlug);
+        return ResponseEntity.ok().header("Content-Type", "image/png").body(png);
+    }
 }
