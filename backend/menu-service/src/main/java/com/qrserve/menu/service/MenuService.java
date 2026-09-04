@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -214,6 +215,11 @@ public class MenuService {
         }).collect(Collectors.toList());
 
         return MenuResponse.builder().categories(categoryDtos).build();
+    }
+
+    /** Used by the public branch-menu endpoint (Task 8) to look up a branch's menu and its status. */
+    public Optional<MenuEntity> getMenuForBranch(Long branchId) {
+        return menuRepository.findByBranchId(branchId);
     }
 
     /**
