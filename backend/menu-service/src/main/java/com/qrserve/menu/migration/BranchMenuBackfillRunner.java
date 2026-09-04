@@ -19,6 +19,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
@@ -82,16 +83,52 @@ public class BranchMenuBackfillRunner implements CommandLineRunner {
         List<UUID> merchantIds = fetchAllMerchantIds(authHeaders);
         for (UUID merchantId : merchantIds) {
             List<Long> branchIds = fetchBranchIds(merchantId, authHeaders);
+            ensurePrimaryBranch(merchantId, branchIds, authHeaders);
             backfillMerchant(merchantId, branchIds);
         }
         log.info("Branch-menu backfill complete: {} merchants processed", merchantIds.size());
     }
 
     /**
+     * Without a primary branch, /m/{merchant-slug} (no branch segment) 404s
+     * for every merchant that existed before this migration ran — defeating
+     * the point of the redesign for pre-existing merchants. Designates the
+     * first branch as primary via merchant-service's own
+     * PATCH /api/branches/{id}/primary endpoint (this runner doesn't own
+     * BranchEntity, so it can't set is_primary directly via JPA).
+     */
+    @SuppressWarnings("unchecked")
+    private void ensurePrimaryBranch(UUID merchantId, List<Long> branchIds, HttpHeaders headers) {
+        if (branchIds.isEmpty()) {
+            return;
+        }
+        String url = merchantServiceUrl + "/api/branches/merchant/" + merchantId;
+        ResponseEntity<List<Map<String, Object>>> response = restTemplate.exchange(
+                url, HttpMethod.GET, new HttpEntity<>(headers),
+                new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+        List<Map<String, Object>> branches = response.getBody();
+        // Jackson serializes BranchEntity#isPrimary (a `boolean isPrimary` field, so
+        // Lombok's getter is still isPrimary()) as JSON key "primary", not "isPrimary".
+        boolean hasPrimary = branches != null && branches.stream()
+                .anyMatch(b -> Boolean.TRUE.equals(b.get("primary")));
+        if (!hasPrimary) {
+            Long firstBranchId = branchIds.get(0);
+            String patchUrl = merchantServiceUrl + "/api/branches/" + firstBranchId + "/primary";
+            restTemplate.exchange(patchUrl, HttpMethod.PATCH, new HttpEntity<>(headers), Void.class);
+        }
+    }
+
+    /**
      * The pure, HTTP-free part — one independent Menu (+ category/product
      * copy) per branch, skipping any branch that already has one. Public so
      * it's directly unit-testable without standing up REST calls.
+     * Transactional per-merchant: a crash partway through this merchant's
+     * multi-branch backfill rolls back cleanly, leaving it eligible for a
+     * clean re-run (the findByBranchId(...).isPresent() skip above already
+     * makes re-running safe); other merchants already committed in the run()
+     * loop are unaffected since each merchant is its own transaction.
      */
+    @Transactional
     public void backfillMerchant(UUID merchantId, List<Long> branchIds) {
         List<CategoryEntity> sourceCategories =
                 categoryRepository.findByMerchantIdOrderByDisplayOrderAsc(merchantId);

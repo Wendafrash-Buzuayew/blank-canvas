@@ -6,18 +6,26 @@ import com.qrserve.menu.entity.ProductEntity;
 import com.qrserve.menu.repository.CategoryRepository;
 import com.qrserve.menu.repository.MenuRepository;
 import com.qrserve.menu.repository.ProductRepository;
+import com.qrserve.shared.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
@@ -138,5 +146,71 @@ class BranchMenuBackfillRunnerTest {
 
         // Idempotent: re-running the job must not duplicate an already-backfilled branch.
         verify(menuRepository, never()).save(any());
+    }
+
+    /**
+     * Covers ensurePrimaryBranch, driven through run() since it's a private step
+     * of the full HTTP-enabled constructor's pipeline. A merchant with no branch
+     * yet marked primary gets its first branch PATCHed to primary; a merchant
+     * that already has one is left alone.
+     */
+    @SuppressWarnings("unchecked")
+    private static class RunHarness {
+        RestTemplate restTemplate = mock(RestTemplate.class);
+        JwtTokenProvider jwtTokenProvider = mock(JwtTokenProvider.class);
+        MenuRepository menuRepository = mock(MenuRepository.class);
+        CategoryRepository categoryRepository = mock(CategoryRepository.class);
+        ProductRepository productRepository = mock(ProductRepository.class);
+
+        BranchMenuBackfillRunner build() {
+            when(jwtTokenProvider.generateInternalServiceToken(any())).thenReturn("service-token");
+            when(menuRepository.findByBranchId(any())).thenReturn(Optional.of(
+                    MenuEntity.builder().id(UUID.randomUUID()).build()));
+            when(categoryRepository.findByMerchantIdOrderByDisplayOrderAsc(any())).thenReturn(List.of());
+            return new BranchMenuBackfillRunner(menuRepository, categoryRepository, productRepository,
+                    restTemplate, jwtTokenProvider, "http://merchant-service", true);
+        }
+
+        void stubMerchantsAndBranches(UUID merchantId, List<Map<String, Object>> branches) {
+            when(restTemplate.exchange(
+                    eq("http://merchant-service/api/merchants"), eq(HttpMethod.GET),
+                    any(HttpEntity.class), any(ParameterizedTypeReference.class)))
+                    .thenReturn(ResponseEntity.ok(List.of(Map.of("id", merchantId.toString()))));
+            when(restTemplate.exchange(
+                    eq("http://merchant-service/api/branches/merchant/" + merchantId), eq(HttpMethod.GET),
+                    any(HttpEntity.class), any(ParameterizedTypeReference.class)))
+                    .thenReturn(ResponseEntity.ok(branches));
+        }
+    }
+
+    @Test
+    void ensurePrimaryBranchPatchesTheFirstBranchWhenNoneIsPrimaryYet() {
+        UUID merchantId = UUID.randomUUID();
+        RunHarness harness = new RunHarness();
+        harness.stubMerchantsAndBranches(merchantId, List.of(
+                Map.of("id", 10, "primary", false),
+                Map.of("id", 11, "primary", false)));
+        BranchMenuBackfillRunner runner = harness.build();
+
+        runner.run();
+
+        verify(harness.restTemplate).exchange(
+                eq("http://merchant-service/api/branches/10/primary"), eq(HttpMethod.PATCH),
+                any(HttpEntity.class), eq(Void.class));
+    }
+
+    @Test
+    void ensurePrimaryBranchDoesNothingWhenAPrimaryAlreadyExists() {
+        UUID merchantId = UUID.randomUUID();
+        RunHarness harness = new RunHarness();
+        harness.stubMerchantsAndBranches(merchantId, List.of(
+                Map.of("id", 10, "primary", true),
+                Map.of("id", 11, "primary", false)));
+        BranchMenuBackfillRunner runner = harness.build();
+
+        runner.run();
+
+        verify(harness.restTemplate, never()).exchange(
+                any(String.class), eq(HttpMethod.PATCH), any(HttpEntity.class), eq(Void.class));
     }
 }
