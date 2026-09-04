@@ -90,6 +90,11 @@ export interface MenuResponse {
       name: string;
       description: string;
       price: number;
+      /** Server-computed: discounted price if a promotion is active right now, else equal to price. */
+      effectivePrice: number;
+      discountPrice?: number | null;
+      discountStartAt?: string | null;
+      discountEndAt?: string | null;
       image: string;
       available: boolean;
       preparationTime: number;
@@ -545,6 +550,9 @@ export interface ProductEntity {
   name: string;
   description: string;
   price: number;
+  discountPrice?: number | null;
+  discountStartAt?: string | null;
+  discountEndAt?: string | null;
   image?: string;
   available: boolean;
   preparationTime: number;
@@ -571,7 +579,7 @@ export const menuApi = {
       method: 'DELETE',
     }),
 
-  createProduct: (data: { categoryId: number; name: string; description: string; price: number; image?: string; preparationTime?: number }) =>
+  createProduct: (data: { categoryId: number; name: string; description: string; price: number; discountPrice?: number; discountStartAt?: string; discountEndAt?: string; image?: string; preparationTime?: number }) =>
     request<ProductEntity>('/products', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -588,7 +596,7 @@ export const menuApi = {
   getProduct: (id: number) =>
     request<ProductEntity>(`/products/${id}`),
 
-  updateProduct: (id: number, data: Partial<ProductEntity>) =>
+  updateProduct: (id: number, data: Partial<ProductEntity> & { clearDiscount?: boolean }) =>
     request<ProductEntity>(`/products/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),

@@ -39,6 +39,22 @@ public class ProductEntity {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal price;
 
+    /**
+     * Promotional price. Null means no promotion is configured. Whether it is
+     * currently in effect also depends on discountStartAt/discountEndAt — see
+     * MenuService.effectivePrice.
+     */
+    @Column(name = "discount_price", precision = 12, scale = 2)
+    private BigDecimal discountPrice;
+
+    /** Null start means the discount is already active with no start gate. */
+    @Column(name = "discount_start_at")
+    private LocalDateTime discountStartAt;
+
+    /** Null end means the discount does not expire on its own. */
+    @Column(name = "discount_end_at")
+    private LocalDateTime discountEndAt;
+
     private String image;
 
     @Column(nullable = false)

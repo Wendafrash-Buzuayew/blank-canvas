@@ -323,7 +323,7 @@ export const useCreateProduct = () => {
 export const useUpdateProduct = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<ProductEntity> }) =>
+    mutationFn: ({ id, data }: { id: number; data: Partial<ProductEntity> & { clearDiscount?: boolean } }) =>
       menuApi.updateProduct(id, data),
     onSuccess: (_data, variables) => {
       // When the caller supplies a merchantId (allowed on ProductEntity), scope the

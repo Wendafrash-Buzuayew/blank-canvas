@@ -11,6 +11,7 @@ import com.qrserve.menu.entity.ProductEntity;
 import com.qrserve.menu.repository.CategoryRepository;
 import com.qrserve.menu.repository.MenuRepository;
 import com.qrserve.menu.repository.ProductRepository;
+import com.qrserve.shared.exceptions.BusinessException;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
 import com.qrserve.shared.exceptions.UnauthorizedException;
 import com.qrserve.shared.security.UserPrincipal;
@@ -35,6 +36,8 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -135,6 +138,7 @@ public class MenuService {
     public ProductEntity createProduct(CreateProductRequest request) {
         CategoryEntity category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with ID: " + request.getCategoryId()));
+        validateDiscount(request.getPrice(), request.getDiscountPrice(), request.getDiscountStartAt(), request.getDiscountEndAt());
 
         ProductEntity product = ProductEntity.builder()
                 .menuId(category.getMenuId())
@@ -143,6 +147,9 @@ public class MenuService {
                 .name(request.getName())
                 .description(request.getDescription())
                 .price(request.getPrice())
+                .discountPrice(request.getDiscountPrice())
+                .discountStartAt(request.getDiscountStartAt())
+                .discountEndAt(request.getDiscountEndAt())
                 .image(request.getImage())
                 .available(true)
                 .preparationTime(request.getPreparationTime() != null ? request.getPreparationTime() : 15)
@@ -181,7 +188,55 @@ public class MenuService {
         if (request.getAvailable() != null) product.setAvailable(request.getAvailable());
         if (request.getPreparationTime() != null) product.setPreparationTime(request.getPreparationTime());
 
+        if (Boolean.TRUE.equals(request.getClearDiscount())) {
+            product.setDiscountPrice(null);
+            product.setDiscountStartAt(null);
+            product.setDiscountEndAt(null);
+        } else {
+            if (request.getDiscountPrice() != null) product.setDiscountPrice(request.getDiscountPrice());
+            if (request.getDiscountStartAt() != null) product.setDiscountStartAt(request.getDiscountStartAt());
+            if (request.getDiscountEndAt() != null) product.setDiscountEndAt(request.getDiscountEndAt());
+            validateDiscount(product.getPrice(), product.getDiscountPrice(), product.getDiscountStartAt(), product.getDiscountEndAt());
+        }
+
         return productRepository.save(product);
+    }
+
+    /**
+     * A discount price that is not strictly less than the regular price isn't
+     * a promotion, and an end before its own start can never be active — both
+     * are merchant input errors worth rejecting rather than silently
+     * accepting a discount that would never apply or would overcharge.
+     */
+    private void validateDiscount(BigDecimal price, BigDecimal discountPrice,
+                                   LocalDateTime discountStartAt, LocalDateTime discountEndAt) {
+        if (discountPrice == null) {
+            return;
+        }
+        if (discountPrice.compareTo(price) >= 0) {
+            throw new BusinessException("discountPrice must be less than price");
+        }
+        if (discountStartAt != null && discountEndAt != null && !discountEndAt.isAfter(discountStartAt)) {
+            throw new BusinessException("discountEndAt must be after discountStartAt");
+        }
+    }
+
+    /**
+     * The price to actually display/charge at instant `now`: discounted only
+     * while a discount price is configured AND `now` falls within its
+     * window. An unset bound is open-ended in that direction; both unset
+     * means the discount is active for as long as discountPrice is set —
+     * an indefinite promotion the merchant turns on/off explicitly. Takes
+     * `now` as a parameter (rather than calling LocalDateTime.now() itself)
+     * so it is deterministic and unit-testable without mocking the clock.
+     */
+    static BigDecimal effectivePrice(ProductEntity product, LocalDateTime now) {
+        if (product.getDiscountPrice() == null) {
+            return product.getPrice();
+        }
+        boolean startedOrUnbounded = product.getDiscountStartAt() == null || !now.isBefore(product.getDiscountStartAt());
+        boolean notYetEndedOrUnbounded = product.getDiscountEndAt() == null || !now.isAfter(product.getDiscountEndAt());
+        return (startedOrUnbounded && notYetEndedOrUnbounded) ? product.getDiscountPrice() : product.getPrice();
     }
 
     @Transactional
@@ -197,37 +252,24 @@ public class MenuService {
     @Cacheable(value = "menus", key = "#merchantId")
     public MenuResponse getFullMenu(UUID merchantId) {
         List<CategoryEntity> categories = categoryRepository.findByMerchantIdOrderByDisplayOrderAsc(merchantId);
-
-        List<MenuResponse.CategoryDto> categoryDtos = categories.stream().map(cat -> {
-            List<ProductEntity> products = productRepository.findByCategoryId(cat.getId());
-
-            List<MenuResponse.ProductDto> productDtos = products.stream().map(prod ->
-                    MenuResponse.ProductDto.builder()
-                            .id(prod.getId())
-                            .name(prod.getName())
-                            .description(prod.getDescription())
-                            .price(prod.getPrice())
-                            .image(prod.getImage())
-                            .available(prod.isAvailable())
-                            .preparationTime(prod.getPreparationTime())
-                            .build()
-            ).collect(Collectors.toList());
-
-            return MenuResponse.CategoryDto.builder()
-                    .id(cat.getId())
-                    .name(cat.getName())
-                    .items(productDtos)
-                    .build();
-        }).collect(Collectors.toList());
-
-        return MenuResponse.builder()
-                .categories(categoryDtos)
-                .build();
+        return toMenuResponse(categories);
     }
 
     /** Menu-scoped variant, used by the new branch-level public endpoint (Task 8). */
     public MenuResponse getFullMenuByMenuId(UUID menuId) {
         List<CategoryEntity> categories = categoryRepository.findByMenuIdOrderByDisplayOrderAsc(menuId);
+        return toMenuResponse(categories);
+    }
+
+    /**
+     * Shared category/product -> DTO mapping used by both getFullMenu and
+     * getFullMenuByMenuId (previously duplicated verbatim between them).
+     * `now` is captured once per call so every product's discount-window
+     * check in a given response uses the same instant, rather than each
+     * product independently sampling the clock.
+     */
+    private MenuResponse toMenuResponse(List<CategoryEntity> categories) {
+        LocalDateTime now = LocalDateTime.now();
 
         List<MenuResponse.CategoryDto> categoryDtos = categories.stream().map(cat -> {
             List<ProductEntity> products = productRepository.findByCategoryId(cat.getId());
@@ -238,6 +280,10 @@ public class MenuService {
                             .name(prod.getName())
                             .description(prod.getDescription())
                             .price(prod.getPrice())
+                            .effectivePrice(effectivePrice(prod, now))
+                            .discountPrice(prod.getDiscountPrice())
+                            .discountStartAt(prod.getDiscountStartAt())
+                            .discountEndAt(prod.getDiscountEndAt())
                             .image(prod.getImage())
                             .available(prod.isAvailable())
                             .preparationTime(prod.getPreparationTime())

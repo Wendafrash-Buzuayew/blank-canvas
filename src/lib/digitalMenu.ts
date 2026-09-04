@@ -30,6 +30,8 @@ export interface DigitalMenuProduct {
   name: string;
   description: string | null;
   price: number;
+  /** Server-computed: discounted price if a promotion is active right now, else equal to price. */
+  effectivePrice: number;
   image: string | null;
   available: boolean;
   preparationTime: number;

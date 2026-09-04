@@ -21,7 +21,16 @@ const FOOD_IMAGE_PRESETS = [
 ];
 
 interface CategoryFormState { id?: number; name: string; displayOrder?: number; }
-interface ProductFormState { id?: number; categoryId: number; name: string; description: string; price: number; image?: string; available: boolean; preparationTime: number; }
+interface ProductFormState {
+  id?: number; categoryId: number; name: string; description: string; price: number;
+  discountPrice?: number; discountStartAt?: string; discountEndAt?: string;
+  image?: string; available: boolean; preparationTime: number;
+}
+
+/** datetime-local inputs use "YYYY-MM-DDTHH:mm[:ss]" with no timezone — matches LocalDateTime's JSON shape exactly, so no conversion is needed either direction; this just trims to minute precision for the input's own display. */
+function toDatetimeLocal(iso: string | null | undefined): string {
+  return iso ? iso.slice(0, 16) : '';
+}
 
 export const MenuBuilderPage: React.FC = () => {
   const { user } = useAuth();
@@ -114,7 +123,9 @@ export const MenuBuilderPage: React.FC = () => {
   const openProductModal = (product?: MenuResponse['categories'][number]['items'][number] & { categoryId: number }) => {
     setProductForm(product ? {
       id: product.id, categoryId: product.categoryId, name: product.name, description: product.description || '',
-      price: Number(product.price), image: product.image || FOOD_IMAGE_PRESETS[0].url, available: product.available, preparationTime: product.preparationTime || 10,
+      price: Number(product.price), discountPrice: product.discountPrice ?? undefined,
+      discountStartAt: toDatetimeLocal(product.discountStartAt), discountEndAt: toDatetimeLocal(product.discountEndAt),
+      image: product.image || FOOD_IMAGE_PRESETS[0].url, available: product.available, preparationTime: product.preparationTime || 10,
     } : {
       categoryId: activeCategoryId !== 'all' ? activeCategoryId : categories[0]?.id || 0, name: '', description: '',
       price: 9.99, image: FOOD_IMAGE_PRESETS[0].url, available: true, preparationTime: 10,
@@ -126,11 +137,28 @@ export const MenuBuilderPage: React.FC = () => {
     e.preventDefault();
     setPageError(null);
     if (!productForm.name.trim() || !productForm.categoryId) return;
+    if (productForm.discountPrice != null && productForm.discountPrice >= productForm.price) {
+      setPageError('Discount price must be less than the regular price.');
+      return;
+    }
+    const discountFields = {
+      discountPrice: productForm.discountPrice,
+      discountStartAt: productForm.discountStartAt || undefined,
+      discountEndAt: productForm.discountEndAt || undefined,
+    };
     try {
       if (productForm.id) {
-        await updateProduct.mutateAsync({ id: productForm.id, data: { name: productForm.name.trim(), description: productForm.description, price: Number(productForm.price), image: productForm.image, available: productForm.available, preparationTime: Number(productForm.preparationTime) } });
+        const clearDiscount = productForm.discountPrice == null;
+        await updateProduct.mutateAsync({
+          id: productForm.id,
+          data: {
+            name: productForm.name.trim(), description: productForm.description, price: Number(productForm.price),
+            image: productForm.image, available: productForm.available, preparationTime: Number(productForm.preparationTime),
+            ...(clearDiscount ? { clearDiscount: true } : discountFields),
+          },
+        });
       } else {
-        await createProduct.mutateAsync({ categoryId: productForm.categoryId, name: productForm.name.trim(), description: productForm.description, price: Number(productForm.price), image: productForm.image, preparationTime: Number(productForm.preparationTime) });
+        await createProduct.mutateAsync({ categoryId: productForm.categoryId, name: productForm.name.trim(), description: productForm.description, price: Number(productForm.price), image: productForm.image, preparationTime: Number(productForm.preparationTime), ...discountFields });
       }
       setProductModalOpen(false);
     } catch (err) { setPageError(friendlyError(err, 'Could not save product.')); }
@@ -275,7 +303,14 @@ export const MenuBuilderPage: React.FC = () => {
                     </div>
                     <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
                       <div className="flex items-center gap-2">
-                        <span className="font-black text-sm text-slate-900">{Number(product.price).toLocaleString()} ETB</span>
+                        {product.effectivePrice < product.price ? (
+                          <span className="flex items-baseline gap-1.5">
+                            <span className="font-black text-sm text-emerald-700">{Number(product.effectivePrice).toLocaleString()} ETB</span>
+                            <span className="text-[10px] text-slate-400 line-through">{Number(product.price).toLocaleString()} ETB</span>
+                          </span>
+                        ) : (
+                          <span className="font-black text-sm text-slate-900">{Number(product.price).toLocaleString()} ETB</span>
+                        )}
                         <span className="text-[10px] text-slate-400 flex items-center gap-0.5"><Clock className="w-3 h-3" />{product.preparationTime} min</span>
                       </div>
                       <div className="flex items-center gap-1">
@@ -347,6 +382,27 @@ export const MenuBuilderPage: React.FC = () => {
                 <select value={productForm.available ? 'true' : 'false'} onChange={(e) => setProductForm({ ...productForm, available: e.target.value === 'true' })} className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none">
                   <option value="true">In Stock</option><option value="false">Out of Stock</option>
                 </select>
+              </div>
+              <div className="col-span-2 grid grid-cols-3 gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="col-span-3 flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase">Promotional Pricing (Optional)</span>
+                  {productForm.discountPrice != null && (
+                    <button type="button" onClick={() => setProductForm({ ...productForm, discountPrice: undefined, discountStartAt: undefined, discountEndAt: undefined })} className="text-[10px] font-bold text-slate-400 hover:text-red-600">Clear</button>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Discount Price</label>
+                  <input type="number" step="0.01" min={0} value={productForm.discountPrice ?? ''} onChange={(e) => setProductForm({ ...productForm, discountPrice: e.target.value ? parseFloat(e.target.value) : undefined })} placeholder="e.g. 7.99" className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Starts</label>
+                  <input type="datetime-local" value={productForm.discountStartAt || ''} onChange={(e) => setProductForm({ ...productForm, discountStartAt: e.target.value || undefined })} className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Ends</label>
+                  <input type="datetime-local" value={productForm.discountEndAt || ''} onChange={(e) => setProductForm({ ...productForm, discountEndAt: e.target.value || undefined })} className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none" />
+                </div>
+                <p className="col-span-3 text-[10px] text-slate-400">Leave Starts/Ends blank for an always-on discount while a discount price is set. Otherwise the discount is active only between them.</p>
               </div>
               <div className="col-span-2">
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Description</label>

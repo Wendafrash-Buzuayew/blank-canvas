@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -24,6 +25,12 @@ public class CreateProductRequest {
 
     @NotNull
     private BigDecimal price;
+
+    private BigDecimal discountPrice;
+
+    private LocalDateTime discountStartAt;
+
+    private LocalDateTime discountEndAt;
 
     private String image;
 

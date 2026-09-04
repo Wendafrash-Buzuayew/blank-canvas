@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -41,6 +42,11 @@ public class MenuResponse implements Serializable {
         private String name;
         private String description;
         private BigDecimal price;
+        /** The price to actually charge/display right now — discounted if a promotion is active, else equal to price. */
+        private BigDecimal effectivePrice;
+        private BigDecimal discountPrice;
+        private LocalDateTime discountStartAt;
+        private LocalDateTime discountEndAt;
         private String image;
         private boolean available;
         private Integer preparationTime;

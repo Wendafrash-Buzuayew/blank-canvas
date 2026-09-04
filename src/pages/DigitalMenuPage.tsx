@@ -79,7 +79,15 @@ function BranchMenu({ merchantSlug, branchSlug }: { merchantSlug: string; branch
           <ul>
             {category.items.map((item) => (
               <li key={item.id}>
-                <strong>{item.name}</strong> — {item.price}
+                <strong>{item.name}</strong> —{' '}
+                {item.effectivePrice < item.price ? (
+                  <>
+                    <span style={{ textDecoration: 'line-through', opacity: 0.6 }}>{item.price}</span>{' '}
+                    <span>{item.effectivePrice}</span>
+                  </>
+                ) : (
+                  item.price
+                )}
                 {item.description && <p>{item.description}</p>}
               </li>
             ))}
