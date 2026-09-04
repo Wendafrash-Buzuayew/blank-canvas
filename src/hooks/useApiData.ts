@@ -266,13 +266,25 @@ export const useMenu = (merchantId: string | undefined) => {
   });
 };
 
+/** Draft-inclusive, staff-only — one branch's own catalog, for the menu builder. */
+export const useBranchMenu = (branchId: number | undefined) => {
+  const { isAuthenticated: isAuth } = useAuth();
+  return useQuery({
+    queryKey: ['menu', 'branch', branchId],
+    queryFn: () => menuApi.getBranchMenu(branchId!),
+    enabled: !!branchId && isAuth,
+    staleTime: 60_000,
+  });
+};
+
 export const useCreateCategory = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: menuApi.createCategory,
     onSuccess: (_data, variables) => {
-      // Scope invalidation to the specific merchant's menu.
+      // Scope invalidation to the specific merchant's menu and the branch's own.
       queryClient.invalidateQueries({ queryKey: ['menu', variables.merchantId] });
+      queryClient.invalidateQueries({ queryKey: ['menu', 'branch', variables.branchId] });
     },
   });
 };

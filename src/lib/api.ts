@@ -601,6 +601,10 @@ export const menuApi = {
 
   getFullMenu: (merchantId: string) =>
     request<MenuResponse>(`/menu/${merchantId}`),
+
+  /** Staff-only, draft-inclusive — for the merchant's own menu-builder UI. */
+  getBranchMenu: (branchId: number) =>
+    request<MenuResponse>(`/menu/branch/${branchId}/manage`),
 };
 
 // ============ Order API ============

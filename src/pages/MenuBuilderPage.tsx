@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from 'react';
-import { Plus, Trash2, Edit3, X, Utensils, FolderPlus, Search, Loader2, Eye, Smartphone, Image as ImageIcon, Clock, AlertCircle } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Plus, Trash2, Edit3, X, Utensils, FolderPlus, Search, Loader2, Eye, Smartphone, Image as ImageIcon, Clock, AlertCircle, Store } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Spinner, ErrorState, EmptyState } from '../components/ui/States';
 import { useAuth } from '../context/AuthContext';
-import { useMenu, useCreateCategory, useUpdateCategory, useDeleteCategory, useCreateProduct, useUpdateProduct, useDeleteProduct } from '../hooks/useApiData';
+import { useBranchMenu, useCreateCategory, useUpdateCategory, useDeleteCategory, useCreateProduct, useUpdateProduct, useDeleteProduct } from '../hooks/useApiData';
 import { useBranchesLookup, useMerchantsLookup, useTablesLookup } from '../hooks/useLookups';
 import { friendlyError } from '../lib/errors';
 import { useNavigate } from 'react-router-dom';
@@ -27,7 +27,6 @@ export const MenuBuilderPage: React.FC = () => {
   const { user } = useAuth();
   const merchantId = user?.merchantId;
   const navigate = useNavigate();
-  const { data: menu, isLoading, error, refetch } = useMenu(merchantId);
   const merchantsQuery = useMerchantsLookup();
   const branchesQuery = useBranchesLookup();
   const tablesQuery = useTablesLookup();
@@ -46,9 +45,20 @@ export const MenuBuilderPage: React.FC = () => {
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [productForm, setProductForm] = useState<ProductFormState>({ categoryId: 0, name: '', description: '', price: 9.99, image: FOOD_IMAGE_PRESETS[0].url, available: true, preparationTime: 10 });
 
+  // Each branch has its own independent menu (categories/products may differ
+  // per branch), so the builder edits one branch's catalog at a time.
+  const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
+  useEffect(() => {
+    if (selectedBranchId == null && branchesQuery.data && branchesQuery.data.length > 0) {
+      setSelectedBranchId(branchesQuery.data[0].id);
+    }
+  }, [branchesQuery.data, selectedBranchId]);
+  const selectedBranch = branchesQuery.data?.find((b) => b.id === selectedBranchId);
+
+  const { data: menu, isLoading, error, refetch } = useBranchMenu(selectedBranchId ?? undefined);
+
   const merchant = merchantsQuery.data?.find((m) => m.id === merchantId);
   const merchantSlug = merchant?.slug || 'demo';
-  const firstBranch = branchesQuery.data?.[0];
   const firstTable = tablesQuery.data?.[0];
   const categories = menu?.categories || [];
 
@@ -80,14 +90,13 @@ export const MenuBuilderPage: React.FC = () => {
       if (categoryForm.id) {
         await updateCategory.mutateAsync({ id: categoryForm.id, data: { name: categoryForm.name.trim(), displayOrder: categoryForm.displayOrder } });
       } else {
-        // Categories are branch-scoped (backend requires branchId). This
-        // merchant-wide builder has no branch picker of its own, so it
-        // targets the merchant's first branch — the same one Preview/QR
-        // Demo below use. A merchant with zero branches has nothing to
-        // attach a category to; the "Add Category" button is disabled in
-        // that case (see !firstBranch below).
-        if (!firstBranch) { setPageError('Create a branch first — categories belong to a branch.'); return; }
-        await createCategory.mutateAsync({ merchantId, branchId: firstBranch.id, name: categoryForm.name.trim(), displayOrder: categoryForm.displayOrder });
+        // Categories are branch-scoped (backend requires branchId) — attach
+        // to whichever branch is currently selected in the picker. A
+        // merchant with zero branches has nothing to attach a category to;
+        // the "Add Category" button is disabled in that case (see
+        // !selectedBranch below).
+        if (!selectedBranch) { setPageError('Create a branch first — categories belong to a branch.'); return; }
+        await createCategory.mutateAsync({ merchantId, branchId: selectedBranch.id, name: categoryForm.name.trim(), displayOrder: categoryForm.displayOrder });
       }
       setCategoryModalOpen(false);
     } catch (err) { setPageError(friendlyError(err, 'Could not save category.')); }
@@ -142,14 +151,20 @@ export const MenuBuilderPage: React.FC = () => {
 
   const handlePreviewMenu = () => {
     if (!merchantSlug || !firstTable) { alert('You need at least one table to preview the customer menu. Create a table first.'); return; }
-    const branchSlug = firstBranch?.name?.toLowerCase().replace(/\s+/g, '-') || 'main';
+    const branchSlug = selectedBranch?.name?.toLowerCase().replace(/\s+/g, '-') || 'main';
     navigate(`/menu/${merchantSlug}/${branchSlug}/${firstTable.tableNumber}`);
   };
 
   const handleQRDemo = () => {
     if (!merchantSlug || !firstTable) { alert('You need at least one table to demo the QR scan. Create a table first.'); return; }
-    const branchSlug = firstBranch?.name?.toLowerCase().replace(/\s+/g, '-') || 'main';
+    const branchSlug = selectedBranch?.name?.toLowerCase().replace(/\s+/g, '-') || 'main';
     navigate(`/menu/${merchantSlug}/${branchSlug}/${firstTable.tableNumber}?demo=qr`);
+  };
+
+  const handleBranchChange = (branchId: number) => {
+    setSelectedBranchId(branchId);
+    setActiveCategoryId('all');
+    setSearchQuery('');
   };
 
   return (
@@ -163,13 +178,25 @@ export const MenuBuilderPage: React.FC = () => {
             <p className="text-xs text-slate-500 mt-0.5">Build your menu by category and product — customers see it instantly after scanning the QR code.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {branchesQuery.data && branchesQuery.data.length > 0 && (
+              <div className="relative">
+                <Store className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                <select
+                  value={selectedBranchId ?? ''}
+                  onChange={(e) => handleBranchChange(Number(e.target.value))}
+                  className="pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20"
+                >
+                  {branchesQuery.data.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+              </div>
+            )}
             <button onClick={handlePreviewMenu} disabled={!merchantSlug || !firstTable} className="px-4 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50">
               <Eye className="w-4 h-4" /> Preview Customer Menu
             </button>
             <button onClick={handleQRDemo} disabled={!merchantSlug || !firstTable} className="px-4 py-2 bg-[#E60028] hover:bg-[#CC0024] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50">
               <Smartphone className="w-4 h-4" /> QR Scan Demo
             </button>
-            <button onClick={() => openCategoryModal()} disabled={!firstBranch} title={!firstBranch ? 'Create a branch first' : undefined} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50">
+            <button onClick={() => openCategoryModal()} disabled={!selectedBranch} title={!selectedBranch ? 'Create a branch first' : undefined} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50">
               <FolderPlus className="w-4 h-4" /> Add Category
             </button>
             <button onClick={() => openProductModal()} disabled={categories.length === 0} className="px-4 py-2 bg-[#E60028] hover:bg-[#CC0024] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50">
@@ -177,6 +204,12 @@ export const MenuBuilderPage: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {!isLoading && !branchesQuery.isLoading && branchesQuery.data?.length === 0 && (
+          <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs font-bold text-amber-700 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" /> Create a branch before building a menu — each branch has its own independent catalog.
+          </div>
+        )}
 
         {pageError && (
           <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-700 flex items-center gap-2">
