@@ -186,4 +186,49 @@ public class MenuService {
                 .categories(categoryDtos)
                 .build();
     }
+
+    /** Menu-scoped variant, used by the new branch-level public endpoint (Task 8). */
+    public MenuResponse getFullMenuByMenuId(UUID menuId) {
+        List<CategoryEntity> categories = categoryRepository.findByMenuIdOrderByDisplayOrderAsc(menuId);
+
+        List<MenuResponse.CategoryDto> categoryDtos = categories.stream().map(cat -> {
+            List<ProductEntity> products = productRepository.findByCategoryId(cat.getId());
+
+            List<MenuResponse.ProductDto> productDtos = products.stream().map(prod ->
+                    MenuResponse.ProductDto.builder()
+                            .id(prod.getId())
+                            .name(prod.getName())
+                            .description(prod.getDescription())
+                            .price(prod.getPrice())
+                            .image(prod.getImage())
+                            .available(prod.isAvailable())
+                            .preparationTime(prod.getPreparationTime())
+                            .build()
+            ).collect(Collectors.toList());
+
+            return MenuResponse.CategoryDto.builder()
+                    .id(cat.getId())
+                    .name(cat.getName())
+                    .items(productDtos)
+                    .build();
+        }).collect(Collectors.toList());
+
+        return MenuResponse.builder().categories(categoryDtos).build();
+    }
+
+    /**
+     * Publish is the HLD's own gate: "Only menus with a Published status are
+     * made available through the public menu interface" (6.2). Requires a
+     * menu to already exist for the branch — call getOrCreateMenuForBranch
+     * (via adding a category) before this.
+     */
+    @Transactional
+    public MenuEntity publish(Long branchId) {
+        MenuEntity menu = menuRepository.findByBranchId(branchId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No menu to publish for branch " + branchId + " — add at least one category first"));
+        menu.setStatus(MenuEntity.Status.PUBLISHED);
+        menu.setPublishedAt(java.time.LocalDateTime.now());
+        return menuRepository.save(menu);
+    }
 }
