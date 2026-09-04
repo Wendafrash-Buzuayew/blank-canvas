@@ -1,12 +1,14 @@
 package com.qrserve.menu.controller;
 
 import com.qrserve.menu.dto.MenuResponse;
+import com.qrserve.menu.dto.SetMenuTemplateRequest;
 import com.qrserve.menu.entity.MenuEntity;
 import com.qrserve.menu.service.MenuService;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
 import com.qrserve.shared.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -37,7 +39,9 @@ public class MenuController {
         if (menu.getStatus() != MenuEntity.Status.PUBLISHED) {
             throw new ResourceNotFoundException("No published menu for branch " + branchId);
         }
-        return ResponseEntity.ok(menuService.getFullMenuByMenuId(menu.getId()));
+        MenuResponse response = menuService.getFullMenuByMenuId(menu.getId());
+        response.setTemplateStyle(menu.getTemplateStyle());
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/branch/{branchId}/manage")
@@ -46,6 +50,15 @@ public class MenuController {
     public ResponseEntity<MenuResponse> getMenuForBranchManagement(
             @PathVariable Long branchId, @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(menuService.getMenuForBranchManagement(branchId, principal));
+    }
+
+    @PatchMapping("/branch/{branchId}/template")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
+    @Operation(summary = "Set a branch's curated digital-menu visual template")
+    public ResponseEntity<MenuEntity> setTemplate(
+            @PathVariable Long branchId, @Valid @RequestBody SetMenuTemplateRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(menuService.setTemplate(branchId, request.getTemplateStyle(), principal));
     }
 
     @PostMapping("/branch/{branchId}/publish")

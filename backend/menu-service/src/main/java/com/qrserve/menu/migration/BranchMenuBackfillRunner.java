@@ -163,6 +163,7 @@ public class BranchMenuBackfillRunner implements CommandLineRunner {
                     // regardless of whether a branch reached PUBLISHED via the explicit publish
                     // endpoint or via this backfill.
                     .publishedAt(java.time.LocalDateTime.now())
+                    .templateStyle(MenuEntity.TemplateStyle.CLASSIC)
                     .build());
 
             for (CategoryEntity source : sourceCategories) {

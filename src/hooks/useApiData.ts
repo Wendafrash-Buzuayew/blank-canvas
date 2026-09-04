@@ -18,6 +18,7 @@ import {
   WaiterRequestType,
   CreateOrderRequest,
   MenuResponse,
+  MenuTemplateStyle,
   TodayAnalyticsResponse,
   RevenueAnalyticsResponse,
   PopularItemDto,
@@ -256,16 +257,6 @@ export const useDeleteWaiter = () => {
 
 // ============ Menu Queries ============
 
-export const useMenu = (merchantId: string | undefined) => {
-  const { isAuthenticated: isAuth } = useAuth();
-  return useQuery({
-    queryKey: ['menu', merchantId],
-    queryFn: () => menuApi.getFullMenu(merchantId!),
-    enabled: !!merchantId && isAuth,
-    staleTime: 60_000,
-  });
-};
-
 /** Draft-inclusive, staff-only — one branch's own catalog, for the menu builder. */
 export const useBranchMenu = (branchId: number | undefined) => {
   const { isAuthenticated: isAuth } = useAuth();
@@ -274,6 +265,17 @@ export const useBranchMenu = (branchId: number | undefined) => {
     queryFn: () => menuApi.getBranchMenu(branchId!),
     enabled: !!branchId && isAuth,
     staleTime: 60_000,
+  });
+};
+
+export const useSetMenuTemplate = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ branchId, templateStyle }: { branchId: number; templateStyle: MenuTemplateStyle }) =>
+      menuApi.setTemplate(branchId, templateStyle),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['menu', 'branch', variables.branchId] });
+    },
   });
 };
 

@@ -43,7 +43,10 @@ export interface DigitalMenuCategory {
   items: DigitalMenuProduct[];
 }
 
+export type MenuTemplateStyle = 'CLASSIC' | 'MODERN_DARK' | 'VIBRANT';
+
 export interface DigitalMenuResponse {
+  templateStyle: MenuTemplateStyle;
   categories: DigitalMenuCategory[];
 }
 

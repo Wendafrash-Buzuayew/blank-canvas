@@ -6,7 +6,53 @@ import {
   resolvePrimaryBranch,
   fetchBranchMenu,
   type DigitalMenuResolution,
+  type MenuTemplateStyle,
 } from '../lib/digitalMenu';
+
+/**
+ * A small, team-curated, fixed set of visual presentations — the merchant
+ * picks one (MenuBuilderPage), not a merchant-authored/customizable
+ * template system. Each entry is just a set of Tailwind class tokens
+ * applied to the same page structure below.
+ */
+const TEMPLATES: Record<MenuTemplateStyle, {
+  page: string; header: string; title: string; categoryHeading: string;
+  row: string; itemName: string; price: string; strikePrice: string; description: string;
+}> = {
+  CLASSIC: {
+    page: 'min-h-screen bg-white text-slate-900',
+    header: 'px-6 py-8 text-center border-b-4 border-[#E60028]',
+    title: 'text-3xl font-black',
+    categoryHeading: 'text-lg font-extrabold text-[#E60028] uppercase tracking-wide mt-8 mb-2 px-6',
+    row: 'flex justify-between gap-4 px-6 py-4 border-b border-slate-100',
+    itemName: 'font-bold',
+    price: 'font-black',
+    strikePrice: 'text-slate-400 line-through text-sm',
+    description: 'text-sm text-slate-500 mt-1',
+  },
+  MODERN_DARK: {
+    page: 'min-h-screen bg-slate-950 text-white',
+    header: 'px-6 py-8 text-center border-b border-slate-800',
+    title: 'text-3xl font-black',
+    categoryHeading: 'text-lg font-extrabold text-red-400 uppercase tracking-wide mt-8 mb-2 px-6',
+    row: 'flex justify-between gap-4 px-6 py-4 border-b border-slate-800',
+    itemName: 'font-bold',
+    price: 'font-black',
+    strikePrice: 'text-slate-500 line-through text-sm',
+    description: 'text-sm text-slate-400 mt-1',
+  },
+  VIBRANT: {
+    page: 'min-h-screen bg-gradient-to-b from-amber-50 via-white to-white text-slate-900',
+    header: 'px-6 py-10 text-center',
+    title: 'text-4xl font-black text-amber-600',
+    categoryHeading: 'text-lg font-extrabold text-amber-600 uppercase tracking-wide mt-8 mb-3 px-6',
+    row: 'flex justify-between gap-4 mx-4 mb-3 p-4 bg-white rounded-2xl border-2 border-amber-100 shadow-sm',
+    itemName: 'font-bold',
+    price: 'font-black text-amber-700',
+    strikePrice: 'text-slate-400 line-through text-sm',
+    description: 'text-sm text-slate-500 mt-1',
+  },
+};
 
 /**
  * Read-only digital menu view — no cart, no ordering (out of scope for the
@@ -70,28 +116,34 @@ function BranchMenu({ merchantSlug, branchSlug }: { merchantSlug: string; branch
     return <div role="alert">Menu coming soon.</div>;
   }
 
+  const template = TEMPLATES[menuQuery.data?.templateStyle ?? 'CLASSIC'];
+
   return (
-    <div>
-      <h1>{resolutionQuery.data?.branchName}</h1>
+    <div className={template.page}>
+      <header className={template.header}>
+        <h1 className={template.title}>{resolutionQuery.data?.branchName}</h1>
+      </header>
       {menuQuery.data?.categories.map((category) => (
         <section key={category.id}>
-          <h2>{category.name}</h2>
-          <ul>
-            {category.items.map((item) => (
-              <li key={item.id}>
-                <strong>{item.name}</strong> —{' '}
+          <h2 className={template.categoryHeading}>{category.name}</h2>
+          {category.items.map((item) => (
+            <div key={item.id} className={template.row}>
+              <div className="min-w-0">
+                <div className={template.itemName}>{item.name}</div>
+                {item.description && <p className={template.description}>{item.description}</p>}
+              </div>
+              <div className="shrink-0 text-right">
                 {item.effectivePrice < item.price ? (
                   <>
-                    <span style={{ textDecoration: 'line-through', opacity: 0.6 }}>{item.price}</span>{' '}
-                    <span>{item.effectivePrice}</span>
+                    <div className={template.strikePrice}>{item.price}</div>
+                    <div className={template.price}>{item.effectivePrice}</div>
                   </>
                 ) : (
-                  item.price
+                  <div className={template.price}>{item.price}</div>
                 )}
-                {item.description && <p>{item.description}</p>}
-              </li>
-            ))}
-          </ul>
+              </div>
+            </div>
+          ))}
         </section>
       ))}
     </div>

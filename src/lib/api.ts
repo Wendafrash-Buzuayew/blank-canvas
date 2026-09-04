@@ -81,7 +81,11 @@ export interface CreateTableResponse {
   qrToken: string;
 }
 
+export type MenuTemplateStyle = 'CLASSIC' | 'MODERN_DARK' | 'VIBRANT';
+
 export interface MenuResponse {
+  /** Absent on the legacy merchant-wide GET /api/menu/{merchantId} read, which predates templates. */
+  templateStyle?: MenuTemplateStyle;
   categories: {
     id: number;
     name: string;
@@ -613,6 +617,12 @@ export const menuApi = {
   /** Staff-only, draft-inclusive — for the merchant's own menu-builder UI. */
   getBranchMenu: (branchId: number) =>
     request<MenuResponse>(`/menu/branch/${branchId}/manage`),
+
+  setTemplate: (branchId: number, templateStyle: MenuTemplateStyle) =>
+    request<{ id: string; templateStyle: MenuTemplateStyle }>(`/menu/branch/${branchId}/template`, {
+      method: 'PATCH',
+      body: JSON.stringify({ templateStyle }),
+    }),
 };
 
 // ============ Order API ============

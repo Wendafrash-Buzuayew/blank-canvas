@@ -25,6 +25,13 @@ public class MenuEntity {
 
     public enum Status { DRAFT, PUBLISHED }
 
+    /**
+     * A small, team-curated, fixed set of visual presentations for the
+     * customer-facing digital menu page — a merchant picks one, not a
+     * merchant-authored/customizable template system.
+     */
+    public enum TemplateStyle { CLASSIC, MODERN_DARK, VIBRANT }
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -42,6 +49,13 @@ public class MenuEntity {
     @Column(nullable = false)
     private Status status;
 
+    // Nullable + defaulted in prePersist (like status above), not
+    // nullable=false: avoids a NOT NULL column landing on an
+    // already-populated table under this repo's ddl-auto=update convention.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "template_style")
+    private TemplateStyle templateStyle;
+
     @Column(name = "published_at")
     private LocalDateTime publishedAt;
 
@@ -54,6 +68,7 @@ public class MenuEntity {
     @PrePersist
     public void prePersist() {
         if (status == null) status = Status.DRAFT;
+        if (templateStyle == null) templateStyle = TemplateStyle.CLASSIC;
         if (createdAt == null) createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
     }

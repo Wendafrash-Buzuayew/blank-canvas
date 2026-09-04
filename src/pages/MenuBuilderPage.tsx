@@ -1,13 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Trash2, Edit3, X, Utensils, FolderPlus, Search, Loader2, Eye, Smartphone, Image as ImageIcon, Clock, AlertCircle, Store } from 'lucide-react';
+import { Plus, Trash2, Edit3, X, Utensils, FolderPlus, Search, Loader2, Eye, Smartphone, Image as ImageIcon, Clock, AlertCircle, Store, Palette } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Spinner, ErrorState, EmptyState } from '../components/ui/States';
 import { useAuth } from '../context/AuthContext';
-import { useBranchMenu, useCreateCategory, useUpdateCategory, useDeleteCategory, useCreateProduct, useUpdateProduct, useDeleteProduct } from '../hooks/useApiData';
+import { useBranchMenu, useCreateCategory, useUpdateCategory, useDeleteCategory, useCreateProduct, useUpdateProduct, useDeleteProduct, useSetMenuTemplate } from '../hooks/useApiData';
 import { useBranchesLookup, useMerchantsLookup, useTablesLookup } from '../hooks/useLookups';
 import { friendlyError } from '../lib/errors';
 import { useNavigate } from 'react-router-dom';
-import type { MenuResponse } from '../lib/api';
+import type { MenuResponse, MenuTemplateStyle } from '../lib/api';
+
+const TEMPLATE_OPTIONS: { value: MenuTemplateStyle; label: string; swatch: string }[] = [
+  { value: 'CLASSIC', label: 'Classic', swatch: 'bg-white border-2 border-[#E60028]' },
+  { value: 'MODERN_DARK', label: 'Modern Dark', swatch: 'bg-slate-950 border-2 border-red-400' },
+  { value: 'VIBRANT', label: 'Vibrant', swatch: 'bg-gradient-to-br from-amber-100 to-white border-2 border-amber-400' },
+];
 
 const FOOD_IMAGE_PRESETS = [
   { label: 'Cappuccino', url: 'https://images.unsplash.com/photo-1534778101976-62847782c213?w=600&auto=format&fit=crop&q=80' },
@@ -45,6 +51,7 @@ export const MenuBuilderPage: React.FC = () => {
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
+  const setMenuTemplate = useSetMenuTemplate();
 
   const [activeCategoryId, setActiveCategoryId] = useState<number | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -195,6 +202,14 @@ export const MenuBuilderPage: React.FC = () => {
     setSearchQuery('');
   };
 
+  const handleSelectTemplate = async (templateStyle: MenuTemplateStyle) => {
+    if (!selectedBranchId) return;
+    setPageError(null);
+    try {
+      await setMenuTemplate.mutateAsync({ branchId: selectedBranchId, templateStyle });
+    } catch (err) { setPageError(friendlyError(err, 'Could not update the menu template.')); }
+  };
+
   return (
     <DashboardLayout title="Menu Builder">
       <div className="space-y-6">
@@ -232,6 +247,29 @@ export const MenuBuilderPage: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {selectedBranch && (
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+            <span className="text-xs font-bold text-slate-700 uppercase flex items-center gap-1.5 shrink-0"><Palette className="w-4 h-4 text-[#E60028]" /> Digital Menu Look</span>
+            <div className="flex items-center gap-2">
+              {TEMPLATE_OPTIONS.map((opt) => {
+                const isActive = (menu?.templateStyle ?? 'CLASSIC') === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => handleSelectTemplate(opt.value)}
+                    disabled={setMenuTemplate.isPending}
+                    title={opt.label}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border-2 transition-all disabled:opacity-50 ${isActive ? 'border-[#E60028] bg-red-50 text-[#E60028]' : 'border-transparent bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
+                  >
+                    <span className={`w-4 h-4 rounded-full ${opt.swatch}`} />
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {!isLoading && !branchesQuery.isLoading && branchesQuery.data?.length === 0 && (
           <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs font-bold text-amber-700 flex items-center gap-2">

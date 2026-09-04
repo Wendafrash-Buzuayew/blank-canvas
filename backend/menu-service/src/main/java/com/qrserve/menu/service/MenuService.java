@@ -76,6 +76,7 @@ public class MenuService {
                         // callback only fires through real JPA persistence, not when
                         // menuRepository.save is mocked (see MenuServiceCategoryTest).
                         .status(MenuEntity.Status.DRAFT)
+                        .templateStyle(MenuEntity.TemplateStyle.CLASSIC)
                         .build()));
     }
 
@@ -324,8 +325,43 @@ public class MenuService {
             }
         }
         return menuRepository.findByBranchId(branchId)
-                .map(menu -> getFullMenuByMenuId(menu.getId()))
-                .orElseGet(() -> MenuResponse.builder().categories(List.of()).build());
+                .map(menu -> {
+                    MenuResponse response = getFullMenuByMenuId(menu.getId());
+                    response.setTemplateStyle(menu.getTemplateStyle());
+                    return response;
+                })
+                .orElseGet(() -> MenuResponse.builder()
+                        .templateStyle(MenuEntity.TemplateStyle.CLASSIC)
+                        .categories(List.of())
+                        .build());
+    }
+
+    /**
+     * Sets the branch's curated visual template, auto-creating its menu if
+     * this is the first time anything has been configured for it — a
+     * merchant should be able to pick a look before adding a single
+     * category. Same tenant-ownership check as publish/createCategory.
+     */
+    public MenuEntity setTemplate(Long branchId, MenuEntity.TemplateStyle templateStyle, UserPrincipal principal) {
+        if (principal == null) {
+            throw new UnauthorizedException("Authentication required");
+        }
+        UUID merchantId;
+        if (principal.getRole() == UserRole.SUPER_ADMIN) {
+            merchantId = fetchBranchMerchantId(branchId);
+        } else {
+            merchantId = principal.getMerchantId();
+            UUID actualMerchantId = fetchBranchMerchantId(branchId);
+            if (!actualMerchantId.equals(merchantId)) {
+                throw new AccessDeniedException("Branch " + branchId + " does not belong to your merchant");
+            }
+        }
+        UUID resolvedMerchantId = merchantId;
+        return runInTransaction(() -> {
+            MenuEntity menu = getOrCreateMenuForBranch(branchId, resolvedMerchantId);
+            menu.setTemplateStyle(templateStyle);
+            return menuRepository.save(menu);
+        });
     }
 
     /**
