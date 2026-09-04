@@ -10,4 +10,6 @@ import java.util.UUID;
 @Repository
 public interface CategoryRepository extends JpaRepository<CategoryEntity, Long> {
     List<CategoryEntity> findByMerchantIdOrderByDisplayOrderAsc(UUID merchantId);
+
+    List<CategoryEntity> findByMenuIdOrderByDisplayOrderAsc(UUID menuId);
 }

@@ -6,8 +6,10 @@ import com.qrserve.menu.dto.MenuResponse;
 import com.qrserve.menu.dto.UpdateCategoryRequest;
 import com.qrserve.menu.dto.UpdateProductRequest;
 import com.qrserve.menu.entity.CategoryEntity;
+import com.qrserve.menu.entity.MenuEntity;
 import com.qrserve.menu.entity.ProductEntity;
 import com.qrserve.menu.repository.CategoryRepository;
+import com.qrserve.menu.repository.MenuRepository;
 import com.qrserve.menu.repository.ProductRepository;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -26,13 +28,34 @@ public class MenuService {
 
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
+    private final MenuRepository menuRepository;
 
     // ============ Category CRUD ============
+
+    /**
+     * A branch without a menu is a branch nobody can publish, so this is
+     * called both when a category is first added to a branch and by the
+     * publish endpoint (Task 5) — idempotent either way.
+     */
+    @Transactional
+    public MenuEntity getOrCreateMenuForBranch(Long branchId, UUID merchantId) {
+        return menuRepository.findByBranchId(branchId)
+                .orElseGet(() -> menuRepository.save(MenuEntity.builder()
+                        .branchId(branchId)
+                        .merchantId(merchantId)
+                        // Explicit rather than relying on MenuEntity#prePersist: that
+                        // callback only fires through real JPA persistence, not when
+                        // menuRepository.save is mocked (see MenuServiceCategoryTest).
+                        .status(MenuEntity.Status.DRAFT)
+                        .build()));
+    }
 
     @Transactional
     @CacheEvict(value = "menus", key = "#request.merchantId")
     public CategoryEntity createCategory(CreateCategoryRequest request) {
+        MenuEntity menu = getOrCreateMenuForBranch(request.getBranchId(), request.getMerchantId());
         CategoryEntity category = CategoryEntity.builder()
+                .menuId(menu.getId())
                 .merchantId(request.getMerchantId())
                 .name(request.getName())
                 .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
