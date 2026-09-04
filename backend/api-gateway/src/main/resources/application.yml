@@ -200,6 +200,7 @@ services:
 app:
   public-base-domain: ${PUBLIC_BASE_DOMAIN}
   public-url-scheme: ${PUBLIC_URL_SCHEME:https}
+  public-menu-domain: ${PUBLIC_MENU_DOMAIN}
 
 # Required even though the gateway does no QR work itself: ApiGatewayApplication
 # component-scans com.qrserve.shared.common (and the build adds shared:common to
