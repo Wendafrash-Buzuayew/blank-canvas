@@ -80,7 +80,14 @@ export const MenuBuilderPage: React.FC = () => {
       if (categoryForm.id) {
         await updateCategory.mutateAsync({ id: categoryForm.id, data: { name: categoryForm.name.trim(), displayOrder: categoryForm.displayOrder } });
       } else {
-        await createCategory.mutateAsync({ merchantId, name: categoryForm.name.trim(), displayOrder: categoryForm.displayOrder });
+        // Categories are branch-scoped (backend requires branchId). This
+        // merchant-wide builder has no branch picker of its own, so it
+        // targets the merchant's first branch — the same one Preview/QR
+        // Demo below use. A merchant with zero branches has nothing to
+        // attach a category to; the "Add Category" button is disabled in
+        // that case (see !firstBranch below).
+        if (!firstBranch) { setPageError('Create a branch first — categories belong to a branch.'); return; }
+        await createCategory.mutateAsync({ merchantId, branchId: firstBranch.id, name: categoryForm.name.trim(), displayOrder: categoryForm.displayOrder });
       }
       setCategoryModalOpen(false);
     } catch (err) { setPageError(friendlyError(err, 'Could not save category.')); }
@@ -162,7 +169,7 @@ export const MenuBuilderPage: React.FC = () => {
             <button onClick={handleQRDemo} disabled={!merchantSlug || !firstTable} className="px-4 py-2 bg-[#E60028] hover:bg-[#CC0024] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50">
               <Smartphone className="w-4 h-4" /> QR Scan Demo
             </button>
-            <button onClick={() => openCategoryModal()} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors">
+            <button onClick={() => openCategoryModal()} disabled={!firstBranch} title={!firstBranch ? 'Create a branch first' : undefined} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50">
               <FolderPlus className="w-4 h-4" /> Add Category
             </button>
             <button onClick={() => openProductModal()} disabled={categories.length === 0} className="px-4 py-2 bg-[#E60028] hover:bg-[#CC0024] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50">

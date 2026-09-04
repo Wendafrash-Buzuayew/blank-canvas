@@ -12,8 +12,12 @@ import {
 } from '../types';
 import type { OrderStatus } from './orderStatus';
 
-// Environment-based API base URL
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+// Environment-based API base URL. Optional chaining on `env` because this
+// module is now also imported by digitalMenu.ts, which digitalMenu.test.ts
+// runs under plain `tsx` (Node ESM) rather than through Vite — Vite is what
+// populates import.meta.env, so under tsx it is simply absent rather than an
+// empty object.
+export const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL || '/api';
 
 // ============ Type Definitions (Backend Contract) ============
 
@@ -175,8 +179,13 @@ const ACCESS_TOKEN_KEY = 'qrserve_access_token';
 const REFRESH_TOKEN_KEY = 'qrserve_refresh_token';
 const USER_KEY = 'qrserve_user';
 
-let authToken: string | null = localStorage.getItem(ACCESS_TOKEN_KEY);
-let refreshToken: string | null = localStorage.getItem(REFRESH_TOKEN_KEY);
+// typeof-guarded because this module is now also imported (for API_BASE_URL)
+// by digitalMenu.ts, which digitalMenu.test.ts runs under plain `tsx`
+// (Node, no DOM) rather than a browser — localStorage simply doesn't exist
+// there.
+const hasLocalStorage = typeof localStorage !== 'undefined';
+let authToken: string | null = hasLocalStorage ? localStorage.getItem(ACCESS_TOKEN_KEY) : null;
+let refreshToken: string | null = hasLocalStorage ? localStorage.getItem(REFRESH_TOKEN_KEY) : null;
 let refreshPromise: Promise<boolean> | null = null;
 
 export function setTokens(access: string, refresh: string) {
@@ -542,7 +551,7 @@ export interface ProductEntity {
 }
 
 export const menuApi = {
-  createCategory: (data: { merchantId: string; name: string; displayOrder?: number }) =>
+  createCategory: (data: { merchantId: string; branchId: number; name: string; displayOrder?: number }) =>
     request<CategoryEntity>('/categories', {
       method: 'POST',
       body: JSON.stringify(data),

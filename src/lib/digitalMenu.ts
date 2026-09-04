@@ -6,6 +6,17 @@
  * (CustomerMenuPage, resolveMenuTarget) is untouched.
  */
 
+import { API_BASE_URL } from './api';
+
+// API_BASE_URL (src/lib/api.ts) already carries a trailing "/api" segment in
+// both dev ("/api") and production ("https://api.qrserve.com/api") — see
+// .env.development / .env.production. This module's own paths (below) are
+// already rooted at "/api/..." too, so naively prepending API_BASE_URL as-is
+// would double up into "/api/api/...". Strip that trailing segment to get
+// just the gateway origin (empty string in dev, where a bare "/api/..." path
+// already resolves correctly via the Vite proxy).
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+
 export interface DigitalMenuResolution {
   merchantId: string;
   merchantSlug: string;
@@ -50,7 +61,7 @@ export function buildDigitalMenuApiPath(merchantSlug: string, branchSlug?: strin
 }
 
 async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(path);
+  const response = await fetch(`${API_ORIGIN}${path}`);
   if (!response.ok) {
     throw new Error(`Request to ${path} failed with ${response.status}`);
   }
