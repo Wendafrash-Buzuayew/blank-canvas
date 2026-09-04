@@ -105,6 +105,11 @@ public class BranchMenuBackfillRunner implements CommandLineRunner {
                     .branchId(branchId)
                     .merchantId(merchantId)
                     .status(MenuEntity.Status.PUBLISHED)
+                    // Matches MenuService.publish(): status PUBLISHED always carries a
+                    // publishedAt, so downstream readers of that field see a consistent value
+                    // regardless of whether a branch reached PUBLISHED via the explicit publish
+                    // endpoint or via this backfill.
+                    .publishedAt(java.time.LocalDateTime.now())
                     .build());
 
             for (CategoryEntity source : sourceCategories) {
