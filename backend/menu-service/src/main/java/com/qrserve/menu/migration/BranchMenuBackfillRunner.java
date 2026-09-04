@@ -19,7 +19,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
@@ -50,6 +51,14 @@ public class BranchMenuBackfillRunner implements CommandLineRunner {
     private JwtTokenProvider jwtTokenProvider;
     private String merchantServiceUrl;
     private boolean enabled;
+    // Built explicitly from an injected PlatformTransactionManager rather than
+    // relying on @Transactional here: backfillMerchant is called from run()
+    // via plain `this.` self-invocation, which bypasses Spring's transactional
+    // AOP proxy entirely — an @Transactional annotation on a self-invoked
+    // method is silently inert. TransactionTemplate applies the transaction
+    // boundary explicitly at the call site instead, so it works regardless of
+    // proxying, and stays unit-testable with a mocked PlatformTransactionManager.
+    private TransactionTemplate transactionTemplate;
 
     public BranchMenuBackfillRunner(MenuRepository menuRepository, CategoryRepository categoryRepository,
                                      ProductRepository productRepository) {
@@ -62,12 +71,13 @@ public class BranchMenuBackfillRunner implements CommandLineRunner {
     public BranchMenuBackfillRunner(
             MenuRepository menuRepository, CategoryRepository categoryRepository,
             ProductRepository productRepository, RestTemplate restTemplate,
-            JwtTokenProvider jwtTokenProvider,
+            JwtTokenProvider jwtTokenProvider, PlatformTransactionManager transactionManager,
             @Value("${services.merchant-service-url:http://localhost:8085}") String merchantServiceUrl,
             @Value("${backfill.branch-menus.enabled:false}") boolean enabled) {
         this(menuRepository, categoryRepository, productRepository);
         this.restTemplate = restTemplate;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.merchantServiceUrl = merchantServiceUrl;
         this.enabled = enabled;
     }
@@ -84,7 +94,12 @@ public class BranchMenuBackfillRunner implements CommandLineRunner {
         for (UUID merchantId : merchantIds) {
             List<Long> branchIds = fetchBranchIds(merchantId, authHeaders);
             ensurePrimaryBranch(merchantId, branchIds, authHeaders);
-            backfillMerchant(merchantId, branchIds);
+            // Explicit transaction boundary — see the transactionTemplate field's
+            // Javadoc for why @Transactional on backfillMerchant itself would be inert.
+            transactionTemplate.execute(status -> {
+                backfillMerchant(merchantId, branchIds);
+                return null;
+            });
         }
         log.info("Branch-menu backfill complete: {} merchants processed", merchantIds.size());
     }
@@ -122,13 +137,14 @@ public class BranchMenuBackfillRunner implements CommandLineRunner {
      * The pure, HTTP-free part — one independent Menu (+ category/product
      * copy) per branch, skipping any branch that already has one. Public so
      * it's directly unit-testable without standing up REST calls.
-     * Transactional per-merchant: a crash partway through this merchant's
-     * multi-branch backfill rolls back cleanly, leaving it eligible for a
-     * clean re-run (the findByBranchId(...).isPresent() skip above already
-     * makes re-running safe); other merchants already committed in the run()
-     * loop are unaffected since each merchant is its own transaction.
+     * Wrapped per-merchant in a TransactionTemplate at the run() call site
+     * (not an @Transactional annotation here — see that field's Javadoc): a
+     * crash partway through this merchant's multi-branch backfill rolls back
+     * cleanly, leaving it eligible for a clean re-run (the
+     * findByBranchId(...).isPresent() skip above already makes re-running
+     * safe); other merchants already committed in the run() loop are
+     * unaffected since each merchant is its own transaction.
      */
-    @Transactional
     public void backfillMerchant(UUID merchantId, List<Long> branchIds) {
         List<CategoryEntity> sourceCategories =
                 categoryRepository.findByMerchantIdOrderByDisplayOrderAsc(merchantId);

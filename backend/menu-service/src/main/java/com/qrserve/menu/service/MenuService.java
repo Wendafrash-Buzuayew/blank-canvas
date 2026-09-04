@@ -12,6 +12,7 @@ import com.qrserve.menu.repository.CategoryRepository;
 import com.qrserve.menu.repository.MenuRepository;
 import com.qrserve.menu.repository.ProductRepository;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
+import com.qrserve.shared.exceptions.UnauthorizedException;
 import com.qrserve.shared.security.UserPrincipal;
 import com.qrserve.shared.security.UserRole;
 import jakarta.servlet.http.HttpServletRequest;
@@ -254,6 +255,9 @@ public class MenuService {
      */
     @Transactional
     public MenuEntity publish(Long branchId, UserPrincipal principal) {
+        if (principal == null) {
+            throw new UnauthorizedException("Authentication required");
+        }
         if (principal.getRole() != UserRole.SUPER_ADMIN) {
             UUID actualMerchantId = fetchBranchMerchantId(branchId);
             if (!actualMerchantId.equals(principal.getMerchantId())) {

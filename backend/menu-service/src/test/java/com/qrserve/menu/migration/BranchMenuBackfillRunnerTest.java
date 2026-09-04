@@ -14,6 +14,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
@@ -158,6 +159,7 @@ class BranchMenuBackfillRunnerTest {
     private static class RunHarness {
         RestTemplate restTemplate = mock(RestTemplate.class);
         JwtTokenProvider jwtTokenProvider = mock(JwtTokenProvider.class);
+        PlatformTransactionManager transactionManager = mock(PlatformTransactionManager.class);
         MenuRepository menuRepository = mock(MenuRepository.class);
         CategoryRepository categoryRepository = mock(CategoryRepository.class);
         ProductRepository productRepository = mock(ProductRepository.class);
@@ -168,7 +170,7 @@ class BranchMenuBackfillRunnerTest {
                     MenuEntity.builder().id(UUID.randomUUID()).build()));
             when(categoryRepository.findByMerchantIdOrderByDisplayOrderAsc(any())).thenReturn(List.of());
             return new BranchMenuBackfillRunner(menuRepository, categoryRepository, productRepository,
-                    restTemplate, jwtTokenProvider, "http://merchant-service", true);
+                    restTemplate, jwtTokenProvider, transactionManager, "http://merchant-service", true);
         }
 
         void stubMerchantsAndBranches(UUID merchantId, List<Map<String, Object>> branches) {
