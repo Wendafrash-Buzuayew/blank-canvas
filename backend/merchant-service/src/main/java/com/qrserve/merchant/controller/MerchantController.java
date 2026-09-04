@@ -7,9 +7,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -52,5 +54,12 @@ public class MerchantController {
             @PathVariable UUID id,
             @Valid @RequestBody CreateMerchantRequest request) {
         return ResponseEntity.ok(merchantService.updateMerchant(id, request));
+    }
+
+    @PostMapping(value = "/{id}/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('SUPER_ADMIN') or (hasRole('MERCHANT_OWNER') and #id == authentication.principal.merchantId)")
+    @Operation(summary = "Upload a real logo/branding image, replacing whatever URL was in logoUrl")
+    public ResponseEntity<MerchantEntity> uploadLogo(@PathVariable UUID id, @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(merchantService.updateMerchantLogo(id, file));
     }
 }

@@ -3,22 +3,29 @@ package com.qrserve.merchant.service;
 import com.qrserve.merchant.dto.CreateMerchantRequest;
 import com.qrserve.merchant.entity.MerchantEntity;
 import com.qrserve.merchant.repository.MerchantRepository;
+import com.qrserve.merchant.storage.MediaStorageService;
 import com.qrserve.shared.common.Slugs;
 import com.qrserve.shared.exceptions.BusinessException;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class MerchantService {
 
+    private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
+
     private final MerchantRepository merchantRepository;
     private final TenantCacheInvalidator tenantCacheInvalidator;
+    private final MediaStorageService mediaStorageService;
 
     /**
      * Highest suffix tried before giving up. Ten near-identical names is a strong
@@ -116,5 +123,47 @@ public class MerchantService {
 
     public List<MerchantEntity> getAllMerchants() {
         return merchantRepository.findAll();
+    }
+
+    /**
+     * Uploads a real logo/branding image, replacing whatever was in
+     * logoUrl. The key embeds the merchant id and a random suffix so
+     * re-uploads never collide with (or silently overwrite) a previous logo
+     * still cached by a client.
+     */
+    @Transactional
+    public MerchantEntity updateMerchantLogo(UUID id, MultipartFile file) {
+        MerchantEntity merchant = getMerchant(id);
+        validateImageFile(file);
+
+        String extension = extensionFor(file.getContentType());
+        String key = "branding/" + id + "-" + UUID.randomUUID() + extension;
+        String url;
+        try {
+            url = mediaStorageService.store(key, file.getBytes(), file.getContentType());
+        } catch (IOException e) {
+            throw new BusinessException("Failed to read uploaded file", e);
+        }
+
+        merchant.setLogoUrl(url);
+        return merchantRepository.save(merchant);
+    }
+
+    private void validateImageFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException("No file uploaded");
+        }
+        if (!ALLOWED_IMAGE_TYPES.contains(file.getContentType())) {
+            throw new BusinessException("Unsupported image type: " + file.getContentType()
+                    + " (allowed: " + ALLOWED_IMAGE_TYPES + ")");
+        }
+    }
+
+    private String extensionFor(String contentType) {
+        return switch (contentType) {
+            case "image/png" -> ".png";
+            case "image/webp" -> ".webp";
+            default -> ".jpg";
+        };
     }
 }

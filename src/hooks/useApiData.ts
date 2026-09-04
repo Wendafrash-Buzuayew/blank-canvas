@@ -93,6 +93,18 @@ export const useUpdateMerchant = () => {
   });
 };
 
+export const useUploadMerchantLogo = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) => merchantApi.uploadLogo(id, file),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['merchant', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['merchants'] });
+      queryClient.invalidateQueries({ queryKey: ['lookup', 'merchants'] });
+    },
+  });
+};
+
 export const useDeleteMerchant = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -316,6 +328,16 @@ export const useCreateProduct = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: menuApi.createProduct,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menu'] });
+    },
+  });
+};
+
+export const useUploadProductImage = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, file }: { id: number; file: File }) => menuApi.uploadProductImage(id, file),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['menu'] });
     },

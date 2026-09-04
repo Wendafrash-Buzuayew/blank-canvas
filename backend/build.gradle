@@ -184,11 +184,25 @@ project(':merchant-service') {
     springBoot { mainClass = 'com.qrserve.merchant.MerchantServiceApplication' }
     dependencies {
         implementation project(':shared:events')
+        // S3-compatible object storage backend for merchant logo/branding
+        // uploads — see menu-service's identical dependency for product
+        // images and S3MediaStorageService for details.
+        implementation 'software.amazon.awssdk:s3:2.29.29'
+        implementation 'software.amazon.awssdk:url-connection-client:2.29.29'
     }
 }
 
 project(':menu-service') {
     springBoot { mainClass = 'com.qrserve.menu.MenuServiceApplication' }
+    dependencies {
+        // S3-compatible object storage backend for product image uploads
+        // (MinIO locally/self-hosted, real AWS S3 or equivalent in the
+        // cloud) — see S3MediaStorageService. url-connection-client is a
+        // lightweight synchronous HTTP client, avoiding the larger Apache
+        // HttpClient the s3 artifact would otherwise pull in by default.
+        implementation 'software.amazon.awssdk:s3:2.29.29'
+        implementation 'software.amazon.awssdk:url-connection-client:2.29.29'
+    }
 }
 
 project(':qr-service') {

@@ -19,6 +19,28 @@ import type { OrderStatus } from './orderStatus';
 // empty object.
 export const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL || '/api';
 
+// API_BASE_URL already carries a trailing "/api" (dev: "/api", prod:
+// "https://api.qrserve.com/api" — see .env.development/.env.production).
+// Uploaded media URLs from the filesystem storage backend come back rooted
+// at "/api/media/..." already, so joining them the same way digitalMenu.ts
+// joins its own paths would double up into "/api/api/...". Strip that
+// trailing segment to get just the gateway origin (empty string in dev,
+// where a bare "/api/..." path already resolves via the Vite proxy).
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+
+/**
+ * Resolves a possibly-relative media URL (returned by the filesystem
+ * storage backend as "/api/media/...") against the API gateway's origin,
+ * so an <img> tag rendered on a different origin than the gateway (this
+ * admin app in production, or the separate digital-menu domain) doesn't
+ * silently resolve against its own origin instead. An S3-backed URL, or an
+ * external preset URL, is already absolute and passes through unchanged.
+ */
+export function resolveMediaUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  return url.startsWith('/') ? `${API_ORIGIN}${url}` : url;
+}
+
 // ============ Type Definitions (Backend Contract) ============
 
 export interface LoginResponse {
@@ -435,6 +457,7 @@ export type MerchantAPI = {
   getMerchant: (id: string) => Promise<MerchantEntity>;
   updateMerchant: (id: string, data: CreateMerchantRequest) => Promise<MerchantEntity>;
   deleteMerchant: (id: string) => Promise<void>;
+  uploadLogo: (id: string, file: File) => Promise<MerchantEntity>;
 };
 
 export const merchantApi: MerchantAPI = {
@@ -460,6 +483,15 @@ export const merchantApi: MerchantAPI = {
     request<void>(`/merchants/${id}`, {
       method: 'DELETE',
     }),
+
+  uploadLogo: (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request<MerchantEntity>(`/merchants/${id}/logo`, {
+      method: 'POST',
+      body: formData,
+    });
+  },
 };
 
 // ============ Branch API ============
@@ -610,6 +642,15 @@ export const menuApi = {
     request<void>(`/products/${id}`, {
       method: 'DELETE',
     }),
+
+  uploadProductImage: (id: number, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request<ProductEntity>(`/products/${id}/image`, {
+      method: 'POST',
+      body: formData,
+    });
+  },
 
   getFullMenu: (merchantId: string) =>
     request<MenuResponse>(`/menu/${merchantId}`),

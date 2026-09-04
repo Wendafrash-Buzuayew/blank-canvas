@@ -115,6 +115,11 @@ public class SecurityConfig {
                 // this one path shape to match anything under /api/qr/{tableId} or
                 // qr-service's staff-only export endpoints.
                 .requestMatchers(HttpMethod.GET, "/api/qr/digital-menu/*/*").permitAll()
+                // Uploaded product/branding images (filesystem storage backend) — must
+                // be publicly viewable, the same way a hardcoded preset image URL always
+                // was. The upload endpoints themselves (POST) are staff-only and stay
+                // under rule 7's default-authenticated catch-all plus @PreAuthorize.
+                .requestMatchers(HttpMethod.GET, "/api/media/**").permitAll()
 
                 // 6. Explicitly authenticated. Role checks live on the controllers
                 //    via @PreAuthorize; this only guarantees a valid JWT.

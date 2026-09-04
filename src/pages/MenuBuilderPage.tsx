@@ -3,11 +3,11 @@ import { Plus, Trash2, Edit3, X, Utensils, FolderPlus, Search, Loader2, Eye, Sma
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Spinner, ErrorState, EmptyState } from '../components/ui/States';
 import { useAuth } from '../context/AuthContext';
-import { useBranchMenu, useCreateCategory, useUpdateCategory, useDeleteCategory, useCreateProduct, useUpdateProduct, useDeleteProduct, useSetMenuTemplate } from '../hooks/useApiData';
+import { useBranchMenu, useCreateCategory, useUpdateCategory, useDeleteCategory, useCreateProduct, useUpdateProduct, useDeleteProduct, useSetMenuTemplate, useUploadProductImage } from '../hooks/useApiData';
 import { useBranchesLookup, useMerchantsLookup, useTablesLookup } from '../hooks/useLookups';
 import { friendlyError } from '../lib/errors';
 import { useNavigate } from 'react-router-dom';
-import type { MenuResponse, MenuTemplateStyle } from '../lib/api';
+import { resolveMediaUrl, type MenuResponse, type MenuTemplateStyle } from '../lib/api';
 
 const TEMPLATE_OPTIONS: { value: MenuTemplateStyle; label: string; swatch: string }[] = [
   { value: 'CLASSIC', label: 'Classic', swatch: 'bg-white border-2 border-[#E60028]' },
@@ -52,6 +52,7 @@ export const MenuBuilderPage: React.FC = () => {
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
   const setMenuTemplate = useSetMenuTemplate();
+  const uploadProductImage = useUploadProductImage();
 
   const [activeCategoryId, setActiveCategoryId] = useState<number | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -202,6 +203,17 @@ export const MenuBuilderPage: React.FC = () => {
     setSearchQuery('');
   };
 
+  const handleUploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file later
+    if (!file || !productForm.id) return;
+    setPageError(null);
+    try {
+      const updated = await uploadProductImage.mutateAsync({ id: productForm.id, file });
+      setProductForm({ ...productForm, image: updated.image });
+    } catch (err) { setPageError(friendlyError(err, 'Could not upload the image.')); }
+  };
+
   const handleSelectTemplate = async (templateStyle: MenuTemplateStyle) => {
     if (!selectedBranchId) return;
     setPageError(null);
@@ -326,7 +338,7 @@ export const MenuBuilderPage: React.FC = () => {
                 {filteredProducts.map((product) => (
                   <div key={product.id} className={`bg-white rounded-2xl p-4 border shadow-sm flex flex-col justify-between space-y-3 transition-all hover:shadow-md ${!product.available ? 'opacity-60 bg-slate-50/80 border-slate-200' : 'border-slate-200'}`}>
                     <div className="flex gap-3">
-                      {product.image ? <img src={product.image} alt={product.name} className="w-20 h-20 rounded-xl object-cover shrink-0" />
+                      {product.image ? <img src={resolveMediaUrl(product.image)} alt={product.name} className="w-20 h-20 rounded-xl object-cover shrink-0" />
                         : <div className="w-20 h-20 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 shrink-0"><ImageIcon className="w-6 h-6" /></div>}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1 mb-1">
@@ -447,7 +459,20 @@ export const MenuBuilderPage: React.FC = () => {
                 <textarea rows={2} value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })} placeholder="Ingredients and taste profile description..." className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none" />
               </div>
               <div className="col-span-2 space-y-2">
-                <label className="block text-xs font-bold text-slate-700 uppercase">Product Image URL</label>
+                <label className="block text-xs font-bold text-slate-700 uppercase">Product Photo</label>
+                {productForm.id ? (
+                  <div className="flex items-center gap-2">
+                    <label className={`px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl cursor-pointer flex items-center gap-1.5 ${uploadProductImage.isPending ? 'opacity-50 pointer-events-none' : ''}`}>
+                      {uploadProductImage.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                      Upload a Photo
+                      <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleUploadImage} className="hidden" />
+                    </label>
+                    <span className="text-[10px] text-slate-400">JPEG, PNG, or WebP, up to 5MB</span>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-slate-400">Save this item first, then come back to edit it to upload a real photo.</p>
+                )}
+                <label className="block text-xs font-bold text-slate-700 uppercase mt-2">Or Paste an Image URL</label>
                 <input type="text" value={productForm.image || ''} onChange={(e) => setProductForm({ ...productForm, image: e.target.value })} placeholder="https://..." className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none" />
                 <div className="text-[11px] font-bold text-slate-400">Or Select Unsplash Food Preset:</div>
                 <div className="grid grid-cols-4 gap-2">

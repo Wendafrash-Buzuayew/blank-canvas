@@ -11,6 +11,7 @@ import com.qrserve.menu.entity.ProductEntity;
 import com.qrserve.menu.repository.CategoryRepository;
 import com.qrserve.menu.repository.MenuRepository;
 import com.qrserve.menu.repository.ProductRepository;
+import com.qrserve.menu.storage.MediaStorageService;
 import com.qrserve.shared.exceptions.BusinessException;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
 import com.qrserve.shared.exceptions.UnauthorizedException;
@@ -35,12 +36,15 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -50,11 +54,14 @@ import java.util.stream.Collectors;
 @Slf4j
 public class MenuService {
 
+    private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
+
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
     private final MenuRepository menuRepository;
     private final RestTemplate restTemplate;
     private final PlatformTransactionManager transactionManager;
+    private final MediaStorageService mediaStorageService;
 
     @Value("${services.merchant-service-url:http://localhost:8085}")
     private String merchantServiceUrl;
@@ -201,6 +208,51 @@ public class MenuService {
         }
 
         return productRepository.save(product);
+    }
+
+    /**
+     * Uploads a real image for a product, replacing whatever was in its
+     * `image` field (a hardcoded preset URL or a merchant-typed URL) with
+     * one served back by MediaStorageService. The key embeds the product id
+     * and a random suffix so re-uploads never collide with (or silently
+     * overwrite) a previous image still cached by a client.
+     */
+    @Transactional
+    @CacheEvict(value = "menus", allEntries = true)
+    public ProductEntity updateProductImage(Long id, MultipartFile file) {
+        ProductEntity product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found with ID: " + id));
+        validateImageFile(file);
+
+        String extension = extensionFor(file.getContentType());
+        String key = "products/" + id + "-" + UUID.randomUUID() + extension;
+        String url;
+        try {
+            url = mediaStorageService.store(key, file.getBytes(), file.getContentType());
+        } catch (IOException e) {
+            throw new BusinessException("Failed to read uploaded file", e);
+        }
+
+        product.setImage(url);
+        return productRepository.save(product);
+    }
+
+    private void validateImageFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException("No file uploaded");
+        }
+        if (!ALLOWED_IMAGE_TYPES.contains(file.getContentType())) {
+            throw new BusinessException("Unsupported image type: " + file.getContentType()
+                    + " (allowed: " + ALLOWED_IMAGE_TYPES + ")");
+        }
+    }
+
+    private String extensionFor(String contentType) {
+        return switch (contentType) {
+            case "image/png" -> ".png";
+            case "image/webp" -> ".webp";
+            default -> ".jpg";
+        };
     }
 
     /**

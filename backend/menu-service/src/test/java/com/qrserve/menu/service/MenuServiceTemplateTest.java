@@ -4,6 +4,7 @@ import com.qrserve.menu.entity.MenuEntity;
 import com.qrserve.menu.repository.CategoryRepository;
 import com.qrserve.menu.repository.MenuRepository;
 import com.qrserve.menu.repository.ProductRepository;
+import com.qrserve.menu.storage.MediaStorageService;
 import com.qrserve.shared.exceptions.UnauthorizedException;
 import com.qrserve.shared.security.UserPrincipal;
 import com.qrserve.shared.security.UserRole;
@@ -40,7 +41,7 @@ class MenuServiceTemplateTest {
         menuRepository = mock(MenuRepository.class);
         restTemplate = mock(RestTemplate.class);
         service = new MenuService(mock(CategoryRepository.class), mock(ProductRepository.class), menuRepository,
-                restTemplate, mock(PlatformTransactionManager.class));
+                restTemplate, mock(PlatformTransactionManager.class), mock(MediaStorageService.class));
     }
 
     @SuppressWarnings("unchecked")

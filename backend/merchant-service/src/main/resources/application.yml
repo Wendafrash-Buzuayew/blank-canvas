@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: merchant-service
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/qrserve_merchant}
     username: ${DATABASE_USERNAME:postgres}
@@ -40,6 +44,19 @@ app:
   public-base-domain: ${PUBLIC_BASE_DOMAIN}
   public-url-scheme: ${PUBLIC_URL_SCHEME:https}
   public-menu-domain: ${PUBLIC_MENU_DOMAIN}
+  # Uploaded merchant logo/branding images. See menu-service's identical
+  # config for product images — same backend choice, same S3MediaStorageService.
+  media:
+    backend: ${MEDIA_BACKEND:filesystem}
+    upload-dir: ${MEDIA_UPLOAD_DIR:./uploads}
+    public-base-path: ${MEDIA_PUBLIC_BASE_PATH:/api/media}
+    s3:
+      endpoint: ${MEDIA_S3_ENDPOINT:http://localhost:9000}
+      region: ${MEDIA_S3_REGION:us-east-1}
+      bucket: ${MEDIA_S3_BUCKET:qrserve-media}
+      access-key: ${MEDIA_S3_ACCESS_KEY:}
+      secret-key: ${MEDIA_S3_SECRET_KEY:}
+      public-url-base: ${MEDIA_S3_PUBLIC_URL_BASE:http://localhost:9000/qrserve-media}
 
 qr:
   signature-secret: ${QR_SIGNATURE_SECRET}

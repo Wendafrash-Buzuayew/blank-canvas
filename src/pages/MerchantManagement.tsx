@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Store, Plus, Edit2, Trash2, X, Loader2 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Spinner, ErrorState, EmptyState } from '../components/ui/States';
-import { useCreateMerchant, useUpdateMerchant, useDeleteMerchant } from '../hooks/useApiData';
-import { merchantApi, MerchantEntity, ApiError } from '../lib/api';
+import { useCreateMerchant, useUpdateMerchant, useDeleteMerchant, useUploadMerchantLogo } from '../hooks/useApiData';
+import { merchantApi, resolveMediaUrl, MerchantEntity, ApiError } from '../lib/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 export const MerchantManagement: React.FC = () => {
@@ -18,6 +18,7 @@ export const MerchantManagement: React.FC = () => {
     category: 'Restaurant',
   });
   const [error, setError] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
 
   // Fetch all tables to discover existing merchants
   const { data: tables, isLoading: tablesLoading } = useQuery({
@@ -52,11 +53,13 @@ export const MerchantManagement: React.FC = () => {
   const createMutation = useCreateMerchant();
   const updateMutation = useUpdateMerchant();
   const deleteMutation = useDeleteMerchant();
+  const uploadLogoMutation = useUploadMerchantLogo();
 
 
   const handleOpenCreate = () => {
     setEditingMerchant(null);
     setFormData({ name: '', phone: '', city: '', address: '', category: 'Restaurant' });
+    setLogoUrl(undefined);
     setError(null);
     setShowForm(true);
   };
@@ -70,8 +73,22 @@ export const MerchantManagement: React.FC = () => {
       address: merchant.address,
       category: merchant.category,
     });
+    setLogoUrl(merchant.logoUrl);
     setError(null);
     setShowForm(true);
+  };
+
+  const handleUploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !editingMerchant) return;
+    setError(null);
+    try {
+      const updated = await uploadLogoMutation.mutateAsync({ id: editingMerchant.id, file });
+      setLogoUrl(updated.logoUrl);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to upload logo');
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -216,6 +233,22 @@ export const MerchantManagement: React.FC = () => {
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-4 space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Logo</label>
+                {editingMerchant ? (
+                  <div className="flex items-center gap-3">
+                    {logoUrl ? <img src={resolveMediaUrl(logoUrl)} alt="Merchant logo" className="w-12 h-12 rounded-lg object-cover border border-slate-200" />
+                      : <div className="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200" />}
+                    <label className={`px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-lg cursor-pointer flex items-center gap-1.5 ${uploadLogoMutation.isPending ? 'opacity-50 pointer-events-none' : ''}`}>
+                      {uploadLogoMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                      Upload Logo
+                      <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleUploadLogo} className="hidden" />
+                    </label>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-slate-400">Create the merchant first, then edit it to upload a logo.</p>
+                )}
+              </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Name</label>
                 <input
