@@ -20,11 +20,11 @@ function test(name: string, fn: () => void) {
 
 // ---- getNavigationForRole ----
 
-test('phase 1 gives MERCHANT_OWNER exactly Dashboard, Menu & QR, Settings', () => {
+test('phase 1 gives MERCHANT_OWNER exactly Dashboard, Menu & QR, Reviews, Settings', () => {
   const items = getNavigationForRole('MERCHANT_OWNER', false);
   assert.deepEqual(
     items.map((i) => i.path),
-    ['/merchant/dashboard', '/merchant/menu', '/merchant/settings'],
+    ['/merchant/dashboard', '/merchant/menu', '/merchant/reviews', '/merchant/settings'],
   );
 });
 
@@ -37,7 +37,7 @@ test('phase 1 gives every other role no navigation at all', () => {
 
 test('phase 2 restores the full navigation for every role', () => {
   const merchantItems = getNavigationForRole('MERCHANT_OWNER', true);
-  assert.equal(merchantItems.length, 9);
+  assert.equal(merchantItems.length, 10);
   assert.ok(getNavigationForRole('WAITER', true).length > 0);
   assert.ok(getNavigationForRole('SUPER_ADMIN', true).length > 0);
 });

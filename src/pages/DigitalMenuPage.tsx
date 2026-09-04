@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   resolveBranch,
   resolvePrimaryBranch,
   fetchBranchMenu,
+  fetchReviewSummary,
+  submitReview,
   type DigitalMenuResolution,
   type MenuTemplateStyle,
 } from '../lib/digitalMenu';
@@ -117,11 +119,13 @@ function BranchMenu({ merchantSlug, branchSlug }: { merchantSlug: string; branch
   }
 
   const template = TEMPLATES[menuQuery.data?.templateStyle ?? 'CLASSIC'];
+  const branchId = resolutionQuery.data?.branchId;
 
   return (
     <div className={template.page}>
       <header className={template.header}>
         <h1 className={template.title}>{resolutionQuery.data?.branchName}</h1>
+        {branchId != null && <RatingBadge branchId={branchId} />}
       </header>
       {menuQuery.data?.categories.map((category) => (
         <section key={category.id}>
@@ -146,6 +150,94 @@ function BranchMenu({ merchantSlug, branchSlug }: { merchantSlug: string; branch
           ))}
         </section>
       ))}
+      {branchId != null && <ReviewForm branchId={branchId} />}
     </div>
+  );
+}
+
+function RatingBadge({ branchId }: { branchId: number }) {
+  const summaryQuery = useQuery({
+    queryKey: ['digital-menu-review-summary', branchId],
+    queryFn: () => fetchReviewSummary(branchId),
+  });
+
+  if (!summaryQuery.data || summaryQuery.data.count === 0) return null;
+  return (
+    <p className="mt-1 text-sm opacity-80">
+      ★ {summaryQuery.data.averageRating.toFixed(1)} · {summaryQuery.data.count} review{summaryQuery.data.count === 1 ? '' : 's'}
+    </p>
+  );
+}
+
+/** localStorage flag only — a soft nudge not to re-prompt on the same device, not a hard limit (a review has no other identity to dedupe on in phase 1). */
+function alreadyReviewedKey(branchId: number) {
+  return `qrserve.reviewed-branch.${branchId}`;
+}
+
+function ReviewForm({ branchId }: { branchId: number }) {
+  const queryClient = useQueryClient();
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(() => {
+    try { return localStorage.getItem(alreadyReviewedKey(branchId)) === 'true'; }
+    catch { return false; }
+  });
+
+  if (done) {
+    return (
+      <div className="px-6 py-8 text-center text-sm opacity-70">Thanks for your feedback!</div>
+    );
+  }
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (rating < 1) { setError('Please select a rating.'); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await submitReview(branchId, { rating, comment: comment.trim() || undefined });
+      try { localStorage.setItem(alreadyReviewedKey(branchId), 'true'); } catch { /* ignore */ }
+      queryClient.invalidateQueries({ queryKey: ['digital-menu-review-summary', branchId] });
+      setDone(true);
+    } catch {
+      setError('Could not submit your review — please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="px-6 py-8 space-y-3">
+      <h2 className="font-bold">Rate your visit</h2>
+      <div className="flex gap-1" role="radiogroup" aria-label="Rating">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            role="radio"
+            aria-checked={rating === n}
+            aria-label={`${n} star${n === 1 ? '' : 's'}`}
+            onClick={() => setRating(n)}
+            className="text-2xl leading-none"
+            style={{ opacity: n <= rating ? 1 : 0.3 }}
+          >
+            ★
+          </button>
+        ))}
+      </div>
+      <textarea
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        placeholder="Tell us about your visit (optional)"
+        rows={3}
+        className="w-full rounded-lg border border-current/20 bg-transparent p-2 text-sm"
+      />
+      {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+      <button type="submit" disabled={submitting} className="rounded-lg bg-current/10 px-4 py-2 text-sm font-bold disabled:opacity-50">
+        {submitting ? 'Submitting…' : 'Submit Review'}
+      </button>
+    </form>
   );
 }

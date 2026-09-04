@@ -10,7 +10,8 @@ import {
   menuApi, 
   merchantApi, 
   orderApi, 
-  qrApi, 
+  qrApi,
+  reviewApi,
   tableApi,
   waiterApi,
   waiterTaskApi,
@@ -29,6 +30,7 @@ import {
   TableEntity,
   WaiterEntity,
   ProductEntity,
+  ReviewEntity,
   CreateMerchantRequest,
   CreateBranchRequest,
   CreateTableRequest,
@@ -113,6 +115,18 @@ export const useDeleteMerchant = () => {
       queryClient.invalidateQueries({ queryKey: ['merchants'] });
       queryClient.invalidateQueries({ queryKey: ['lookup', 'merchants'] });
     },
+  });
+};
+
+// ============ Reviews Queries ============
+
+/** Staff-facing customer feedback. Omit branchId for the caller's whole merchant. */
+export const useReviews = (params: { branchId?: number; merchantId?: string } = {}) => {
+  const { isAuthenticated: isAuth } = useAuth();
+  return useQuery({
+    queryKey: ['reviews', params.branchId ?? null, params.merchantId ?? null],
+    queryFn: (): Promise<ReviewEntity[]> => reviewApi.getReviews(params),
+    enabled: isAuth,
   });
 };
 

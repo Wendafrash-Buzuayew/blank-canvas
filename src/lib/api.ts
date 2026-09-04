@@ -494,6 +494,36 @@ export const merchantApi: MerchantAPI = {
   },
 };
 
+// ============ Reviews API ============
+// Staff-facing (authenticated) read of customer feedback. Submission itself
+// is public and unauthenticated — see src/lib/digitalMenu.ts's submitReview,
+// which the customer-facing digital menu page calls directly (that page can
+// be served from a different origin than the gateway, which digitalMenu.ts
+// already resolves; this module's request() always builds an absolute URL
+// from API_BASE_URL regardless of the caller's own origin, so either works,
+// but staff tooling reuses this module for consistency with the rest of the
+// admin app).
+
+export interface ReviewEntity {
+  id: number;
+  merchantId: string;
+  branchId: number;
+  customerName?: string | null;
+  rating: number;
+  comment?: string | null;
+  createdAt: string;
+}
+
+export const reviewApi = {
+  getReviews: (params: { branchId?: number; merchantId?: string } = {}) => {
+    const query = new URLSearchParams();
+    if (params.branchId) query.set('branchId', String(params.branchId));
+    if (params.merchantId) query.set('merchantId', params.merchantId);
+    const qs = query.toString();
+    return request<ReviewEntity[]>(`/reviews${qs ? `?${qs}` : ''}`);
+  },
+};
+
 // ============ Branch API ============
 
 export interface BranchEntity {

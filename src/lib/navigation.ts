@@ -14,6 +14,7 @@ import {
   ClipboardList,
   CheckCircle2,
   QrCode,
+  Star,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -49,6 +50,7 @@ export const ROLE_NAVIGATION: Record<string, NavItem[]> = {
     { label: 'Menu', path: '/merchant/menu', icon: Utensils },
     { label: 'Orders', path: '/merchant/orders', icon: ShoppingBag },
     { label: 'Waiters', path: '/merchant/waiters', icon: UserCog },
+    { label: 'Reviews', path: '/merchant/reviews', icon: Star },
     { label: 'Analytics', path: '/merchant/analytics', icon: BarChart3 },
     { label: 'Settings', path: '/merchant/settings', icon: Settings },
   ],
@@ -83,6 +85,7 @@ export const ROLE_NAVIGATION_PHASE1: Record<string, NavItem[]> = {
   MERCHANT_OWNER: [
     { label: 'Dashboard', path: '/merchant/dashboard', icon: LayoutDashboard },
     { label: 'Menu & QR', path: '/merchant/menu', icon: QrCode },
+    { label: 'Reviews', path: '/merchant/reviews', icon: Star },
     { label: 'Settings', path: '/merchant/settings', icon: Settings },
   ],
 };

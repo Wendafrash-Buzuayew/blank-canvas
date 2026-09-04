@@ -21,6 +21,7 @@ const SettingsPage = lazy(() => import('../pages/SettingsPage').then((m) => ({ d
 const WaiterRequestsPage = lazy(() => import('../pages/WaiterRequestsPage').then((m) => ({ default: m.WaiterRequestsPage })));
 const KitchenLivePage = lazy(() => import('../pages/KitchenLivePage').then((m) => ({ default: m.KitchenLivePage })));
 const MenuBuilderPage = lazy(() => import('../pages/MenuBuilderPage').then((m) => ({ default: m.MenuBuilderPage })));
+const ReviewsPage = lazy(() => import('../pages/ReviewsPage').then((m) => ({ default: m.ReviewsPage })));
 const WaiterDashboardPage = lazy(() => import('../pages/WaiterDashboardPage').then((m) => ({ default: m.WaiterDashboardPage })));
 
 // Fallback shown while a lazy route chunk is loading.
@@ -183,6 +184,14 @@ export const AppRouter: React.FC = () => {
             element={
               <ProtectedRoute allowedRoles={['MERCHANT_OWNER', 'SUPER_ADMIN']}>
                 <MenuBuilderPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/merchant/reviews"
+            element={
+              <ProtectedRoute allowedRoles={['MERCHANT_OWNER', 'SUPER_ADMIN']}>
+                <ReviewsPage />
               </ProtectedRoute>
             }
           />

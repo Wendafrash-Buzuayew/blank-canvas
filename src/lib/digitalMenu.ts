@@ -73,6 +73,18 @@ async function getJson<T>(path: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(`${API_ORIGIN}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(`Request to ${path} failed with ${response.status}`);
+  }
+  return response.json() as Promise<T>;
+}
+
 export function resolvePrimaryBranch(merchantSlug: string): Promise<DigitalMenuResolution> {
   return getJson<DigitalMenuResolution>(buildDigitalMenuApiPath(merchantSlug));
 }
@@ -83,4 +95,20 @@ export function resolveBranch(merchantSlug: string, branchSlug: string): Promise
 
 export function fetchBranchMenu(branchId: number): Promise<DigitalMenuResponse> {
   return getJson<DigitalMenuResponse>(`/api/menu/branch/${branchId}`);
+}
+
+export interface ReviewSummary {
+  averageRating: number;
+  count: number;
+}
+
+export function fetchReviewSummary(branchId: number): Promise<ReviewSummary> {
+  return getJson<ReviewSummary>(`/api/v1/public/branches/${branchId}/reviews/summary`);
+}
+
+export function submitReview(
+  branchId: number,
+  data: { rating: number; comment?: string; customerName?: string },
+): Promise<void> {
+  return postJson<void>(`/api/v1/public/branches/${branchId}/reviews`, data);
 }
