@@ -1,6 +1,5 @@
 package com.qrserve.menu.dto;
 
-import com.qrserve.menu.entity.MenuEntity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,8 +17,8 @@ import java.util.List;
 public class MenuResponse implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    /** Which curated visual presentation to render this menu with. */
-    private MenuEntity.TemplateStyle templateStyle;
+    /** Which curated visual presentation to render this menu with — a MenuTemplateEntity key. */
+    private String templateStyle;
 
     private List<CategoryDto> categories;
 

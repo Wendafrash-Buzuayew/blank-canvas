@@ -6,6 +6,7 @@ import com.qrserve.menu.entity.MenuEntity;
 import com.qrserve.menu.entity.ProductEntity;
 import com.qrserve.menu.repository.CategoryRepository;
 import com.qrserve.menu.repository.MenuRepository;
+import com.qrserve.menu.repository.MenuTemplateRepository;
 import com.qrserve.menu.repository.ProductRepository;
 import com.qrserve.menu.storage.MediaStorageService;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
@@ -50,7 +51,7 @@ class MenuPublishTest {
         menuRepository = mock(MenuRepository.class);
         restTemplate = mock(RestTemplate.class);
         service = new MenuService(categoryRepository, productRepository, menuRepository, restTemplate,
-                mock(PlatformTransactionManager.class), mock(MediaStorageService.class));
+                mock(PlatformTransactionManager.class), mock(MediaStorageService.class), mock(MenuTemplateRepository.class));
     }
 
     private static UserPrincipal principal(UUID merchantId, UserRole role) {

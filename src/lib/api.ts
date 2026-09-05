@@ -111,7 +111,8 @@ export interface CreateTableResponse {
   qrToken: string;
 }
 
-export type MenuTemplateStyle = 'CLASSIC' | 'MODERN_DARK' | 'VIBRANT';
+/** A MenuTemplateEntity key (see menuTemplateApi below) — admin-managed, not a fixed set. */
+export type MenuTemplateStyle = string;
 
 export interface MenuResponse {
   /** Absent on the legacy merchant-wide GET /api/menu/{merchantId} read, which predates templates. */
@@ -748,13 +749,21 @@ export const menuApi = {
 };
 
 // ============ Menu Template Definitions API ============
-// The admin-editable visual DEFINITIONS behind the 3 curated templates
+// The admin-editable visual DEFINITIONS behind the curated templates
 // above (MenuTemplateStyle) - what a merchant picks by name in
-// menuApi.setTemplate, SUPER_ADMIN edits the actual look of here.
+// menuApi.setTemplate, SUPER_ADMIN creates/edits/deletes the actual looks
+// here (src/pages/TemplateManagement.tsx).
 
 import type { BackgroundMode, AccentToken } from './menuTemplates';
 
 export interface MenuTemplateDefinitionEntity {
+  key: string;
+  displayName: string;
+  backgroundMode: BackgroundMode;
+  accentToken: AccentToken;
+}
+
+export interface CreateMenuTemplateDefinitionRequest {
   key: string;
   displayName: string;
   backgroundMode: BackgroundMode;
@@ -770,6 +779,15 @@ export interface UpdateMenuTemplateDefinitionRequest {
 export const menuTemplateApi = {
   /** Public - the customer digital menu reads this to render the active template. */
   getAll: () => request<MenuTemplateDefinitionEntity[]>('/menu/templates'),
+
+  create: (data: CreateMenuTemplateDefinitionRequest) =>
+    request<MenuTemplateDefinitionEntity>('/menu/templates', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (key: string) =>
+    request<void>(`/menu/templates/${key}`, { method: 'DELETE' }),
 
   update: (key: string, data: UpdateMenuTemplateDefinitionRequest) =>
     request<MenuTemplateDefinitionEntity>(`/menu/templates/${key}`, {

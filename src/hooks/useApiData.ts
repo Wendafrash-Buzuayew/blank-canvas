@@ -39,6 +39,7 @@ import {
   CreateBranchRequest,
   UpdateBranchRequest,
   UpdateMenuTemplateDefinitionRequest,
+  CreateMenuTemplateDefinitionRequest,
   CreateTableRequest,
 } from '../lib/api';
 
@@ -357,6 +358,26 @@ export const useUpdateMenuTemplateDefinition = () => {
   return useMutation({
     mutationFn: ({ key, data }: { key: string; data: UpdateMenuTemplateDefinitionRequest }) =>
       menuTemplateApi.update(key, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menu-templates'] });
+    },
+  });
+};
+
+export const useCreateMenuTemplateDefinition = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateMenuTemplateDefinitionRequest) => menuTemplateApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menu-templates'] });
+    },
+  });
+};
+
+export const useDeleteMenuTemplateDefinition = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (key: string) => menuTemplateApi.delete(key),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['menu-templates'] });
     },

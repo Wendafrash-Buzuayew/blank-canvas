@@ -1,11 +1,13 @@
 package com.qrserve.menu.dto;
 
-import com.qrserve.menu.entity.MenuEntity;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
 public class SetMenuTemplateRequest {
-    @NotNull
-    private MenuEntity.TemplateStyle templateStyle;
+    /** A MenuTemplateEntity key — validated against the template-definitions table in MenuService.setTemplate. */
+    @NotBlank
+    @Size(max = 20)
+    private String templateStyle;
 }

@@ -6,6 +6,7 @@ import com.qrserve.menu.entity.CategoryEntity;
 import com.qrserve.menu.entity.ProductEntity;
 import com.qrserve.menu.repository.CategoryRepository;
 import com.qrserve.menu.repository.MenuRepository;
+import com.qrserve.menu.repository.MenuTemplateRepository;
 import com.qrserve.menu.repository.ProductRepository;
 import com.qrserve.menu.storage.MediaStorageService;
 import com.qrserve.shared.exceptions.BusinessException;
@@ -43,7 +44,8 @@ class MenuServiceDiscountTest {
         categoryRepository = mock(CategoryRepository.class);
         productRepository = mock(ProductRepository.class);
         service = new MenuService(categoryRepository, productRepository, mock(MenuRepository.class),
-                mock(RestTemplate.class), mock(PlatformTransactionManager.class), mock(MediaStorageService.class));
+                mock(RestTemplate.class), mock(PlatformTransactionManager.class), mock(MediaStorageService.class),
+                mock(MenuTemplateRepository.class));
     }
 
     private static ProductEntity product(BigDecimal price, BigDecimal discountPrice,

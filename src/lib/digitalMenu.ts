@@ -43,7 +43,8 @@ export interface DigitalMenuCategory {
   items: DigitalMenuProduct[];
 }
 
-export type MenuTemplateStyle = 'CLASSIC' | 'MODERN_DARK' | 'VIBRANT';
+/** A MenuTemplateEntity key (see src/lib/menuTemplates.ts) — admin-managed, not a fixed set. */
+export type MenuTemplateStyle = string;
 
 export interface DigitalMenuResponse {
   templateStyle: MenuTemplateStyle;

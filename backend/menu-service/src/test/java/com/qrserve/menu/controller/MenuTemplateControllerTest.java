@@ -1,10 +1,12 @@
 package com.qrserve.menu.controller;
 
+import com.qrserve.menu.dto.CreateMenuTemplateRequest;
 import com.qrserve.menu.dto.UpdateMenuTemplateRequest;
 import com.qrserve.menu.entity.MenuTemplateEntity;
 import com.qrserve.menu.service.MenuTemplateService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 
 import java.util.List;
 
@@ -48,5 +50,30 @@ class MenuTemplateControllerTest {
         var response = controller.update("VIBRANT", request);
 
         assertEquals(updated, response.getBody());
+    }
+
+    @Test
+    void createDelegatesToTheServiceAndReturns201() {
+        CreateMenuTemplateRequest request = CreateMenuTemplateRequest.builder()
+                .key("RUSTIC").displayName("Rustic")
+                .backgroundMode(MenuTemplateEntity.BackgroundMode.TINTED)
+                .accentToken(MenuTemplateEntity.AccentToken.INFO).build();
+        MenuTemplateEntity created = MenuTemplateEntity.builder().key("RUSTIC").displayName("Rustic")
+                .backgroundMode(MenuTemplateEntity.BackgroundMode.TINTED)
+                .accentToken(MenuTemplateEntity.AccentToken.INFO).build();
+        when(service.create(request)).thenReturn(created);
+
+        var response = controller.create(request);
+
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        assertEquals(created, response.getBody());
+    }
+
+    @Test
+    void deleteDelegatesToTheServiceAndReturns204() {
+        var response = controller.delete("RUSTIC");
+
+        verify(service).delete("RUSTIC");
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
     }
 }

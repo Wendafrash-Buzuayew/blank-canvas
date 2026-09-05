@@ -12,7 +12,7 @@ import { useBranchMenu, useCreateCategory, useUpdateCategory, useDeleteCategory,
 import { useBranchesLookup, useMerchantsLookup } from '../hooks/useLookups';
 import { friendlyError } from '../lib/errors';
 import { useNavigate } from 'react-router-dom';
-import { resolveMediaUrl, type MenuResponse, type MenuTemplateStyle } from '../lib/api';
+import { resolveMediaUrl, type MenuResponse } from '../lib/api';
 import { resolveTemplateClasses } from '../lib/menuTemplates';
 
 const FOOD_IMAGE_PRESETS = [
@@ -209,7 +209,7 @@ export const MenuBuilderPage: React.FC = () => {
     } catch (err) { setPageError(friendlyError(err, 'Could not upload the image.')); }
   };
 
-  const handleSelectTemplate = async (templateStyle: MenuTemplateStyle) => {
+  const handleSelectTemplate = async (templateStyle: string) => {
     if (!selectedBranchId) return;
     setPageError(null);
     try {
@@ -265,7 +265,7 @@ export const MenuBuilderPage: React.FC = () => {
                 return (
                   <button
                     key={def.key}
-                    onClick={() => handleSelectTemplate(def.key as MenuTemplateStyle)}
+                    onClick={() => handleSelectTemplate(def.key)}
                     disabled={setMenuTemplate.isPending}
                     title={def.displayName}
                     className={`flex items-center gap-1.5 rounded-control border-2 px-3 py-1.5 text-label-s transition-all disabled:opacity-50 ${isActive ? 'border-brand-dark bg-brand-soft text-brand-press' : 'border-transparent bg-surface-2 text-muted hover:bg-line'}`}

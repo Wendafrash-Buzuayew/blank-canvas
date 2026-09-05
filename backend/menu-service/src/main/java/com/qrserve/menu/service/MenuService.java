@@ -10,6 +10,7 @@ import com.qrserve.menu.entity.MenuEntity;
 import com.qrserve.menu.entity.ProductEntity;
 import com.qrserve.menu.repository.CategoryRepository;
 import com.qrserve.menu.repository.MenuRepository;
+import com.qrserve.menu.repository.MenuTemplateRepository;
 import com.qrserve.menu.repository.ProductRepository;
 import com.qrserve.menu.storage.MediaStorageService;
 import com.qrserve.shared.exceptions.BusinessException;
@@ -62,6 +63,7 @@ public class MenuService {
     private final RestTemplate restTemplate;
     private final PlatformTransactionManager transactionManager;
     private final MediaStorageService mediaStorageService;
+    private final MenuTemplateRepository menuTemplateRepository;
 
     @Value("${services.merchant-service-url:http://localhost:8085}")
     private String merchantServiceUrl;
@@ -83,7 +85,7 @@ public class MenuService {
                         // callback only fires through real JPA persistence, not when
                         // menuRepository.save is mocked (see MenuServiceCategoryTest).
                         .status(MenuEntity.Status.DRAFT)
-                        .templateStyle(MenuEntity.TemplateStyle.CLASSIC)
+                        .templateStyle("CLASSIC")
                         .build()));
     }
 
@@ -383,7 +385,7 @@ public class MenuService {
                     return response;
                 })
                 .orElseGet(() -> MenuResponse.builder()
-                        .templateStyle(MenuEntity.TemplateStyle.CLASSIC)
+                        .templateStyle("CLASSIC")
                         .categories(List.of())
                         .build());
     }
@@ -393,8 +395,11 @@ public class MenuService {
      * this is the first time anything has been configured for it — a
      * merchant should be able to pick a look before adding a single
      * category. Same tenant-ownership check as publish/createCategory.
+     * templateStyle is validated against the live template-definitions
+     * table (not a compile-time enum) since admins can create/delete
+     * definitions freely — see MenuTemplateService.
      */
-    public MenuEntity setTemplate(Long branchId, MenuEntity.TemplateStyle templateStyle, UserPrincipal principal) {
+    public MenuEntity setTemplate(Long branchId, String templateStyle, UserPrincipal principal) {
         if (principal == null) {
             throw new UnauthorizedException("Authentication required");
         }
@@ -407,6 +412,9 @@ public class MenuService {
             if (!actualMerchantId.equals(merchantId)) {
                 throw new AccessDeniedException("Branch " + branchId + " does not belong to your merchant");
             }
+        }
+        if (!menuTemplateRepository.existsById(templateStyle)) {
+            throw new ResourceNotFoundException("No template definition with key: " + templateStyle);
         }
         UUID resolvedMerchantId = merchantId;
         return runInTransaction(() -> {

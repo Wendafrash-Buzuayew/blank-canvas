@@ -3,6 +3,7 @@ package com.qrserve.menu.service;
 import com.qrserve.menu.entity.ProductEntity;
 import com.qrserve.menu.repository.CategoryRepository;
 import com.qrserve.menu.repository.MenuRepository;
+import com.qrserve.menu.repository.MenuTemplateRepository;
 import com.qrserve.menu.repository.ProductRepository;
 import com.qrserve.menu.storage.MediaStorageService;
 import com.qrserve.shared.exceptions.BusinessException;
@@ -38,7 +39,8 @@ class MenuServiceMediaTest {
         productRepository = mock(ProductRepository.class);
         mediaStorageService = mock(MediaStorageService.class);
         service = new MenuService(mock(CategoryRepository.class), productRepository, mock(MenuRepository.class),
-                mock(RestTemplate.class), mock(PlatformTransactionManager.class), mediaStorageService);
+                mock(RestTemplate.class), mock(PlatformTransactionManager.class), mediaStorageService,
+                mock(MenuTemplateRepository.class));
     }
 
     private static ProductEntity existingProduct() {

@@ -3,8 +3,10 @@ package com.qrserve.menu.service;
 import com.qrserve.menu.entity.MenuEntity;
 import com.qrserve.menu.repository.CategoryRepository;
 import com.qrserve.menu.repository.MenuRepository;
+import com.qrserve.menu.repository.MenuTemplateRepository;
 import com.qrserve.menu.repository.ProductRepository;
 import com.qrserve.menu.storage.MediaStorageService;
+import com.qrserve.shared.exceptions.ResourceNotFoundException;
 import com.qrserve.shared.exceptions.UnauthorizedException;
 import com.qrserve.shared.security.UserPrincipal;
 import com.qrserve.shared.security.UserRole;
@@ -24,6 +26,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -32,6 +35,7 @@ class MenuServiceTemplateTest {
 
     private MenuRepository menuRepository;
     private RestTemplate restTemplate;
+    private MenuTemplateRepository menuTemplateRepository;
     private MenuService service;
     private static final Long BRANCH = 5L;
     private static final UUID MERCHANT = UUID.randomUUID();
@@ -40,8 +44,10 @@ class MenuServiceTemplateTest {
     void setUp() {
         menuRepository = mock(MenuRepository.class);
         restTemplate = mock(RestTemplate.class);
+        menuTemplateRepository = mock(MenuTemplateRepository.class);
+        when(menuTemplateRepository.existsById(anyString())).thenReturn(true);
         service = new MenuService(mock(CategoryRepository.class), mock(ProductRepository.class), menuRepository,
-                restTemplate, mock(PlatformTransactionManager.class), mock(MediaStorageService.class));
+                restTemplate, mock(PlatformTransactionManager.class), mock(MediaStorageService.class), menuTemplateRepository);
     }
 
     @SuppressWarnings("unchecked")
@@ -58,14 +64,14 @@ class MenuServiceTemplateTest {
     @Test
     void setsTheTemplateOnAnExistingMenu() {
         MenuEntity menu = MenuEntity.builder().id(UUID.randomUUID()).branchId(BRANCH).merchantId(MERCHANT)
-                .status(MenuEntity.Status.DRAFT).templateStyle(MenuEntity.TemplateStyle.CLASSIC).build();
+                .status(MenuEntity.Status.DRAFT).templateStyle("CLASSIC").build();
         when(menuRepository.findByBranchId(BRANCH)).thenReturn(Optional.of(menu));
         when(menuRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         stubBranchOwner(MERCHANT);
 
-        MenuEntity result = service.setTemplate(BRANCH, MenuEntity.TemplateStyle.MODERN_DARK, principal(MERCHANT, UserRole.MERCHANT_OWNER));
+        MenuEntity result = service.setTemplate(BRANCH, "MODERN_DARK", principal(MERCHANT, UserRole.MERCHANT_OWNER));
 
-        assertEquals(MenuEntity.TemplateStyle.MODERN_DARK, result.getTemplateStyle());
+        assertEquals("MODERN_DARK", result.getTemplateStyle());
     }
 
     @Test
@@ -74,10 +80,10 @@ class MenuServiceTemplateTest {
         when(menuRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         stubBranchOwner(MERCHANT);
 
-        MenuEntity result = service.setTemplate(BRANCH, MenuEntity.TemplateStyle.VIBRANT, principal(MERCHANT, UserRole.MERCHANT_OWNER));
+        MenuEntity result = service.setTemplate(BRANCH, "VIBRANT", principal(MERCHANT, UserRole.MERCHANT_OWNER));
 
         assertEquals(MERCHANT, result.getMerchantId());
-        assertEquals(MenuEntity.TemplateStyle.VIBRANT, result.getTemplateStyle());
+        assertEquals("VIBRANT", result.getTemplateStyle());
     }
 
     @Test
@@ -85,7 +91,7 @@ class MenuServiceTemplateTest {
         stubBranchOwner(UUID.randomUUID());
 
         assertThrows(AccessDeniedException.class, () ->
-                service.setTemplate(BRANCH, MenuEntity.TemplateStyle.VIBRANT, principal(MERCHANT, UserRole.MERCHANT_OWNER)));
+                service.setTemplate(BRANCH, "VIBRANT", principal(MERCHANT, UserRole.MERCHANT_OWNER)));
         verify(menuRepository, never()).save(any());
     }
 
@@ -95,13 +101,23 @@ class MenuServiceTemplateTest {
         when(menuRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         stubBranchOwner(MERCHANT);
 
-        MenuEntity result = service.setTemplate(BRANCH, MenuEntity.TemplateStyle.CLASSIC, principal(UUID.randomUUID(), UserRole.SUPER_ADMIN));
+        MenuEntity result = service.setTemplate(BRANCH, "CLASSIC", principal(UUID.randomUUID(), UserRole.SUPER_ADMIN));
 
-        assertEquals(MenuEntity.TemplateStyle.CLASSIC, result.getTemplateStyle());
+        assertEquals("CLASSIC", result.getTemplateStyle());
     }
 
     @Test
     void nullPrincipalIsUnauthorized() {
-        assertThrows(UnauthorizedException.class, () -> service.setTemplate(BRANCH, MenuEntity.TemplateStyle.CLASSIC, null));
+        assertThrows(UnauthorizedException.class, () -> service.setTemplate(BRANCH, "CLASSIC", null));
+    }
+
+    @Test
+    void rejectsATemplateKeyThatDoesNotExist() {
+        when(menuTemplateRepository.existsById("BOGUS")).thenReturn(false);
+        stubBranchOwner(MERCHANT);
+
+        assertThrows(ResourceNotFoundException.class, () ->
+                service.setTemplate(BRANCH, "BOGUS", principal(MERCHANT, UserRole.MERCHANT_OWNER)));
+        verify(menuRepository, never()).save(any());
     }
 }

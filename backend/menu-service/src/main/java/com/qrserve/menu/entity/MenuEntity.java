@@ -25,13 +25,6 @@ public class MenuEntity {
 
     public enum Status { DRAFT, PUBLISHED }
 
-    /**
-     * A small, team-curated, fixed set of visual presentations for the
-     * customer-facing digital menu page — a merchant picks one, not a
-     * merchant-authored/customizable template system.
-     */
-    public enum TemplateStyle { CLASSIC, MODERN_DARK, VIBRANT }
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -52,9 +45,21 @@ public class MenuEntity {
     // Nullable + defaulted in prePersist (like status above), not
     // nullable=false: avoids a NOT NULL column landing on an
     // already-populated table under this repo's ddl-auto=update convention.
-    @Enumerated(EnumType.STRING)
-    @Column(name = "template_style")
-    private TemplateStyle templateStyle;
+    // A plain String (the matching MenuTemplateEntity's key), not an enum —
+    // admin can create/delete template definitions freely (see
+    // MenuTemplateService), so the set of valid values is data, not a
+    // compile-time constant. MenuService.setTemplate validates the key
+    // against MenuTemplateRepository before saving.
+    //
+    // On any database that already ran ddl-auto=update against the OLD
+    // @Enumerated(EnumType.STRING) version of this column, Hibernate will
+    // have left behind a CHECK constraint restricting values to the three
+    // original enum names (Postgres: "menus_template_style_check" — run
+    // `ALTER TABLE menus DROP CONSTRAINT menus_template_style_check;`).
+    // ddl-auto=update never drops constraints on its own, so that stale
+    // check silently rejects every new template key until removed.
+    @Column(name = "template_style", length = 20)
+    private String templateStyle;
 
     @Column(name = "published_at")
     private LocalDateTime publishedAt;
@@ -68,7 +73,7 @@ public class MenuEntity {
     @PrePersist
     public void prePersist() {
         if (status == null) status = Status.DRAFT;
-        if (templateStyle == null) templateStyle = TemplateStyle.CLASSIC;
+        if (templateStyle == null) templateStyle = "CLASSIC";
         if (createdAt == null) createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
     }

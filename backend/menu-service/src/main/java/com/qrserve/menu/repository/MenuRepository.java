@@ -10,4 +10,7 @@ import java.util.UUID;
 @Repository
 public interface MenuRepository extends JpaRepository<MenuEntity, UUID> {
     Optional<MenuEntity> findByBranchId(Long branchId);
+
+    /** Used by MenuTemplateService.delete to block removing a template still assigned to a branch. */
+    long countByTemplateStyle(String templateStyle);
 }
