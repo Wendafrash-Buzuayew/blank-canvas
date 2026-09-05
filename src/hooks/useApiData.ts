@@ -36,6 +36,7 @@ import {
   AuditLogEntry,
   CreateMerchantRequest,
   CreateBranchRequest,
+  UpdateBranchRequest,
   CreateTableRequest,
 } from '../lib/api';
 
@@ -179,10 +180,21 @@ export const useCreateBranch = () => {
 export const useUpdateBranch = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: CreateBranchRequest }) =>
+    mutationFn: ({ id, data }: { id: number; merchantId: string; data: UpdateBranchRequest }) =>
       branchApi.updateBranch(id, data),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['branches', variables.data.merchantId] });
+      queryClient.invalidateQueries({ queryKey: ['branches', variables.merchantId] });
+      queryClient.invalidateQueries({ queryKey: ['lookup', 'branches'] });
+    },
+  });
+};
+
+export const useSetPrimaryBranch = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id }: { id: number; merchantId: string }) => branchApi.setPrimary(id),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['branches', variables.merchantId] });
       queryClient.invalidateQueries({ queryKey: ['lookup', 'branches'] });
     },
   });

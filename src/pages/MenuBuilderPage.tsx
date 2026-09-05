@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Trash2, Edit3, X, Utensils, FolderPlus, Search, Loader2, Eye, Smartphone, Image as ImageIcon, Clock, AlertCircle, Store, Palette } from 'lucide-react';
+import { Plus, Trash2, Edit3, X, Utensils, FolderPlus, Search, Loader2, Eye, Image as ImageIcon, Clock, AlertCircle, Store, Palette } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Spinner, ErrorState, EmptyState } from '../components/ui/States';
 import { useAuth } from '../context/AuthContext';
 import { useBranchMenu, useCreateCategory, useUpdateCategory, useDeleteCategory, useCreateProduct, useUpdateProduct, useDeleteProduct, useSetMenuTemplate, useUploadProductImage } from '../hooks/useApiData';
-import { useBranchesLookup, useMerchantsLookup, useTablesLookup } from '../hooks/useLookups';
+import { useBranchesLookup, useMerchantsLookup } from '../hooks/useLookups';
 import { friendlyError } from '../lib/errors';
 import { useNavigate } from 'react-router-dom';
 import { resolveMediaUrl, type MenuResponse, type MenuTemplateStyle } from '../lib/api';
@@ -44,7 +44,6 @@ export const MenuBuilderPage: React.FC = () => {
   const navigate = useNavigate();
   const merchantsQuery = useMerchantsLookup();
   const branchesQuery = useBranchesLookup();
-  const tablesQuery = useTablesLookup();
   const createCategory = useCreateCategory();
   const updateCategory = useUpdateCategory();
   const deleteCategory = useDeleteCategory();
@@ -76,7 +75,6 @@ export const MenuBuilderPage: React.FC = () => {
 
   const merchant = merchantsQuery.data?.find((m) => m.id === merchantId);
   const merchantSlug = merchant?.slug || 'demo';
-  const firstTable = tablesQuery.data?.[0];
   const categories = menu?.categories || [];
 
   const allProducts = useMemo(() => {
@@ -186,15 +184,8 @@ export const MenuBuilderPage: React.FC = () => {
   };
 
   const handlePreviewMenu = () => {
-    if (!merchantSlug || !firstTable) { alert('You need at least one table to preview the customer menu. Create a table first.'); return; }
-    const branchSlug = selectedBranch?.name?.toLowerCase().replace(/\s+/g, '-') || 'main';
-    navigate(`/menu/${merchantSlug}/${branchSlug}/${firstTable.tableNumber}`);
-  };
-
-  const handleQRDemo = () => {
-    if (!merchantSlug || !firstTable) { alert('You need at least one table to demo the QR scan. Create a table first.'); return; }
-    const branchSlug = selectedBranch?.name?.toLowerCase().replace(/\s+/g, '-') || 'main';
-    navigate(`/menu/${merchantSlug}/${branchSlug}/${firstTable.tableNumber}?demo=qr`);
+    if (!merchantSlug || !selectedBranch) return;
+    navigate(`/m/${merchantSlug}/${selectedBranch.slug}`);
   };
 
   const handleBranchChange = (branchId: number) => {
@@ -245,11 +236,8 @@ export const MenuBuilderPage: React.FC = () => {
                 </select>
               </div>
             )}
-            <button onClick={handlePreviewMenu} disabled={!merchantSlug || !firstTable} className="px-4 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50">
+            <button onClick={handlePreviewMenu} disabled={!merchantSlug || !selectedBranch} title={!selectedBranch ? 'Create a branch first' : undefined} className="px-4 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50">
               <Eye className="w-4 h-4" /> Preview Customer Menu
-            </button>
-            <button onClick={handleQRDemo} disabled={!merchantSlug || !firstTable} className="px-4 py-2 bg-[#E60028] hover:bg-[#CC0024] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50">
-              <Smartphone className="w-4 h-4" /> QR Scan Demo
             </button>
             <button onClick={() => openCategoryModal()} disabled={!selectedBranch} title={!selectedBranch ? 'Create a branch first' : undefined} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50">
               <FolderPlus className="w-4 h-4" /> Add Category

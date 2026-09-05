@@ -85,6 +85,14 @@ export interface CreateMerchantRequest {
 export interface CreateBranchRequest {
   merchantId: string;
   name: string;
+  slug: string;
+  phone: string;
+  address?: string;
+}
+
+/** No merchantId (immutable) and no slug (permanent — see BranchService.updateBranch). */
+export interface UpdateBranchRequest {
+  name: string;
   phone: string;
   address?: string;
 }
@@ -566,8 +574,10 @@ export interface BranchEntity {
   id: number;
   merchantId: string;
   name: string;
+  slug: string;
   phone: string;
   address?: string;
+  isPrimary: boolean;
 }
 
 export const branchApi = {
@@ -580,7 +590,7 @@ export const branchApi = {
   getBranchesByMerchant: (merchantId: string) =>
     request<BranchEntity[]>(`/branches/merchant/${merchantId}`),
 
-  updateBranch: (id: number, data: CreateBranchRequest) =>
+  updateBranch: (id: number, data: UpdateBranchRequest) =>
     request<BranchEntity>(`/branches/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -589,6 +599,11 @@ export const branchApi = {
   deleteBranch: (id: number) =>
     request<void>(`/branches/${id}`, {
       method: 'DELETE',
+    }),
+
+  setPrimary: (id: number) =>
+    request<BranchEntity>(`/branches/${id}/primary`, {
+      method: 'PATCH',
     }),
 };
 

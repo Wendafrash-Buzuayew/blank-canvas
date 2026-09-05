@@ -1,25 +1,43 @@
 import React, { useMemo, useState } from 'react';
-import { Building2, Plus, Edit2, Trash2, X, Loader2 } from 'lucide-react';
+import { Building2, Plus, Edit2, Trash2, X, Loader2, Star } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Spinner, ErrorState, EmptyState } from '../components/ui/States';
 import { EntitySelect } from '../components/ui/EntitySelect';
-import { useCreateBranch, useUpdateBranch, useDeleteBranch } from '../hooks/useApiData';
+import { useCreateBranch, useUpdateBranch, useDeleteBranch, useSetPrimaryBranch } from '../hooks/useApiData';
 import { useBranchesLookup, useMerchantsLookup, useTablesLookup } from '../hooks/useLookups';
 import { friendlyError } from '../lib/errors';
+import { isPhase2Enabled } from '../lib/phase';
 import { BranchEntity } from '../lib/api';
 
+/**
+ * Client-side preview only — the backend (Slugs.toPathSlug) is the real
+ * source of truth and re-normalises whatever is submitted, so this just
+ * needs to look right to the merchant while they type.
+ */
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 export const BranchManagement: React.FC = () => {
+  const phase2 = isPhase2Enabled();
   const merchantsQuery = useMerchantsLookup();
   const branchesQuery = useBranchesLookup();
-  const tablesQuery = useTablesLookup();
+  // Table counts are a Phase 2 (ordering) concept — skip the lookup entirely
+  // in Phase 1 rather than show a column backed by a deprecated dependency.
+  const tablesQuery = useTablesLookup(phase2);
 
   const createMutation = useCreateBranch();
   const updateMutation = useUpdateBranch();
   const deleteMutation = useDeleteBranch();
+  const setPrimaryMutation = useSetPrimaryBranch();
 
   const [showForm, setShowForm] = useState(false);
   const [editingBranch, setEditingBranch] = useState<BranchEntity | null>(null);
-  const [formData, setFormData] = useState({ merchantId: '', name: '', phone: '', address: '' });
+  const [formData, setFormData] = useState({ merchantId: '', name: '', slug: '', phone: '', address: '' });
+  const [slugTouched, setSlugTouched] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
 
@@ -39,7 +57,8 @@ export const BranchManagement: React.FC = () => {
 
   const openCreate = () => {
     setEditingBranch(null);
-    setFormData({ merchantId: merchants.length === 1 ? merchants[0].id : '', name: '', phone: '', address: '' });
+    setFormData({ merchantId: merchants.length === 1 ? merchants[0].id : '', name: '', slug: '', phone: '', address: '' });
+    setSlugTouched(false);
     setFormError(null);
     setShowForm(true);
   };
@@ -49,11 +68,27 @@ export const BranchManagement: React.FC = () => {
     setFormData({
       merchantId: branch.merchantId,
       name: branch.name,
+      slug: branch.slug,
       phone: branch.phone,
       address: branch.address || '',
     });
+    setSlugTouched(true);
     setFormError(null);
     setShowForm(true);
+  };
+
+  const handleNameChange = (name: string) => {
+    setFormData((prev) => ({ ...prev, name, slug: slugTouched ? prev.slug : slugify(name) }));
+  };
+
+  const handleSetPrimary = async (branch: BranchEntity) => {
+    setPageError(null);
+    try {
+      await setPrimaryMutation.mutateAsync({ id: branch.id, merchantId: branch.merchantId });
+      branchesQuery.refetch();
+    } catch (err) {
+      setPageError(friendlyError(err, 'We could not set this branch as primary.'));
+    }
   };
 
   const handleDelete = async (branch: BranchEntity) => {
@@ -79,12 +114,26 @@ export const BranchManagement: React.FC = () => {
       setFormError('Please enter a branch name.');
       return;
     }
+    if (!editingBranch && !formData.slug.trim()) {
+      setFormError('Please enter a URL slug — it becomes part of this branch\'s public menu link.');
+      return;
+    }
 
     try {
       if (editingBranch) {
-        await updateMutation.mutateAsync({ id: editingBranch.id, data: formData });
+        await updateMutation.mutateAsync({
+          id: editingBranch.id,
+          merchantId: editingBranch.merchantId,
+          data: { name: formData.name, phone: formData.phone, address: formData.address },
+        });
       } else {
-        await createMutation.mutateAsync(formData);
+        await createMutation.mutateAsync({
+          merchantId: formData.merchantId,
+          name: formData.name,
+          slug: formData.slug,
+          phone: formData.phone,
+          address: formData.address,
+        });
       }
       setShowForm(false);
       branchesQuery.refetch();
@@ -162,23 +211,44 @@ export const BranchManagement: React.FC = () => {
                   <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase">Merchant</th>
                   <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase">Phone</th>
                   <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase">Address</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase">Tables</th>
+                  {phase2 && <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase">Tables</th>}
                   <th className="text-right px-4 py-3 text-xs font-bold text-slate-600 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {branches.map((branch) => (
                   <tr key={branch.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-bold text-slate-900">{branch.name}</td>
+                    <td className="px-4 py-3 font-bold text-slate-900">
+                      <div className="flex items-center gap-1.5">
+                        {branch.name}
+                        {branch.isPrimary && (
+                          <span title="Primary branch — this is where /m/{merchant-slug} redirects to">
+                            <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[10px] font-normal text-slate-400">/{branch.slug}</div>
+                    </td>
                     <td className="px-4 py-3 text-slate-600">
                       {merchantNameById.get(branch.merchantId) ??
                         (merchantsQuery.isLoading ? 'Loading…' : '—')}
                     </td>
                     <td className="px-4 py-3 text-slate-600">{branch.phone || '—'}</td>
                     <td className="px-4 py-3 text-slate-600">{branch.address || '—'}</td>
-                    <td className="px-4 py-3 text-slate-600">{tableCountByBranch.get(branch.id) ?? 0}</td>
+                    {phase2 && <td className="px-4 py-3 text-slate-600">{tableCountByBranch.get(branch.id) ?? 0}</td>}
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1">
+                        {!branch.isPrimary && (
+                          <button
+                            onClick={() => handleSetPrimary(branch)}
+                            disabled={setPrimaryMutation.isPending}
+                            aria-label={`Set ${branch.name} as primary`}
+                            title="Set as primary branch"
+                            className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg"
+                          >
+                            <Star className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <button
                           onClick={() => openEdit(branch)}
                           aria-label={`Edit ${branch.name}`}
@@ -211,7 +281,7 @@ export const BranchManagement: React.FC = () => {
               <div>
                 <h3 className="font-bold text-sm">{editingBranch ? 'Edit Branch' : 'Create Branch'}</h3>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  Branches belong to a merchant and hold their own tables.
+                  Each branch has its own menu and public menu link.
                 </p>
               </div>
               <button
@@ -246,10 +316,29 @@ export const BranchManagement: React.FC = () => {
                   required
                   maxLength={100}
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) => handleNameChange(e.target.value)}
                   placeholder="e.g. Bole Branch"
                   className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20 focus:border-[#E60028]"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">URL Slug *</label>
+                <input
+                  type="text"
+                  required
+                  maxLength={60}
+                  disabled={!!editingBranch}
+                  value={formData.slug}
+                  onChange={(e) => { setSlugTouched(true); setFormData({ ...formData, slug: slugify(e.target.value) }); }}
+                  placeholder="e.g. bole-branch"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20 focus:border-[#E60028] disabled:bg-slate-50 disabled:text-slate-400"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  {editingBranch
+                    ? 'Permanent — this is part of the branch\'s public menu link and cannot be changed.'
+                    : 'Becomes part of this branch\'s public menu link and cannot be changed later.'}
+                </p>
               </div>
 
               <div>

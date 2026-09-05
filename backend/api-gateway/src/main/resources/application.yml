@@ -80,7 +80,7 @@ spring:
             - id: merchant-service
               uri: lb://merchant-service
               predicates:
-                - Path=/api/merchants/**, /api/branches/**, /api/tables/**, /api/waiters/**, /api/table-assignments/**, /api/customer-requests/**, /api/v1/**
+                - Path=/api/merchants/**, /api/branches/**, /api/tables/**, /api/waiters/**, /api/table-assignments/**, /api/customer-requests/**, /api/reviews/**, /api/v1/**
               filters:
                 - name: CircuitBreaker
                   args:

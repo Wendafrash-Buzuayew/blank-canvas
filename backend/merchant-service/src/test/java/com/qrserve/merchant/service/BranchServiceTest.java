@@ -1,6 +1,7 @@
 package com.qrserve.merchant.service;
 
 import com.qrserve.merchant.dto.CreateBranchRequest;
+import com.qrserve.merchant.dto.UpdateBranchRequest;
 import com.qrserve.merchant.entity.BranchEntity;
 import com.qrserve.merchant.repository.BranchRepository;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
@@ -75,5 +76,45 @@ class BranchServiceTest {
         when(repository.findById(9L)).thenReturn(Optional.of(foreign));
 
         assertThrows(ResourceNotFoundException.class, () -> service.setPrimaryBranch(MERCHANT, 9L));
+    }
+
+    @Test
+    void updateBranchChangesNamePhoneAndAddressButNeverTheSlug() {
+        BranchEntity existing = BranchEntity.builder().id(1L).merchantId(MERCHANT).name("Old").slug("old-slug").phone("0700000000").address("Old Address").build();
+        when(repository.findById(1L)).thenReturn(Optional.of(existing));
+        when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        BranchEntity updated = service.updateBranch(1L, UpdateBranchRequest.builder()
+                .name("New Name").phone("0711111111").address("New Address").build());
+
+        assertEquals("New Name", updated.getName());
+        assertEquals("0711111111", updated.getPhone());
+        assertEquals("New Address", updated.getAddress());
+        assertEquals("old-slug", updated.getSlug(), "the slug is a permanent path segment in printed public menu URLs");
+    }
+
+    @Test
+    void updateBranchThrowsForAMissingBranch() {
+        when(repository.findById(404L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> service.updateBranch(404L, UpdateBranchRequest.builder().name("X").phone("Y").build()));
+    }
+
+    @Test
+    void deleteBranchRemovesIt() {
+        BranchEntity existing = BranchEntity.builder().id(1L).merchantId(MERCHANT).build();
+        when(repository.findById(1L)).thenReturn(Optional.of(existing));
+
+        service.deleteBranch(1L);
+
+        verify(repository).delete(existing);
+    }
+
+    @Test
+    void deleteBranchThrowsForAMissingBranch() {
+        when(repository.findById(404L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> service.deleteBranch(404L));
     }
 }

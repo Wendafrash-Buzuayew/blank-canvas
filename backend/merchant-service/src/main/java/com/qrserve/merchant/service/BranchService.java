@@ -1,6 +1,7 @@
 package com.qrserve.merchant.service;
 
 import com.qrserve.merchant.dto.CreateBranchRequest;
+import com.qrserve.merchant.dto.UpdateBranchRequest;
 import com.qrserve.merchant.entity.BranchEntity;
 import com.qrserve.merchant.repository.BranchRepository;
 import com.qrserve.shared.common.Slugs;
@@ -94,5 +95,26 @@ public class BranchService {
     public BranchEntity getBranch(Long id) {
         return branchRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Branch not found with ID: " + id));
+    }
+
+    /**
+     * The slug is permanent, same as a merchant's: it is a path segment in
+     * the printed/bookmarked public menu URL
+     * ({@code menu.domain/m/{merchant-slug}/{branch-slug}}), and letting it
+     * change would break every already-distributed link.
+     */
+    @Transactional
+    public BranchEntity updateBranch(Long id, UpdateBranchRequest request) {
+        BranchEntity branch = getBranch(id);
+        branch.setName(request.getName());
+        branch.setPhone(request.getPhone());
+        branch.setAddress(request.getAddress() != null ? request.getAddress() : branch.getAddress());
+        return branchRepository.save(branch);
+    }
+
+    @Transactional
+    public void deleteBranch(Long id) {
+        BranchEntity branch = getBranch(id);
+        branchRepository.delete(branch);
     }
 }

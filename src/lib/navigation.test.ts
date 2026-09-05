@@ -20,11 +20,11 @@ function test(name: string, fn: () => void) {
 
 // ---- getNavigationForRole ----
 
-test('phase 1 gives MERCHANT_OWNER exactly Dashboard, Menu & QR, Reviews, Settings', () => {
+test('phase 1 gives MERCHANT_OWNER exactly Dashboard, Branches, Menu & QR, Reviews, Settings', () => {
   const items = getNavigationForRole('MERCHANT_OWNER', false);
   assert.deepEqual(
     items.map((i) => i.path),
-    ['/merchant/dashboard', '/merchant/menu', '/merchant/reviews', '/merchant/settings'],
+    ['/merchant/dashboard', '/merchant/branches', '/merchant/menu', '/merchant/reviews', '/merchant/settings'],
   );
 });
 

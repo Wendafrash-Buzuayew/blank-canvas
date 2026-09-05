@@ -91,11 +91,22 @@ services:
       - PUBLIC_URL_SCHEME=${PUBLIC_URL_SCHEME:-https}
       - BACK_OFFICE_SERVICE_URL=http://back-office-service:8090
       - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
+      # Defaults to the filesystem backend (no MinIO dependency); flip
+      # MEDIA_BACKEND=s3 to use the minio service defined above instead —
+      # same wiring as menu-service's own block below.
+      - MEDIA_BACKEND=${MEDIA_BACKEND:-filesystem}
+      - MEDIA_UPLOAD_DIR=${MEDIA_UPLOAD_DIR:-/data/uploads}
+      - MEDIA_S3_ENDPOINT=http://minio:9000
+      - MEDIA_S3_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MEDIA_S3_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MEDIA_S3_PUBLIC_URL_BASE=${MEDIA_S3_PUBLIC_URL_BASE:-http://localhost:9000/qrserve-media}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
     depends_on:
       discovery-service:
+        condition: service_healthy
+      minio:
         condition: service_healthy
 
   menu-service:
@@ -133,6 +144,8 @@ services:
     restart: unless-stopped
     depends_on:
       discovery-service:
+        condition: service_healthy
+      minio:
         condition: service_healthy
 
   order-service:

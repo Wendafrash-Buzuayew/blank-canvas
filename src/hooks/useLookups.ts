@@ -83,12 +83,18 @@ export const useUsersLookup = () => {
   });
 };
 
-export const useTablesLookup = () => {
+/**
+ * Tables are a Phase 2 (ordering) concept. `enabled` defaults to true for
+ * Phase 2 callers (e.g. useRelationships); a Phase 1 caller that has no use
+ * for table data (e.g. BranchManagement) passes `false` to skip the request
+ * entirely rather than call a deprecated-for-now endpoint.
+ */
+export const useTablesLookup = (enabled: boolean = true) => {
   const { isAuthenticated: isAuth } = useAuth();
   return useQuery({
     queryKey: ['tables'],
     queryFn: (): Promise<TableEntity[]> => tableApi.getAllTables(),
-    enabled: isAuth,
+    enabled: isAuth && enabled,
     staleTime: 60_000,
   });
 };

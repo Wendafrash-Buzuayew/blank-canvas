@@ -86,6 +86,7 @@ export const ROLE_NAVIGATION: Record<string, NavItem[]> = {
 export const ROLE_NAVIGATION_PHASE1: Record<string, NavItem[]> = {
   MERCHANT_OWNER: [
     { label: 'Dashboard', path: '/merchant/dashboard', icon: LayoutDashboard },
+    { label: 'Branches', path: '/merchant/branches', icon: Building2 },
     { label: 'Menu & QR', path: '/merchant/menu', icon: QrCode },
     { label: 'Reviews', path: '/merchant/reviews', icon: Star },
     { label: 'Settings', path: '/merchant/settings', icon: Settings },

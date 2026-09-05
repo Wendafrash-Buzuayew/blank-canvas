@@ -1,6 +1,7 @@
 package com.qrserve.merchant.controller;
 
 import com.qrserve.merchant.dto.CreateBranchRequest;
+import com.qrserve.merchant.dto.UpdateBranchRequest;
 import com.qrserve.merchant.entity.BranchEntity;
 import com.qrserve.merchant.service.BranchService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -62,6 +63,41 @@ public class BranchController {
             throw new AccessDeniedException("Branch belongs to another merchant");
         }
         return ResponseEntity.ok(branch);
+    }
+
+    /**
+     * Tenant scope is checked against the loaded branch, same as getBranch —
+     * the path carries no merchantId to check a PreAuthorize expression
+     * against directly.
+     */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER')")
+    @Operation(summary = "Update a branch's name, phone, or address")
+    public ResponseEntity<BranchEntity> updateBranch(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateBranchRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        requireOwnBranch(id, principal);
+        return ResponseEntity.ok(branchService.updateBranch(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER')")
+    @Operation(summary = "Delete a branch")
+    public ResponseEntity<Void> deleteBranch(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        requireOwnBranch(id, principal);
+        branchService.deleteBranch(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    private void requireOwnBranch(Long id, UserPrincipal principal) {
+        if (principal.getRole() == UserRole.SUPER_ADMIN) return;
+        BranchEntity branch = branchService.getBranch(id);
+        if (!branch.getMerchantId().equals(principal.getMerchantId())) {
+            throw new AccessDeniedException("Branch belongs to another merchant");
+        }
     }
 
     @PatchMapping("/{id}/primary")

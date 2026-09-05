@@ -1,0 +1,10 @@
+# Every service's Dockerfile is a thin "COPY a prebuilt jar" image (the real
+# compile happens via `./gradlew build` on the host, not inside Docker) — so
+# **/build/libs/*.jar must stay in context, it's the one thing every image
+# actually needs. The rest of each module's build/ output (compiled classes,
+# test-results, reports) is negligible in size and safe to exclude, but isn't
+# the source of slow builds here — don't exclude build/ wholesale.
+
+**/.idea/
+**/.vscode/
+**/*.iml
