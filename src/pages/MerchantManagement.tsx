@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
-import { Store, Plus, Edit2, Trash2, X, Loader2 } from 'lucide-react';
+import { Store, Plus, Edit2, Trash2, Loader2 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Spinner, ErrorState, EmptyState } from '../components/ui/States';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Modal } from '../components/ui/Modal';
+import { FormField } from '../components/ui/FormField';
+import { IdentityChip } from '../components/ui/Chip';
 import { useCreateMerchant, useUpdateMerchant, useDeleteMerchant, useUploadMerchantLogo } from '../hooks/useApiData';
 import { merchantApi, resolveMediaUrl, MerchantEntity, ApiError } from '../lib/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -20,34 +25,9 @@ export const MerchantManagement: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
 
-  // Fetch all tables to discover existing merchants
-  const { data: tables, isLoading: tablesLoading } = useQuery({
-    queryKey: ['tables'],
-    queryFn: () => import('../lib/api').then(m => m.tableApi.getAllTables()),
-  });
-
-  // Extract unique merchant IDs from tables
-  const merchantIds = React.useMemo(() => {
-    if (!tables) return [];
-    const ids = new Set<string>();
-    tables.forEach(t => ids.add(t.merchantId));
-    return Array.from(ids);
-  }, [tables]);
-
-  // Fetch each merchant by ID
   const { data: merchants = [], isLoading: merchantsLoading, error: merchantsError, refetch: refetchMerchants } = useQuery({
-    queryKey: ['merchants', merchantIds],
-    queryFn: async () => {
-      const results = await Promise.all(
-        merchantIds.map(id => merchantApi.getMerchant(id).catch(err => {
-          console.error(`[MerchantManagement] Failed to fetch merchant ${id}:`, err);
-          return null;
-        }))
-      );
-      const valid = results.filter((m): m is MerchantEntity => m !== null);
-      return valid;
-    },
-    enabled: merchantIds.length > 0,
+    queryKey: ['merchants', 'all'],
+    queryFn: () => merchantApi.getAllMerchants(),
   });
 
   const createMutation = useCreateMerchant();
@@ -91,11 +71,12 @@ export const MerchantManagement: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this merchant?')) return;
+  const handleDelete = async (merchant: MerchantEntity) => {
+    if (!confirm(`Delete "${merchant.name}"? This cannot be undone.`)) return;
     try {
-      await deleteMutation.mutateAsync(id);
-      queryClient.invalidateQueries({ queryKey: ['tables'] });
+      await deleteMutation.mutateAsync(merchant.id);
+      queryClient.invalidateQueries({ queryKey: ['merchants', 'all'] });
+      queryClient.invalidateQueries({ queryKey: ['lookup', 'merchants'] });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to delete merchant');
     }
@@ -111,45 +92,42 @@ export const MerchantManagement: React.FC = () => {
         await createMutation.mutateAsync(formData);
       }
       setShowForm(false);
-      queryClient.invalidateQueries({ queryKey: ['tables'] });
+      queryClient.invalidateQueries({ queryKey: ['merchants', 'all'] });
+      queryClient.invalidateQueries({ queryKey: ['lookup', 'merchants'] });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to save merchant');
     }
   };
 
-  const isLoading = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+  const isBusy = isSaving || deleteMutation.isPending;
 
   return (
     <DashboardLayout title="Merchant Management">
-      <div className="space-y-6">
-        {/* Header */}
+      {/* DESIGN.md 5.4 frame C: 1280 max-width for tables/dashboards. */}
+      <div className="mx-auto max-w-[80rem] space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-              <Store className="w-5 h-5 text-[#E60028]" />
+            <h2 className="flex items-center gap-2 text-title-m text-ink">
+              <Store className="h-5 w-5 text-brand-press" aria-hidden="true" />
               Merchants
             </h2>
-            <p className="text-xs text-slate-500 mt-1">Create and manage merchant tenant accounts</p>
+            <p className="mt-1 text-body-m text-muted">Create and manage merchant tenant accounts</p>
           </div>
-          <button
-            onClick={handleOpenCreate}
-            className="px-4 py-2 bg-[#E60028] hover:bg-[#CC0024] text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
+          <Button onClick={handleOpenCreate}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
             Add Merchant
-          </button>
+          </Button>
         </div>
 
         {error && (
-          <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-700">
+          <div role="alert" className="rounded-control bg-danger-soft px-3 py-3 text-label-s text-ink">
             {error}
           </div>
         )}
 
-        {/* Loading */}
-        {tablesLoading && <Spinner label="Loading tables..." />}
+        {merchantsLoading && <Spinner label="Loading merchants..." />}
 
-        {/* Error */}
         {merchantsError && (
           <ErrorState
             message={`Failed to load merchants: ${(merchantsError as Error).message}`}
@@ -157,172 +135,136 @@ export const MerchantManagement: React.FC = () => {
           />
         )}
 
-        {/* Empty */}
         {!merchantsLoading && !merchantsError && merchants.length === 0 && (
           <EmptyState
             title="No merchants found"
             description="Create your first merchant tenant to get started."
             action={
-              <button
-                onClick={handleOpenCreate}
-                className="px-4 py-2 bg-[#E60028] hover:bg-[#CC0024] text-white text-xs font-bold rounded-xl flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
+              <Button onClick={handleOpenCreate}>
+                <Plus className="h-4 w-4" aria-hidden="true" />
                 Add Merchant
-              </button>
+              </Button>
             }
           />
         )}
 
-        {/* Merchant List */}
         {merchants.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {merchants.map((merchant) => (
-              <div
-                key={merchant.id}
-                className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3 shadow-sm"
-              >
+              <Card key={merchant.id} compact className="space-y-3">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h3 className="font-bold text-sm text-slate-900">{merchant.name}</h3>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600">
-                      {merchant.category}
-                    </span>
+                    <h3 className="text-label-m text-ink">{merchant.name}</h3>
+                    <IdentityChip className="mt-1">{merchant.category}</IdentityChip>
                   </div>
                   <div className="flex gap-1">
                     <button
                       onClick={() => handleOpenEdit(merchant)}
-                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                      aria-label={`Edit ${merchant.name}`}
+                      className="rounded-control p-1.5 text-muted hover:bg-info-soft hover:text-info"
                     >
-                      <Edit2 className="w-3.5 h-3.5" />
+                      <Edit2 className="h-3.5 w-3.5" aria-hidden="true" />
                     </button>
                     <button
-                      onClick={() => handleDelete(merchant.id)}
-                      disabled={isLoading}
-                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                      onClick={() => handleDelete(merchant)}
+                      disabled={isBusy}
+                      aria-label={`Delete ${merchant.name}`}
+                      className="rounded-control p-1.5 text-muted hover:bg-danger-soft hover:text-danger"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                     </button>
                   </div>
                 </div>
-                <div className="space-y-1 text-xs text-slate-500">
-                  <p><span className="font-bold">Phone:</span> {merchant.phone}</p>
-                  <p><span className="font-bold">City:</span> {merchant.city}</p>
-                  <p><span className="font-bold">Address:</span> {merchant.address}</p>
-                  <p className="font-mono text-[10px] text-slate-400">ID: {merchant.id}</p>
+                <div className="space-y-1 text-body-m text-muted">
+                  <p><span className="text-ink">Phone:</span> {merchant.phone}</p>
+                  <p><span className="text-ink">City:</span> {merchant.city}</p>
+                  <p><span className="text-ink">Address:</span> {merchant.address}</p>
+                  <p className="font-mono text-label-s text-muted">ID: {merchant.id}</p>
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         )}
       </div>
 
-      {/* Create/Edit Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-            <div className="flex items-center justify-between p-4 border-b border-slate-200">
-              <h3 className="font-bold text-sm">
-                {editingMerchant ? 'Edit Merchant' : 'Create Merchant'}
-              </h3>
-              <button
-                onClick={() => setShowForm(false)}
-                className="p-1 text-slate-400 hover:text-slate-900 rounded-lg"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <form onSubmit={handleSubmit} className="p-4 space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Logo</label>
-                {editingMerchant ? (
-                  <div className="flex items-center gap-3">
-                    {logoUrl ? <img src={resolveMediaUrl(logoUrl)} alt="Merchant logo" className="w-12 h-12 rounded-lg object-cover border border-slate-200" />
-                      : <div className="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200" />}
-                    <label className={`px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-lg cursor-pointer flex items-center gap-1.5 ${uploadLogoMutation.isPending ? 'opacity-50 pointer-events-none' : ''}`}>
-                      {uploadLogoMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                      Upload Logo
-                      <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleUploadLogo} className="hidden" />
-                    </label>
-                  </div>
+      <Modal
+        open={showForm}
+        onClose={() => setShowForm(false)}
+        title={editingMerchant ? 'Edit Merchant' : 'Create Merchant'}
+      >
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <span className="mb-1 block text-label-m text-ink">Logo</span>
+            {editingMerchant ? (
+              <div className="flex items-center gap-3">
+                {logoUrl ? (
+                  <img
+                    src={resolveMediaUrl(logoUrl)}
+                    alt="Merchant logo"
+                    className="h-12 w-12 rounded-control border border-line object-cover"
+                  />
                 ) : (
-                  <p className="text-[10px] text-slate-400">Create the merchant first, then edit it to upload a logo.</p>
+                  <div className="h-12 w-12 rounded-control border border-line bg-surface-2" />
                 )}
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Name</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20 focus:border-[#E60028]"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Phone</label>
-                <input
-                  type="tel"
-                  required
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20 focus:border-[#E60028]"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">City</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20 focus:border-[#E60028]"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Address</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20 focus:border-[#E60028]"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Category</label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20 focus:border-[#E60028]"
+                <label
+                  className={`flex cursor-pointer items-center gap-1.5 rounded-control border border-line-strong bg-surface-2 px-3 py-2 text-label-s text-ink hover:bg-line ${uploadLogoMutation.isPending ? 'pointer-events-none opacity-50' : ''}`}
                 >
-                  <option value="Restaurant">Restaurant</option>
-                  <option value="Coffee Shop">Coffee Shop</option>
-                  <option value="Bar">Bar</option>
-                  <option value="Hotel">Hotel</option>
-                  <option value="Fast Food">Fast Food</option>
-                  <option value="Lounge">Lounge</option>
-                  <option value="Bakery">Bakery</option>
-                </select>
+                  {uploadLogoMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
+                  Upload Logo
+                  <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleUploadLogo} className="hidden" />
+                </label>
               </div>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full py-2.5 bg-[#E60028] hover:bg-[#CC0024] disabled:opacity-60 text-white text-sm font-bold rounded-xl flex items-center justify-center gap-2"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  editingMerchant ? 'Update Merchant' : 'Create Merchant'
-                )}
-              </button>
-            </form>
+            ) : (
+              <p className="text-label-s text-muted">Create the merchant first, then edit it to upload a logo.</p>
+            )}
           </div>
-        </div>
-      )}
+          <FormField
+            label="Name"
+            required
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          />
+          <FormField
+            label="Phone"
+            type="tel"
+            required
+            value={formData.phone}
+            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+          />
+          <FormField
+            label="City"
+            required
+            value={formData.city}
+            onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+          />
+          <FormField
+            label="Address"
+            required
+            value={formData.address}
+            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+          />
+          <div>
+            <label htmlFor="merchant-category" className="mb-1 block text-label-m text-ink">Category</label>
+            <select
+              id="merchant-category"
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              className="h-11 w-full rounded-control border border-line bg-surface px-3 text-body-m text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark"
+            >
+              <option value="Restaurant">Restaurant</option>
+              <option value="Coffee Shop">Coffee Shop</option>
+              <option value="Bar">Bar</option>
+              <option value="Hotel">Hotel</option>
+              <option value="Fast Food">Fast Food</option>
+              <option value="Lounge">Lounge</option>
+              <option value="Bakery">Bakery</option>
+            </select>
+          </div>
+          <Button type="submit" loading={isSaving} fullWidth>
+            {isSaving ? 'Saving...' : editingMerchant ? 'Update Merchant' : 'Create Merchant'}
+          </Button>
+        </form>
+      </Modal>
     </DashboardLayout>
   );
 };

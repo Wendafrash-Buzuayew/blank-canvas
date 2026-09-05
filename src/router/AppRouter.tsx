@@ -85,7 +85,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/admin/merchants"
             element={
-              <ProtectedRoute allowedRoles={['SUPER_ADMIN']} requiresPhase2>
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
                 <MerchantManagement />
               </ProtectedRoute>
             }
@@ -141,7 +141,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/admin/back-office"
             element={
-              <ProtectedRoute allowedRoles={['SUPER_ADMIN']} requiresPhase2>
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
                 <BackOfficePage />
               </ProtectedRoute>
             }
@@ -149,7 +149,7 @@ export const AppRouter: React.FC = () => {
           <Route
             path="/admin/settings"
             element={
-              <ProtectedRoute allowedRoles={['SUPER_ADMIN']} requiresPhase2>
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
                 <SettingsPage />
               </ProtectedRoute>
             }

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Star } from 'lucide-react';
 import {
   resolveBranch,
   resolvePrimaryBranch,
@@ -10,49 +11,58 @@ import {
   type DigitalMenuResolution,
   type MenuTemplateStyle,
 } from '../lib/digitalMenu';
+import { resolveMediaUrl } from '../lib/api';
+import { Spinner, ErrorState } from '../components/ui/States';
+import { Button } from '../components/ui/Button';
 
 /**
  * A small, team-curated, fixed set of visual presentations — the merchant
  * picks one (MenuBuilderPage), not a merchant-authored/customizable
- * template system. Each entry is just a set of Tailwind class tokens
- * applied to the same page structure below.
+ * template system. DESIGN.md §1 rule 3 is why this page is allowed to be
+ * expressive at all — it's the one context in the product that is. Each
+ * template still stays inside documented-safe token pairings (§3):
+ * CLASSIC is the light customer surface; MODERN_DARK reuses the console's
+ * own measured dark-ground pair (--color-on-ink / --color-on-ink-muted,
+ * §3.2) rather than inventing a new one; VIBRANT is the one place
+ * --customer-accent (Fresh Green, §3.5) is allowed to appear, scoped here
+ * by the page's own [data-view="customer"] root.
  */
 const TEMPLATES: Record<MenuTemplateStyle, {
   page: string; header: string; title: string; categoryHeading: string;
-  row: string; itemName: string; price: string; strikePrice: string; description: string;
+  itemName: string; priceWrap: string; price: string; strikePrice: string; description: string;
 }> = {
   CLASSIC: {
-    page: 'min-h-screen bg-white text-slate-900',
-    header: 'px-6 py-8 text-center border-b-4 border-[#E60028]',
-    title: 'text-3xl font-black',
-    categoryHeading: 'text-lg font-extrabold text-[#E60028] uppercase tracking-wide mt-8 mb-2 px-6',
-    row: 'flex justify-between gap-4 px-6 py-4 border-b border-slate-100',
-    itemName: 'font-bold',
-    price: 'font-black',
-    strikePrice: 'text-slate-400 line-through text-sm',
-    description: 'text-sm text-slate-500 mt-1',
+    page: 'bg-canvas text-ink',
+    header: 'px-4 py-8 text-center border-b border-line',
+    title: 'font-display text-title-l',
+    categoryHeading: 'text-label-s uppercase text-brand-press mt-8 mb-2 px-4',
+    itemName: 'text-title-s text-ink',
+    priceWrap: '',
+    price: 'text-label-m text-brand-press [font-variant-numeric:tabular-nums]',
+    strikePrice: 'text-label-s text-muted line-through [font-variant-numeric:tabular-nums]',
+    description: 'text-body-m text-muted mt-1 line-clamp-2',
   },
   MODERN_DARK: {
-    page: 'min-h-screen bg-slate-950 text-white',
-    header: 'px-6 py-8 text-center border-b border-slate-800',
-    title: 'text-3xl font-black',
-    categoryHeading: 'text-lg font-extrabold text-red-400 uppercase tracking-wide mt-8 mb-2 px-6',
-    row: 'flex justify-between gap-4 px-6 py-4 border-b border-slate-800',
-    itemName: 'font-bold',
-    price: 'font-black',
-    strikePrice: 'text-slate-500 line-through text-sm',
-    description: 'text-sm text-slate-400 mt-1',
+    page: 'bg-ink text-on-ink',
+    header: 'px-4 py-8 text-center border-b border-ink-2',
+    title: 'font-display text-title-l',
+    categoryHeading: 'text-label-s uppercase text-on-ink-muted mt-8 mb-2 px-4',
+    itemName: 'text-title-s text-on-ink',
+    priceWrap: 'rounded-pill bg-brand px-2 py-0.5',
+    price: 'text-label-m text-ink [font-variant-numeric:tabular-nums]',
+    strikePrice: 'text-label-s text-on-ink-muted line-through [font-variant-numeric:tabular-nums]',
+    description: 'text-body-m text-on-ink-muted mt-1 line-clamp-2',
   },
   VIBRANT: {
-    page: 'min-h-screen bg-gradient-to-b from-amber-50 via-white to-white text-slate-900',
-    header: 'px-6 py-10 text-center',
-    title: 'text-4xl font-black text-amber-600',
-    categoryHeading: 'text-lg font-extrabold text-amber-600 uppercase tracking-wide mt-8 mb-3 px-6',
-    row: 'flex justify-between gap-4 mx-4 mb-3 p-4 bg-white rounded-2xl border-2 border-amber-100 shadow-sm',
-    itemName: 'font-bold',
-    price: 'font-black text-amber-700',
-    strikePrice: 'text-slate-400 line-through text-sm',
-    description: 'text-sm text-slate-500 mt-1',
+    page: 'bg-brand-soft text-ink',
+    header: 'px-4 py-10 text-center',
+    title: 'font-display text-title-l text-brand-press',
+    categoryHeading: 'text-label-s uppercase text-brand-press mt-8 mb-3 px-4',
+    itemName: 'text-title-s text-ink',
+    priceWrap: '',
+    price: 'text-label-m text-brand-press [font-variant-numeric:tabular-nums]',
+    strikePrice: 'text-label-s text-muted line-through [font-variant-numeric:tabular-nums]',
+    description: 'text-body-m text-muted mt-1 line-clamp-2',
   },
 };
 
@@ -66,7 +76,7 @@ export function DigitalMenuPage() {
   const { merchantSlug, branchSlug } = useParams<{ merchantSlug: string; branchSlug?: string }>();
 
   if (!merchantSlug) {
-    return <div role="alert">Menu not found.</div>;
+    return <CenteredMessage>Menu not found.</CenteredMessage>;
   }
 
   if (!branchSlug) {
@@ -74,6 +84,17 @@ export function DigitalMenuPage() {
   }
 
   return <BranchMenu merchantSlug={merchantSlug} branchSlug={branchSlug} />;
+}
+
+/** Frame A (DESIGN.md §5.4): canvas ground, 640 max-width, 16 gutter. */
+function CenteredMessage({ children, isError = true }: { children: React.ReactNode; isError?: boolean }) {
+  return (
+    <div data-view="customer" className="flex min-h-screen items-center justify-center bg-canvas px-4">
+      <div className="mx-auto w-full max-w-[40rem]" role={isError ? 'alert' : undefined}>
+        <p className="text-center text-body-l text-muted">{children}</p>
+      </div>
+    </div>
+  );
 }
 
 function PrimaryBranchRedirect({ merchantSlug }: { merchantSlug: string }) {
@@ -88,10 +109,14 @@ function PrimaryBranchRedirect({ merchantSlug }: { merchantSlug: string }) {
   }, [merchantSlug]);
 
   if (resolution === null) {
-    return <div>Loading menu…</div>;
+    return (
+      <div data-view="customer" className="flex min-h-screen items-center justify-center bg-canvas">
+        <Spinner label="Loading menu…" />
+      </div>
+    );
   }
   if (resolution === 'not-found') {
-    return <div role="alert">Menu coming soon.</div>;
+    return <CenteredMessage>Menu coming soon.</CenteredMessage>;
   }
   return <Navigate replace to={`/m/${merchantSlug}/${resolution.branchSlug}`} />;
 }
@@ -109,53 +134,73 @@ function BranchMenu({ merchantSlug, branchSlug }: { merchantSlug: string; branch
   });
 
   if (resolutionQuery.isError) {
-    return <div role="alert">Menu not found.</div>;
+    return <CenteredMessage>Menu not found.</CenteredMessage>;
   }
   if (resolutionQuery.isLoading || menuQuery.isLoading) {
-    return <div>Loading menu…</div>;
+    return (
+      <div data-view="customer" className="flex min-h-screen items-center justify-center bg-canvas">
+        <Spinner label="Loading menu…" />
+      </div>
+    );
   }
   if (menuQuery.isError) {
-    return <div role="alert">Menu coming soon.</div>;
+    return <CenteredMessage>Menu coming soon.</CenteredMessage>;
   }
 
   const template = TEMPLATES[menuQuery.data?.templateStyle ?? 'CLASSIC'];
   const branchId = resolutionQuery.data?.branchId;
 
   return (
-    <div className={template.page}>
-      <header className={template.header}>
-        <h1 className={template.title}>{resolutionQuery.data?.branchName}</h1>
-        {branchId != null && <RatingBadge branchId={branchId} />}
-      </header>
-      {menuQuery.data?.categories.map((category) => (
-        <section key={category.id}>
-          <h2 className={template.categoryHeading}>{category.name}</h2>
-          {category.items.map((item) => (
-            <div key={item.id} className={template.row}>
-              <div className="min-w-0">
-                <div className={template.itemName}>{item.name}</div>
-                {item.description && <p className={template.description}>{item.description}</p>}
-              </div>
-              <div className="shrink-0 text-right">
-                {item.effectivePrice < item.price ? (
-                  <>
-                    <div className={template.strikePrice}>{item.price}</div>
-                    <div className={template.price}>{item.effectivePrice}</div>
-                  </>
-                ) : (
-                  <div className={template.price}>{item.price}</div>
-                )}
-              </div>
+    <div data-view="customer" className={`min-h-screen ${template.page}`}>
+      <div className="mx-auto max-w-[40rem]">
+        <header className={template.header}>
+          <h1 className={template.title}>{resolutionQuery.data?.branchName}</h1>
+          {branchId != null && <RatingBadge branchId={branchId} textClass={template.description} />}
+        </header>
+        {menuQuery.data?.categories.map((category) => (
+          <section key={category.id}>
+            <h2 className={template.categoryHeading}>{category.name}</h2>
+            <div className="space-y-3 px-4">
+              {category.items.map((item) => (
+                <div key={item.id} className="card-surface flex gap-3 p-3">
+                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-[var(--radius-xl2)] border border-line bg-surface-2">
+                    {item.image && (
+                      <img
+                        src={resolveMediaUrl(item.image)}
+                        alt=""
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className={template.itemName}>{item.name}</div>
+                      <div className={`shrink-0 text-right ${template.priceWrap}`}>
+                        {item.effectivePrice < item.price ? (
+                          <>
+                            <div className={template.strikePrice}>{item.price} ETB</div>
+                            <div className={template.price}>{item.effectivePrice} ETB</div>
+                          </>
+                        ) : (
+                          <div className={template.price}>{item.price} ETB</div>
+                        )}
+                      </div>
+                    </div>
+                    {item.description && <p className={template.description}>{item.description}</p>}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </section>
-      ))}
-      {branchId != null && <ReviewForm branchId={branchId} />}
+          </section>
+        ))}
+        {branchId != null && <ReviewForm branchId={branchId} />}
+      </div>
     </div>
   );
 }
 
-function RatingBadge({ branchId }: { branchId: number }) {
+function RatingBadge({ branchId, textClass }: { branchId: number; textClass: string }) {
   const summaryQuery = useQuery({
     queryKey: ['digital-menu-review-summary', branchId],
     queryFn: () => fetchReviewSummary(branchId),
@@ -163,8 +208,9 @@ function RatingBadge({ branchId }: { branchId: number }) {
 
   if (!summaryQuery.data || summaryQuery.data.count === 0) return null;
   return (
-    <p className="mt-1 text-sm opacity-80">
-      ★ {summaryQuery.data.averageRating.toFixed(1)} · {summaryQuery.data.count} review{summaryQuery.data.count === 1 ? '' : 's'}
+    <p className={`mt-1 flex items-center justify-center gap-1 text-label-m ${textClass}`}>
+      <Star className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+      {summaryQuery.data.averageRating.toFixed(1)} · {summaryQuery.data.count} review{summaryQuery.data.count === 1 ? '' : 's'}
     </p>
   );
 }
@@ -187,7 +233,7 @@ function ReviewForm({ branchId }: { branchId: number }) {
 
   if (done) {
     return (
-      <div className="px-6 py-8 text-center text-sm opacity-70">Thanks for your feedback!</div>
+      <div className="px-4 py-8 text-center text-body-m opacity-70">Thanks for your feedback!</div>
     );
   }
 
@@ -209,8 +255,9 @@ function ReviewForm({ branchId }: { branchId: number }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="px-6 py-8 space-y-3">
-      <h2 className="font-bold">Rate your visit</h2>
+    <form onSubmit={handleSubmit} className="space-y-3 px-4 py-8">
+      <h2 className="text-title-s">Rate your visit</h2>
+      {/* 44x44 minimum in the customer context (§5.7) — thumb, one-handed. */}
       <div className="flex gap-1" role="radiogroup" aria-label="Rating">
         {[1, 2, 3, 4, 5].map((n) => (
           <button
@@ -220,24 +267,29 @@ function ReviewForm({ branchId }: { branchId: number }) {
             aria-checked={rating === n}
             aria-label={`${n} star${n === 1 ? '' : 's'}`}
             onClick={() => setRating(n)}
-            className="text-2xl leading-none"
-            style={{ opacity: n <= rating ? 1 : 0.3 }}
+            className="flex h-11 w-11 items-center justify-center"
           >
-            ★
+            <Star className="h-6 w-6 fill-current" style={{ opacity: n <= rating ? 1 : 0.3 }} aria-hidden="true" />
           </button>
         ))}
       </div>
-      <textarea
-        value={comment}
-        onChange={(e) => setComment(e.target.value)}
-        placeholder="Tell us about your visit (optional)"
-        rows={3}
-        className="w-full rounded-lg border border-current/20 bg-transparent p-2 text-sm"
-      />
-      {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
-      <button type="submit" disabled={submitting} className="rounded-lg bg-current/10 px-4 py-2 text-sm font-bold disabled:opacity-50">
+      <label className="block">
+        <span className="sr-only">Comment (optional)</span>
+        <textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="Tell us about your visit (optional)"
+          rows={3}
+          className="w-full rounded-control border border-current/20 bg-transparent p-3 text-body-m focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark"
+        />
+      </label>
+      {/* A self-contained light chip, not bare text: template.page can be a
+          dark ground (MODERN_DARK), and --color-danger has no documented
+          dark-ground pairing — a light danger-soft chip stays safe either way. */}
+      {error && <p role="alert" className="inline-block rounded-control bg-danger-soft px-3 py-2 text-label-s text-ink">{error}</p>}
+      <Button type="submit" loading={submitting} variant="primary">
         {submitting ? 'Submitting…' : 'Submit Review'}
-      </button>
+      </Button>
     </form>
   );
 }

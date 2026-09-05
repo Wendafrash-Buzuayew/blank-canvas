@@ -6,6 +6,7 @@ import { ApiError } from '../lib/api';
 import { getRoleHome } from '../router/ProtectedRoute';
 import { isPhase2Enabled, isRoleAllowedInPhase } from '../lib/phase';
 import { getSuperAppToken } from '../lib/superApp';
+import { Button } from '../components/ui/Button';
 
 export const LoginPage: React.FC = () => {
   const { login, loginWithSuperAppToken, isLoading, isAuthenticated, user, logout } = useAuth();
@@ -78,22 +79,18 @@ export const LoginPage: React.FC = () => {
 
   if (phaseBlocked) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-200 p-8 text-center">
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4">
-            <AlertCircle className="w-6 h-6" />
+      <div className="flex min-h-screen items-center justify-center bg-canvas p-4">
+        <div className="w-full max-w-md rounded-card border border-line bg-surface p-8 text-center shadow-[var(--shadow-lift)]">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-pill bg-warn-soft">
+            <AlertCircle className="h-6 w-6 text-warn" aria-hidden="true" />
           </div>
-          <h1 className="text-lg font-black text-slate-900">Merchant accounts only</h1>
-          <p className="text-sm text-slate-500 mt-2">
-            This app is available for merchant accounts during this phase. Please sign in with a merchant account.
+          <h1 className="text-title-s text-ink">Account not available yet</h1>
+          <p className="mt-2 text-body-m text-muted">
+            This app is available for merchant and admin accounts during this phase. Please sign in with one of those.
           </p>
-          <button
-            type="button"
-            onClick={() => setWasPhaseBlocked(false)}
-            className="mt-5 text-sm font-bold text-[#E60028] hover:underline"
-          >
+          <Button variant="link" onClick={() => setWasPhaseBlocked(false)} className="mt-5">
             Back to sign in
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -101,10 +98,10 @@ export const LoginPage: React.FC = () => {
 
   if (superAppExchanging) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="flex flex-col items-center gap-3 text-slate-500">
-          <Loader2 className="w-6 h-6 animate-spin" />
-          <p className="text-sm font-bold">Signing you in…</p>
+      <div className="flex min-h-screen items-center justify-center bg-canvas p-4">
+        <div role="status" aria-live="polite" className="flex flex-col items-center gap-3 text-muted">
+          <Loader2 className="h-6 w-6 animate-spin text-brand-dark" aria-hidden="true" />
+          <p className="text-label-m">Signing you in…</p>
         </div>
       </div>
     );
@@ -134,89 +131,89 @@ export const LoginPage: React.FC = () => {
     { label: 'Super Admin', email: 'admin@hotel.com', password: 'password', role: 'SUPER_ADMIN' },
   ];
 
+  const inputClasses =
+    'h-11 w-full rounded-control border border-line bg-surface pl-10 pr-3 text-body-m text-ink ' +
+    'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark';
+
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+    <div className="flex min-h-screen items-center justify-center bg-canvas p-4">
       <div className="w-full max-w-md">
         {/* Brand */}
-        <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-[#E60028] text-white flex items-center justify-center mx-auto mb-3 shadow-lg">
-            <QrCode className="w-7 h-7" />
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-card bg-brand text-ink shadow-[var(--shadow-lift-brand)]">
+            <QrCode className="h-7 w-7" aria-hidden="true" />
           </div>
-          <h1 className="text-2xl font-black text-slate-900">QRServe</h1>
-          <p className="text-sm text-slate-500 mt-1">Smart QR Menu & Ordering Platform</p>
+          <h1 className="font-display text-title-l text-ink">QRServe</h1>
+          <p className="mt-1 text-body-m text-muted">Smart QR Menu &amp; Ordering Platform</p>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+        <div className="overflow-hidden rounded-card border border-line bg-surface shadow-[var(--shadow-lift)]">
           {/* Header */}
-          <div className="bg-[#1E1E1E] text-white p-6">
-            <h2 className="text-lg font-black">Sign in to your account</h2>
-            <p className="text-xs text-slate-400 mt-1">Access your role-based dashboard</p>
+          <div className="bg-ink p-6 text-on-ink">
+            <h2 className="text-title-s">Sign in to your account</h2>
+            <p className="mt-1 text-label-s text-on-ink-muted">Access your role-based dashboard</p>
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4 p-6">
             {(error || superAppError) && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-700 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+              <div role="alert" className="flex items-center gap-2 rounded-control bg-danger-soft px-3 py-3 text-label-s text-ink">
+                <AlertCircle className="h-4 w-4 shrink-0 text-danger" aria-hidden="true" />
                 {error || superAppError}
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1.5">Email Address</label>
+              <label htmlFor="login-email" className="mb-1.5 block text-label-s uppercase text-muted">
+                Email Address
+              </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                <Mail className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted" aria-hidden="true" />
                 <input
+                  id="login-email"
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@restaurant.com"
-                  className="w-full pl-10 pr-3 py-2.5 text-sm rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20 focus:border-[#E60028]"
+                  className={inputClasses}
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1.5">Password</label>
+              <label htmlFor="login-password" className="mb-1.5 block text-label-s uppercase text-muted">
+                Password
+              </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                <Lock className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted" aria-hidden="true" />
                 <input
+                  id="login-password"
                   type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-10 py-2.5 text-sm rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20 focus:border-[#E60028]"
+                  className={`${inputClasses} pr-11`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="absolute right-1 top-1 flex h-9 w-9 items-center justify-center rounded-control text-muted hover:text-ink"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
                 </button>
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-3 bg-[#E60028] hover:bg-[#CC0024] disabled:opacity-60 text-white text-sm font-black rounded-xl shadow-md flex items-center justify-center gap-2 transition-all"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Signing in...
-                </>
-              ) : (
-                'Sign In'
-              )}
-            </button>
+            <Button type="submit" loading={isLoading} fullWidth size="lg">
+              {isLoading ? 'Signing in...' : 'Sign In'}
+            </Button>
 
             {isPhase2Enabled() && (
-              <div className="pt-3 border-t border-gray-100">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Demo Accounts</p>
+              <div className="border-t border-line pt-3">
+                <p className="mb-2 text-label-s uppercase text-muted">Demo Accounts</p>
                 <div className="space-y-1.5">
                   {demoAccounts.map(acc => (
                     <button
@@ -227,10 +224,10 @@ export const LoginPage: React.FC = () => {
                         setPassword(acc.password);
                         setError(null);
                       }}
-                      className="w-full text-left px-3 py-2 rounded-xl bg-gray-50 border border-gray-200 text-xs hover:border-[#E60028]/40 hover:bg-red-50/50 transition-colors"
+                      className="w-full rounded-control border border-line bg-surface-2 px-3 py-2 text-left text-label-s transition-colors hover:border-brand-dark/40 hover:bg-brand-soft"
                     >
-                      <span className="font-bold text-gray-900">{acc.label}: </span>
-                      <span className="text-gray-500 font-mono">{acc.email}</span>
+                      <span className="text-ink">{acc.label}: </span>
+                      <span className="text-muted">{acc.email}</span>
                     </button>
                   ))}
                 </div>
@@ -239,7 +236,7 @@ export const LoginPage: React.FC = () => {
           </form>
         </div>
 
-        <p className="text-center text-xs text-slate-400 mt-6">
+        <p className="mt-6 text-center text-label-s text-muted">
           © 2026 QRServe. All rights reserved.
         </p>
       </div>

@@ -91,6 +91,14 @@ export const ROLE_NAVIGATION_PHASE1: Record<string, NavItem[]> = {
     { label: 'Reviews', path: '/merchant/reviews', icon: Star },
     { label: 'Settings', path: '/merchant/settings', icon: Settings },
   ],
+  // A separate, minimal admin portal - platform reporting and merchant
+  // management only. Not the mini-app, and not the rest of the Phase 2
+  // admin surface (tables/waiters/analytics/subscriptions) below.
+  SUPER_ADMIN: [
+    { label: 'Back Office', path: '/admin/back-office', icon: ShieldCheck },
+    { label: 'Merchants', path: '/admin/merchants', icon: Store },
+    { label: 'Settings', path: '/admin/settings', icon: Settings },
+  ],
 };
 
 /**

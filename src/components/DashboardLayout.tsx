@@ -39,7 +39,14 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, titl
     navigate('/login', { replace: true });
   };
 
-  if (!isPhase2Enabled()) {
+  // Frame B is the Merchant Mini App specifically — SUPER_ADMIN's Phase 1
+  // portal (Back Office, Merchant Management) is a small set of admin
+  // screens with wide tables and forms that assume the console's width; it
+  // gets Frame C always, the same shell it would get once Phase 2 is fully
+  // back on, never the phone-frame mini app.
+  const useMiniAppShell = !isPhase2Enabled() && user?.role === 'MERCHANT_OWNER';
+
+  if (useMiniAppShell) {
     // Frame B — the Merchant Mini App. No sidebar at all: a fixed bottom tab
     // bar instead, with content constrained to a phone frame.
     return (

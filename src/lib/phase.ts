@@ -9,6 +9,7 @@
  */
 
 const MERCHANT_OWNER_ROLE = 'MERCHANT_OWNER';
+const SUPER_ADMIN_ROLE = 'SUPER_ADMIN';
 
 /**
  * Parses the raw VITE_ENABLE_PHASE_2 env value. Exported as a pure function
@@ -36,13 +37,15 @@ export function isPhase2Enabled(): boolean {
 }
 
 /**
- * Whether `role` may use the app in the current phase. In Phase 1 only
- * MERCHANT_OWNER may log in; every other role (including SUPER_ADMIN) is
- * unauthorized until Phase 2 is re-enabled.
+ * Whether `role` may use the app in the current phase. In Phase 1, only
+ * MERCHANT_OWNER (the mini-app) and SUPER_ADMIN (a separate, minimal admin
+ * portal - platform reporting and merchant management, not the rest of the
+ * Phase 2 admin surface) may log in; every other role is unauthorized until
+ * Phase 2 is re-enabled.
  */
 export function isRoleAllowedInPhase(
   role: string,
   phase2Enabled: boolean = isPhase2Enabled(),
 ): boolean {
-  return phase2Enabled || role === MERCHANT_OWNER_ROLE;
+  return phase2Enabled || role === MERCHANT_OWNER_ROLE || role === SUPER_ADMIN_ROLE;
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import { Star, MessageSquare } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Spinner, ErrorState, EmptyState } from '../components/ui/States';
+import { Card } from '../components/ui/Card';
 import { useReviews } from '../hooks/useApiData';
 
 export const ReviewsPage: React.FC = () => {
@@ -13,20 +14,24 @@ export const ReviewsPage: React.FC = () => {
   return (
     <DashboardLayout title="Customer Reviews">
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <Card compact className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-              <Star className="w-6 h-6 text-[#E60028]" /> Customer Reviews
+            <h2 className="flex items-center gap-2 text-title-m text-ink">
+              <Star className="h-6 w-6 text-brand-press" aria-hidden="true" /> Customer Reviews
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">What customers say about their visit — left directly from your digital menu.</p>
+            <p className="mt-0.5 text-body-m text-muted">
+              What customers say about their visit - left directly from your digital menu.
+            </p>
           </div>
           {count > 0 && (
             <div className="text-right">
-              <div className="text-2xl font-black text-slate-900">{average.toFixed(1)} <span className="text-sm text-slate-400 font-bold">/ 5</span></div>
-              <div className="text-xs text-slate-500">{count} review{count === 1 ? '' : 's'}</div>
+              <div className="text-title-l [font-variant-numeric:tabular-nums]">
+                {average.toFixed(1)} <span className="text-body-m text-muted">/ 5</span>
+              </div>
+              <div className="text-label-s text-muted">{count} review{count === 1 ? '' : 's'}</div>
             </div>
           )}
-        </div>
+        </Card>
 
         {isLoading && <Spinner label="Loading reviews..." />}
         {!isLoading && error && <ErrorState message="Could not load reviews." onRetry={() => refetch()} />}
@@ -41,23 +46,27 @@ export const ReviewsPage: React.FC = () => {
         {!isLoading && !error && count > 0 && (
           <div className="space-y-3">
             {reviews!.map((review) => (
-              <div key={review.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <Card key={review.id} compact>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1" aria-label={`${review.rating} out of 5 stars`}>
                     {[1, 2, 3, 4, 5].map((n) => (
-                      <Star key={n} className={`w-4 h-4 ${n <= review.rating ? 'text-[#E60028] fill-[#E60028]' : 'text-slate-200'}`} />
+                      <Star
+                        key={n}
+                        className={`h-4 w-4 ${n <= review.rating ? 'fill-brand-press text-brand-press' : 'text-line-strong'}`}
+                        aria-hidden="true"
+                      />
                     ))}
                   </div>
-                  <span className="text-[10px] text-slate-400">{new Date(review.createdAt).toLocaleDateString()}</span>
+                  <span className="text-label-s text-muted">{new Date(review.createdAt).toLocaleDateString()}</span>
                 </div>
-                {review.customerName && <p className="text-xs font-bold text-slate-700 mt-2">{review.customerName}</p>}
+                {review.customerName && <p className="mt-2 text-label-m text-ink">{review.customerName}</p>}
                 {review.comment && (
-                  <p className="text-sm text-slate-600 mt-1 flex items-start gap-1.5">
-                    <MessageSquare className="w-3.5 h-3.5 text-slate-300 shrink-0 mt-0.5" />
+                  <p className="mt-1 flex items-start gap-1.5 text-body-m text-muted">
+                    <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0 text-line-strong" aria-hidden="true" />
                     {review.comment}
                   </p>
                 )}
-              </div>
+              </Card>
             ))}
           </div>
         )}

@@ -34,13 +34,14 @@ test('an unset env value disables phase 2 by default', () => {
 
 // ---- isRoleAllowedInPhase ----
 
-test('MERCHANT_OWNER is allowed whether or not phase 2 is enabled', () => {
+test('MERCHANT_OWNER and SUPER_ADMIN are allowed whether or not phase 2 is enabled', () => {
   assert.equal(isRoleAllowedInPhase('MERCHANT_OWNER', false), true);
   assert.equal(isRoleAllowedInPhase('MERCHANT_OWNER', true), true);
+  assert.equal(isRoleAllowedInPhase('SUPER_ADMIN', false), true);
+  assert.equal(isRoleAllowedInPhase('SUPER_ADMIN', true), true);
 });
 
 test('every other role is blocked in phase 1', () => {
-  assert.equal(isRoleAllowedInPhase('SUPER_ADMIN', false), false);
   assert.equal(isRoleAllowedInPhase('BRANCH_MANAGER', false), false);
   assert.equal(isRoleAllowedInPhase('WAITER', false), false);
   assert.equal(isRoleAllowedInPhase('KITCHEN', false), false);

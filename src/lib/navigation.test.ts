@@ -28,8 +28,15 @@ test('phase 1 gives MERCHANT_OWNER exactly Dashboard, Branches, Menu & QR, Revie
   );
 });
 
+test('phase 1 gives SUPER_ADMIN exactly Back Office, Merchants, Settings', () => {
+  const items = getNavigationForRole('SUPER_ADMIN', false);
+  assert.deepEqual(
+    items.map((i) => i.path),
+    ['/admin/back-office', '/admin/merchants', '/admin/settings'],
+  );
+});
+
 test('phase 1 gives every other role no navigation at all', () => {
-  assert.deepEqual(getNavigationForRole('SUPER_ADMIN', false), []);
   assert.deepEqual(getNavigationForRole('BRANCH_MANAGER', false), []);
   assert.deepEqual(getNavigationForRole('WAITER', false), []);
   assert.deepEqual(getNavigationForRole('KITCHEN', false), []);
@@ -55,7 +62,11 @@ test('MERCHANT_OWNER lands on the dashboard in phase 1', () => {
 
 test('a role with no phase 1 navigation falls back to /login', () => {
   assert.equal(getRoleHomeRoute('WAITER', false), '/login');
-  assert.equal(getRoleHomeRoute('SUPER_ADMIN', false), '/login');
+  assert.equal(getRoleHomeRoute('BRANCH_MANAGER', false), '/login');
+});
+
+test('SUPER_ADMIN lands on Back Office in phase 1', () => {
+  assert.equal(getRoleHomeRoute('SUPER_ADMIN', false), '/admin/back-office');
 });
 
 test('phase 2 restores each role\'s real home route', () => {

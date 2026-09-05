@@ -138,9 +138,9 @@ export function EntitySelect<T extends Record<string, any>>({
   return (
     <div className="w-full" ref={containerRef}>
       {label && (
-        <label className="block text-xs font-bold text-slate-700 mb-1">
+        <label className="mb-1 block text-label-m text-ink">
           {label}
-          {required && <span className="text-[#E60028] ml-0.5">*</span>}
+          {required && <span className="ml-0.5 text-danger">*</span>}
         </label>
       )}
 
@@ -153,25 +153,25 @@ export function EntitySelect<T extends Record<string, any>>({
           disabled={isDisabled}
           onClick={() => setOpen((o) => !o)}
           onKeyDown={handleKeyDown}
-          className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-lg border text-left transition-colors ${
+          className={`flex h-11 w-full items-center justify-between gap-2 rounded-control border px-3 text-left text-body-m transition-colors ${
             error
-              ? 'border-red-300 bg-red-50 text-red-700'
+              ? 'border-danger bg-danger-soft text-ink'
               : isDisabled
-              ? 'border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed'
-              : 'border-slate-300 bg-white text-slate-900 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20 focus:border-[#E60028]'
+              ? 'cursor-not-allowed border-line bg-surface-2 text-muted'
+              : 'border-line bg-surface text-ink hover:border-line-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark'
           }`}
         >
-          <span className="truncate flex items-center gap-2">
-            {isLoading && <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />}
+          <span className="flex items-center gap-2 truncate">
+            {isLoading && <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />}
             {isLoading
               ? loadingMessage
               : error
               ? error
               : selected
               ? getLabel(selected)
-              : <span className="text-slate-400">{placeholder}</span>}
+              : <span className="text-muted">{placeholder}</span>}
           </span>
-          <span className="flex items-center gap-1 shrink-0">
+          <span className="flex shrink-0 items-center gap-1">
             {clearable && selected && !isDisabled && (
               <span
                 role="button"
@@ -181,20 +181,20 @@ export function EntitySelect<T extends Record<string, any>>({
                   e.stopPropagation();
                   commit(null);
                 }}
-                className="p-0.5 text-slate-400 hover:text-slate-700 rounded"
+                className="rounded-control p-0.5 text-muted hover:text-ink"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="h-3.5 w-3.5" aria-hidden="true" />
               </span>
             )}
-            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`h-4 w-4 text-muted transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
           </span>
         </button>
 
         {open && !isDisabled && (
-          <div className="absolute z-50 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+          <div className="absolute z-modal mt-1 w-full overflow-hidden rounded-card border border-line bg-surface shadow-[var(--shadow-lift)]">
             {showSearch && (
-              <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100">
-                <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <div className="flex items-center gap-2 border-b border-line px-3 py-2">
+                <Search className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden="true" />
                 <input
                   ref={searchRef}
                   value={query}
@@ -204,7 +204,7 @@ export function EntitySelect<T extends Record<string, any>>({
                   }}
                   onKeyDown={handleKeyDown}
                   placeholder="Search..."
-                  className="w-full text-sm outline-none placeholder:text-slate-400"
+                  className="w-full text-body-m text-ink outline-none placeholder:text-muted"
                 />
               </div>
             )}
@@ -212,7 +212,7 @@ export function EntitySelect<T extends Record<string, any>>({
             <div className="max-h-56 overflow-y-auto py-1" role="listbox">
               {filtered.length === 0 ? (
                 <div className="px-3 py-4 text-center">
-                  <p className="text-xs text-slate-500">{query ? 'No matches found.' : emptyMessage}</p>
+                  <p className="text-body-m text-muted">{query ? 'No matches found.' : emptyMessage}</p>
                   {!query && emptyAction && <div className="mt-2">{emptyAction}</div>}
                 </div>
               ) : (
@@ -227,17 +227,17 @@ export function EntitySelect<T extends Record<string, any>>({
                       aria-selected={isSelected}
                       onMouseEnter={() => setHighlight(index)}
                       onClick={() => commit(option)}
-                      className={`w-full text-left px-3 py-2 flex items-center justify-between gap-2 ${
-                        index === highlight ? 'bg-slate-50' : ''
+                      className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left ${
+                        index === highlight ? 'bg-surface-2' : ''
                       }`}
                     >
                       <span className="min-w-0">
-                        <span className="block text-sm text-slate-900 truncate">{getLabel(option)}</span>
+                        <span className="block truncate text-body-m text-ink">{getLabel(option)}</span>
                         {description && (
-                          <span className="block text-[11px] text-slate-500 truncate">{description}</span>
+                          <span className="block truncate text-label-s text-muted">{description}</span>
                         )}
                       </span>
-                      {isSelected && <Check className="w-4 h-4 text-[#E60028] shrink-0" />}
+                      {isSelected && <Check className="h-4 w-4 shrink-0 text-brand-press" aria-hidden="true" />}
                     </button>
                   );
                 })
@@ -247,8 +247,8 @@ export function EntitySelect<T extends Record<string, any>>({
         )}
       </div>
 
-      {helperText && !error && <p className="text-[11px] text-slate-500 mt-1">{helperText}</p>}
-      {error && <p className="text-[11px] text-red-600 mt-1">{error}</p>}
+      {helperText && !error && <p className="mt-1 text-label-s text-muted">{helperText}</p>}
+      {error && <p className="mt-1 text-label-s text-danger">{error}</p>}
     </div>
   );
 }

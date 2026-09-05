@@ -1,8 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { Building2, Plus, Edit2, Trash2, X, Loader2, Star } from 'lucide-react';
+import { Building2, Plus, Edit2, Trash2, Star } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Spinner, ErrorState, EmptyState } from '../components/ui/States';
 import { EntitySelect } from '../components/ui/EntitySelect';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Modal } from '../components/ui/Modal';
+import { FormField } from '../components/ui/FormField';
 import { useCreateBranch, useUpdateBranch, useDeleteBranch, useSetPrimaryBranch } from '../hooks/useApiData';
 import { useBranchesLookup, useMerchantsLookup, useTablesLookup } from '../hooks/useLookups';
 import { friendlyError } from '../lib/errors';
@@ -10,7 +14,7 @@ import { isPhase2Enabled } from '../lib/phase';
 import { BranchEntity } from '../lib/api';
 
 /**
- * Client-side preview only — the backend (Slugs.toPathSlug) is the real
+ * Client-side preview only - the backend (Slugs.toPathSlug) is the real
  * source of truth and re-normalises whatever is submitted, so this just
  * needs to look right to the merchant while they type.
  */
@@ -25,7 +29,7 @@ export const BranchManagement: React.FC = () => {
   const phase2 = isPhase2Enabled();
   const merchantsQuery = useMerchantsLookup();
   const branchesQuery = useBranchesLookup();
-  // Table counts are a Phase 2 (ordering) concept — skip the lookup entirely
+  // Table counts are a Phase 2 (ordering) concept - skip the lookup entirely
   // in Phase 1 rather than show a column backed by a deprecated dependency.
   const tablesQuery = useTablesLookup(phase2);
 
@@ -115,7 +119,7 @@ export const BranchManagement: React.FC = () => {
       return;
     }
     if (!editingBranch && !formData.slug.trim()) {
-      setFormError('Please enter a URL slug — it becomes part of this branch\'s public menu link.');
+      setFormError("Please enter a URL slug - it becomes part of this branch's public menu link.");
       return;
     }
 
@@ -147,27 +151,23 @@ export const BranchManagement: React.FC = () => {
 
   return (
     <DashboardLayout title="Branch Management">
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="mx-auto max-w-[80rem] space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-[#E60028]" />
+            <h2 className="flex items-center gap-2 text-title-m text-ink">
+              <Building2 className="h-5 w-5 text-brand-press" aria-hidden="true" />
               Branches
             </h2>
-            <p className="text-xs text-slate-500 mt-1">Create and manage restaurant branches</p>
+            <p className="mt-1 text-body-m text-muted">Create and manage restaurant branches</p>
           </div>
-          <button
-            onClick={openCreate}
-            disabled={merchants.length === 0}
-            className="px-4 py-2 bg-[#E60028] hover:bg-[#CC0024] disabled:opacity-50 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
+          <Button onClick={openCreate} disabled={merchants.length === 0}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
             Add Branch
-          </button>
+          </Button>
         </div>
 
         {pageError && (
-          <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-700">
+          <div role="alert" className="rounded-control bg-danger-soft px-3 py-3 text-label-s text-ink">
             {pageError}
           </div>
         )}
@@ -189,215 +189,209 @@ export const BranchManagement: React.FC = () => {
                 ? 'Create a merchant first, then add its branches.'
                 : 'Create your first branch to continue.'
             }
-            action={
-              merchants.length > 0 ? (
-                <button
-                  onClick={openCreate}
-                  className="px-4 py-2 bg-[#E60028] hover:bg-[#CC0024] text-white text-xs font-bold rounded-xl"
-                >
-                  Add Branch
-                </button>
-              ) : undefined
-            }
+            action={merchants.length > 0 ? <Button onClick={openCreate}>Add Branch</Button> : undefined}
           />
         )}
 
         {branches.length > 0 && (
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-x-auto shadow-sm">
-            <table className="w-full text-sm min-w-[640px]">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase">Branch</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase">Merchant</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase">Phone</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase">Address</th>
-                  {phase2 && <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase">Tables</th>}
-                  <th className="text-right px-4 py-3 text-xs font-bold text-slate-600 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {branches.map((branch) => (
-                  <tr key={branch.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-bold text-slate-900">
+          <>
+            {/* DESIGN.md 6.6: below md, a table becomes a card list, not a horizontal scroll. */}
+            <div className="space-y-3 md:hidden">
+              {branches.map((branch) => (
+                <Card key={branch.id} compact>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        {branch.name}
-                        {branch.isPrimary && (
-                          <span title="Primary branch — this is where /m/{merchant-slug} redirects to">
-                            <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                          </span>
-                        )}
+                        <span className="text-label-m text-ink">{branch.name}</span>
+                        {branch.isPrimary && <Star className="h-3.5 w-3.5 shrink-0 fill-warn text-warn" aria-label="Primary branch" />}
                       </div>
-                      <div className="text-[10px] font-normal text-slate-400">/{branch.slug}</div>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {merchantNameById.get(branch.merchantId) ??
-                        (merchantsQuery.isLoading ? 'Loading…' : '—')}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">{branch.phone || '—'}</td>
-                    <td className="px-4 py-3 text-slate-600">{branch.address || '—'}</td>
-                    {phase2 && <td className="px-4 py-3 text-slate-600">{tableCountByBranch.get(branch.id) ?? 0}</td>}
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-1">
-                        {!branch.isPrimary && (
-                          <button
-                            onClick={() => handleSetPrimary(branch)}
-                            disabled={setPrimaryMutation.isPending}
-                            aria-label={`Set ${branch.name} as primary`}
-                            title="Set as primary branch"
-                            className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg"
-                          >
-                            <Star className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => openEdit(branch)}
-                          aria-label={`Edit ${branch.name}`}
-                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(branch)}
-                          disabled={isBusy}
-                          aria-label={`Delete ${branch.name}`}
-                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                      <div className="text-label-s text-muted">/{branch.slug}</div>
+                      <div className="mt-1 text-body-m text-muted">
+                        {merchantNameById.get(branch.merchantId) ?? '-'} - {branch.phone || '-'}
                       </div>
-                    </td>
+                    </div>
+                    <div className="flex shrink-0 gap-1">
+                      {!branch.isPrimary && (
+                        <button
+                          onClick={() => handleSetPrimary(branch)}
+                          disabled={setPrimaryMutation.isPending}
+                          aria-label={`Set ${branch.name} as primary`}
+                          className="flex h-9 w-9 items-center justify-center rounded-control text-muted hover:bg-warn-soft hover:text-warn"
+                        >
+                          <Star className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => openEdit(branch)}
+                        aria-label={`Edit ${branch.name}`}
+                        className="flex h-9 w-9 items-center justify-center rounded-control text-muted hover:bg-info-soft hover:text-info"
+                      >
+                        <Edit2 className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(branch)}
+                        disabled={isBusy}
+                        aria-label={`Delete ${branch.name}`}
+                        className="flex h-9 w-9 items-center justify-center rounded-control text-muted hover:bg-danger-soft hover:text-danger"
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+
+            <div className="hidden overflow-x-auto rounded-card border border-line bg-surface shadow-[var(--shadow-card)] md:block">
+              <table className="w-full min-w-[40rem] text-body-m">
+                <thead className="border-b border-line bg-surface-2">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-label-s uppercase text-muted">Branch</th>
+                    <th className="px-4 py-3 text-left text-label-s uppercase text-muted">Merchant</th>
+                    <th className="px-4 py-3 text-left text-label-s uppercase text-muted">Phone</th>
+                    <th className="px-4 py-3 text-left text-label-s uppercase text-muted">Address</th>
+                    {phase2 && <th className="px-4 py-3 text-left text-label-s uppercase text-muted">Tables</th>}
+                    <th className="px-4 py-3 text-right text-label-s uppercase text-muted">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {branches.map((branch) => (
+                    <tr key={branch.id} className="min-h-12 hover:bg-surface-2">
+                      <td className="px-4 py-3 text-ink">
+                        <div className="flex items-center gap-1.5">
+                          {branch.name}
+                          {branch.isPrimary && (
+                            <span title="Primary branch - this is where /m/{merchant-slug} redirects to">
+                              <Star className="h-3.5 w-3.5 fill-warn text-warn" aria-hidden="true" />
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-label-s text-muted">/{branch.slug}</div>
+                      </td>
+                      <td className="px-4 py-3 text-muted">
+                        {merchantNameById.get(branch.merchantId) ??
+                          (merchantsQuery.isLoading ? 'Loading...' : '-')}
+                      </td>
+                      <td className="px-4 py-3 text-muted">{branch.phone || '-'}</td>
+                      <td className="px-4 py-3 text-muted">{branch.address || '-'}</td>
+                      {phase2 && <td className="px-4 py-3 text-muted">{tableCountByBranch.get(branch.id) ?? 0}</td>}
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-1">
+                          {!branch.isPrimary && (
+                            <button
+                              onClick={() => handleSetPrimary(branch)}
+                              disabled={setPrimaryMutation.isPending}
+                              aria-label={`Set ${branch.name} as primary`}
+                              title="Set as primary branch"
+                              className="rounded-control p-1.5 text-muted hover:bg-warn-soft hover:text-warn"
+                            >
+                              <Star className="h-3.5 w-3.5" aria-hidden="true" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => openEdit(branch)}
+                            aria-label={`Edit ${branch.name}`}
+                            className="rounded-control p-1.5 text-muted hover:bg-info-soft hover:text-info"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(branch)}
+                            disabled={isBusy}
+                            aria-label={`Delete ${branch.name}`}
+                            className="rounded-control p-1.5 text-muted hover:bg-danger-soft hover:text-danger"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
-      {showForm && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start justify-between p-4 border-b border-slate-200">
-              <div>
-                <h3 className="font-bold text-sm">{editingBranch ? 'Edit Branch' : 'Create Branch'}</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Each branch has its own menu and public menu link.
-                </p>
-              </div>
-              <button
-                onClick={() => setShowForm(false)}
-                aria-label="Close"
-                className="p-1 text-slate-400 hover:text-slate-900 rounded-lg"
-              >
-                <X className="w-4 h-4" />
-              </button>
+      <Modal
+        open={showForm}
+        onClose={() => setShowForm(false)}
+        title={editingBranch ? 'Edit Branch' : 'Create Branch'}
+      >
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <p className="-mt-1 text-label-s text-muted">Each branch has its own menu and public menu link.</p>
+          <EntitySelect
+            label="Merchant"
+            required
+            placeholder="Select merchant"
+            value={formData.merchantId}
+            onChange={(value) => setFormData({ ...formData, merchantId: value ?? '' })}
+            options={merchants}
+            descriptionKey="city"
+            isLoading={merchantsQuery.isLoading}
+            loadingMessage="Loading merchants..."
+            emptyMessage="No merchants found. Create a merchant before adding branches."
+            disabled={!!editingBranch}
+            helperText={editingBranch ? 'A branch cannot be moved to another merchant.' : undefined}
+          />
+
+          <FormField
+            label="Branch Name"
+            required
+            maxLength={100}
+            value={formData.name}
+            onChange={(e) => handleNameChange(e.target.value)}
+            placeholder="e.g. Bole Branch"
+          />
+
+          <FormField
+            label="URL Slug"
+            required
+            maxLength={60}
+            disabled={!!editingBranch}
+            value={formData.slug}
+            onChange={(e) => { setSlugTouched(true); setFormData({ ...formData, slug: slugify(e.target.value) }); }}
+            placeholder="e.g. bole-branch"
+            hint={
+              editingBranch
+                ? "Permanent - this is part of the branch's public menu link and cannot be changed."
+                : "Becomes part of this branch's public menu link and cannot be changed later."
+            }
+          />
+
+          <FormField
+            label="Phone"
+            type="tel"
+            required
+            maxLength={30}
+            value={formData.phone}
+            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+          />
+
+          <FormField
+            label="Address"
+            maxLength={200}
+            value={formData.address}
+            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+          />
+
+          {formError && (
+            <div role="alert" className="rounded-control bg-danger-soft px-3 py-3 text-label-s text-ink">
+              {formError}
             </div>
+          )}
 
-            <form onSubmit={handleSubmit} className="p-4 space-y-3">
-              <EntitySelect
-                label="Merchant"
-                required
-                placeholder="Select merchant"
-                value={formData.merchantId}
-                onChange={(value) => setFormData({ ...formData, merchantId: value ?? '' })}
-                options={merchants}
-                descriptionKey="city"
-                isLoading={merchantsQuery.isLoading}
-                loadingMessage="Loading merchants..."
-                emptyMessage="No merchants found. Create a merchant before adding branches."
-                disabled={!!editingBranch}
-                helperText={editingBranch ? 'A branch cannot be moved to another merchant.' : undefined}
-              />
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Branch Name *</label>
-                <input
-                  type="text"
-                  required
-                  maxLength={100}
-                  value={formData.name}
-                  onChange={(e) => handleNameChange(e.target.value)}
-                  placeholder="e.g. Bole Branch"
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20 focus:border-[#E60028]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">URL Slug *</label>
-                <input
-                  type="text"
-                  required
-                  maxLength={60}
-                  disabled={!!editingBranch}
-                  value={formData.slug}
-                  onChange={(e) => { setSlugTouched(true); setFormData({ ...formData, slug: slugify(e.target.value) }); }}
-                  placeholder="e.g. bole-branch"
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20 focus:border-[#E60028] disabled:bg-slate-50 disabled:text-slate-400"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">
-                  {editingBranch
-                    ? 'Permanent — this is part of the branch\'s public menu link and cannot be changed.'
-                    : 'Becomes part of this branch\'s public menu link and cannot be changed later.'}
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Phone *</label>
-                <input
-                  type="tel"
-                  required
-                  maxLength={30}
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20 focus:border-[#E60028]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Address</label>
-                <input
-                  type="text"
-                  maxLength={200}
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20 focus:border-[#E60028]"
-                />
-              </div>
-
-              {formError && (
-                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-700">
-                  {formError}
-                </div>
-              )}
-
-              <div className="flex gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="flex-1 py-2.5 border border-slate-200 text-slate-700 text-sm font-bold rounded-xl hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="flex-1 py-2.5 bg-[#E60028] hover:bg-[#CC0024] disabled:opacity-60 text-white text-sm font-bold rounded-xl flex items-center justify-center gap-2"
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" /> Saving...
-                    </>
-                  ) : editingBranch ? (
-                    'Save Changes'
-                  ) : (
-                    'Create Branch'
-                  )}
-                </button>
-              </div>
-            </form>
+          <div className="flex gap-2 pt-1">
+            <Button type="button" variant="secondary" onClick={() => setShowForm(false)} fullWidth>
+              Cancel
+            </Button>
+            <Button type="submit" loading={isSaving} fullWidth>
+              {isSaving ? 'Saving...' : editingBranch ? 'Save Changes' : 'Create Branch'}
+            </Button>
           </div>
-        </div>
-      )}
+        </form>
+      </Modal>
     </DashboardLayout>
   );
 };
