@@ -1,7 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Trash2, Edit3, X, Utensils, FolderPlus, Search, Loader2, Eye, Image as ImageIcon, Clock, AlertCircle, Store, Palette } from 'lucide-react';
+import { Plus, Trash2, Edit3, Utensils, FolderPlus, Search, Loader2, Eye, Image as ImageIcon, Clock, AlertCircle, Store, Palette } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Spinner, ErrorState, EmptyState } from '../components/ui/States';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Modal } from '../components/ui/Modal';
+import { FormField } from '../components/ui/FormField';
+import { IdentityChip, StatusChip } from '../components/ui/Chip';
 import { useAuth } from '../context/AuthContext';
 import { useBranchMenu, useCreateCategory, useUpdateCategory, useDeleteCategory, useCreateProduct, useUpdateProduct, useDeleteProduct, useSetMenuTemplate, useUploadProductImage } from '../hooks/useApiData';
 import { useBranchesLookup, useMerchantsLookup } from '../hooks/useLookups';
@@ -10,9 +15,9 @@ import { useNavigate } from 'react-router-dom';
 import { resolveMediaUrl, type MenuResponse, type MenuTemplateStyle } from '../lib/api';
 
 const TEMPLATE_OPTIONS: { value: MenuTemplateStyle; label: string; swatch: string }[] = [
-  { value: 'CLASSIC', label: 'Classic', swatch: 'bg-white border-2 border-[#E60028]' },
-  { value: 'MODERN_DARK', label: 'Modern Dark', swatch: 'bg-slate-950 border-2 border-red-400' },
-  { value: 'VIBRANT', label: 'Vibrant', swatch: 'bg-gradient-to-br from-amber-100 to-white border-2 border-amber-400' },
+  { value: 'CLASSIC', label: 'Classic', swatch: 'bg-surface border-2 border-brand-dark' },
+  { value: 'MODERN_DARK', label: 'Modern Dark', swatch: 'bg-ink border-2 border-brand' },
+  { value: 'VIBRANT', label: 'Vibrant', swatch: 'bg-brand-soft border-2 border-brand-press' },
 ];
 
 const FOOD_IMAGE_PRESETS = [
@@ -33,10 +38,13 @@ interface ProductFormState {
   image?: string; available: boolean; preparationTime: number;
 }
 
-/** datetime-local inputs use "YYYY-MM-DDTHH:mm[:ss]" with no timezone — matches LocalDateTime's JSON shape exactly, so no conversion is needed either direction; this just trims to minute precision for the input's own display. */
+/** datetime-local inputs use "YYYY-MM-DDTHH:mm[:ss]" with no timezone - matches LocalDateTime's JSON shape exactly, so no conversion is needed either direction; this just trims to minute precision for the input's own display. */
 function toDatetimeLocal(iso: string | null | undefined): string {
   return iso ? iso.slice(0, 16) : '';
 }
+
+const controlClasses = 'w-full rounded-control border border-line bg-surface p-2.5 text-body-m text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark';
+const labelClasses = 'mb-1 block text-label-s uppercase text-muted';
 
 export const MenuBuilderPage: React.FC = () => {
   const { user } = useAuth();
@@ -105,12 +113,12 @@ export const MenuBuilderPage: React.FC = () => {
       if (categoryForm.id) {
         await updateCategory.mutateAsync({ id: categoryForm.id, data: { name: categoryForm.name.trim(), displayOrder: categoryForm.displayOrder } });
       } else {
-        // Categories are branch-scoped (backend requires branchId) — attach
+        // Categories are branch-scoped (backend requires branchId) - attach
         // to whichever branch is currently selected in the picker. A
         // merchant with zero branches has nothing to attach a category to;
         // the "Add Category" button is disabled in that case (see
         // !selectedBranch below).
-        if (!selectedBranch) { setPageError('Create a branch first — categories belong to a branch.'); return; }
+        if (!selectedBranch) { setPageError('Create a branch first - categories belong to a branch.'); return; }
         await createCategory.mutateAsync({ merchantId, branchId: selectedBranch.id, name: categoryForm.name.trim(), displayOrder: categoryForm.displayOrder });
       }
       setCategoryModalOpen(false);
@@ -215,42 +223,45 @@ export const MenuBuilderPage: React.FC = () => {
 
   return (
     <DashboardLayout title="Menu Builder">
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+      <div className="mx-auto max-w-[80rem] space-y-6">
+        <Card compact className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-              <Utensils className="w-6 h-6 text-[#E60028]" /> Digital Menu Builder
+            <h2 className="flex items-center gap-2 text-title-m text-ink">
+              <Utensils className="h-6 w-6 text-brand-press" aria-hidden="true" /> Digital Menu Builder
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">Build your menu by category and product — customers see it instantly after scanning the QR code.</p>
+            <p className="mt-0.5 text-body-m text-muted">Build your menu by category and product - customers see it instantly after scanning the QR code.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {branchesQuery.data && branchesQuery.data.length > 0 && (
               <div className="relative">
-                <Store className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                <Store className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted" aria-hidden="true" />
                 <select
+                  aria-label="Branch"
                   value={selectedBranchId ?? ''}
                   onChange={(e) => handleBranchChange(Number(e.target.value))}
-                  className="pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20"
+                  className="rounded-control border border-line bg-surface-2 py-2 pl-8 pr-3 text-label-s text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark"
                 >
                   {branchesQuery.data.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
               </div>
             )}
-            <button onClick={handlePreviewMenu} disabled={!merchantSlug || !selectedBranch} title={!selectedBranch ? 'Create a branch first' : undefined} className="px-4 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50">
-              <Eye className="w-4 h-4" /> Preview Customer Menu
-            </button>
-            <button onClick={() => openCategoryModal()} disabled={!selectedBranch} title={!selectedBranch ? 'Create a branch first' : undefined} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50">
-              <FolderPlus className="w-4 h-4" /> Add Category
-            </button>
-            <button onClick={() => openProductModal()} disabled={categories.length === 0} className="px-4 py-2 bg-[#E60028] hover:bg-[#CC0024] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50">
-              <Plus className="w-4 h-4" /> Add Menu Item
-            </button>
+            <Button variant="secondary" onClick={handlePreviewMenu} disabled={!merchantSlug || !selectedBranch} title={!selectedBranch ? 'Create a branch first' : undefined}>
+              <Eye className="h-4 w-4" aria-hidden="true" /> Preview Customer Menu
+            </Button>
+            <Button variant="secondary" onClick={() => openCategoryModal()} disabled={!selectedBranch} title={!selectedBranch ? 'Create a branch first' : undefined}>
+              <FolderPlus className="h-4 w-4" aria-hidden="true" /> Add Category
+            </Button>
+            <Button onClick={() => openProductModal()} disabled={categories.length === 0}>
+              <Plus className="h-4 w-4" aria-hidden="true" /> Add Menu Item
+            </Button>
           </div>
-        </div>
+        </Card>
 
         {selectedBranch && (
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-            <span className="text-xs font-bold text-slate-700 uppercase flex items-center gap-1.5 shrink-0"><Palette className="w-4 h-4 text-[#E60028]" /> Digital Menu Look</span>
+          <Card compact className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <span className="flex shrink-0 items-center gap-1.5 text-label-s uppercase text-ink">
+              <Palette className="h-4 w-4 text-brand-press" aria-hidden="true" /> Digital Menu Look
+            </span>
             <div className="flex items-center gap-2">
               {TEMPLATE_OPTIONS.map((opt) => {
                 const isActive = (menu?.templateStyle ?? 'CLASSIC') === opt.value;
@@ -260,26 +271,26 @@ export const MenuBuilderPage: React.FC = () => {
                     onClick={() => handleSelectTemplate(opt.value)}
                     disabled={setMenuTemplate.isPending}
                     title={opt.label}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border-2 transition-all disabled:opacity-50 ${isActive ? 'border-[#E60028] bg-red-50 text-[#E60028]' : 'border-transparent bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
+                    className={`flex items-center gap-1.5 rounded-control border-2 px-3 py-1.5 text-label-s transition-all disabled:opacity-50 ${isActive ? 'border-brand-dark bg-brand-soft text-brand-press' : 'border-transparent bg-surface-2 text-muted hover:bg-line'}`}
                   >
-                    <span className={`w-4 h-4 rounded-full ${opt.swatch}`} />
+                    <span className={`h-4 w-4 rounded-pill ${opt.swatch}`} aria-hidden="true" />
                     {opt.label}
                   </button>
                 );
               })}
             </div>
-          </div>
+          </Card>
         )}
 
         {!isLoading && !branchesQuery.isLoading && branchesQuery.data?.length === 0 && (
-          <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs font-bold text-amber-700 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" /> Create a branch before building a menu — each branch has its own independent catalog.
+          <div role="alert" className="flex items-center gap-2 rounded-control bg-warn-soft px-3 py-3 text-label-s text-ink">
+            <AlertCircle className="h-4 w-4 text-warn" aria-hidden="true" /> Create a branch before building a menu - each branch has its own independent catalog.
           </div>
         )}
 
         {pageError && (
-          <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-700 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" /> {pageError}
+          <div role="alert" className="flex items-center gap-2 rounded-control bg-danger-soft px-3 py-3 text-label-s text-ink">
+            <AlertCircle className="h-4 w-4 text-danger" aria-hidden="true" /> {pageError}
           </div>
         )}
 
@@ -288,75 +299,93 @@ export const MenuBuilderPage: React.FC = () => {
 
         {!isLoading && !error && (
           <>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 no-scrollbar text-xs">
-                <button onClick={() => setActiveCategoryId('all')} className={`px-3.5 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all ${activeCategoryId === 'all' ? 'bg-red-50 text-[#E60028] border border-red-200' : 'text-slate-600 hover:text-slate-900'}`}>
+            <Card compact className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+              <div className="no-scrollbar flex items-center gap-2 overflow-x-auto text-label-s">
+                <button onClick={() => setActiveCategoryId('all')} className={`whitespace-nowrap rounded-control px-3.5 py-1.5 transition-all ${activeCategoryId === 'all' ? 'border border-brand-dark/30 bg-brand-soft text-brand-press' : 'text-muted hover:text-ink'}`}>
                   All Items ({allProducts.length})
                 </button>
                 {categories.map((cat) => (
                   <div key={cat.id} className="flex items-center gap-1">
-                    <button onClick={() => setActiveCategoryId(cat.id)} className={`px-3.5 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all ${activeCategoryId === cat.id ? 'bg-red-50 text-[#E60028] border border-red-200' : 'text-slate-600 hover:text-slate-900'}`}>
+                    <button onClick={() => setActiveCategoryId(cat.id)} className={`whitespace-nowrap rounded-control px-3.5 py-1.5 transition-all ${activeCategoryId === cat.id ? 'border border-brand-dark/30 bg-brand-soft text-brand-press' : 'text-muted hover:text-ink'}`}>
                       {cat.name} ({cat.items.length})
                     </button>
-                    <button onClick={() => openCategoryModal(cat)} className="text-slate-400 hover:text-slate-700 p-1" title="Edit Category"><Edit3 className="w-3 h-3" /></button>
-                    <button onClick={() => handleDeleteCategory(cat)} className="text-slate-400 hover:text-red-600 p-1" title="Delete Category"><Trash2 className="w-3 h-3" /></button>
+                    <button onClick={() => openCategoryModal(cat)} aria-label={`Edit category ${cat.name}`} className="p-1 text-muted hover:text-ink"><Edit3 className="h-3 w-3" aria-hidden="true" /></button>
+                    <button onClick={() => handleDeleteCategory(cat)} aria-label={`Delete category ${cat.name}`} className="p-1 text-muted hover:text-danger"><Trash2 className="h-3 w-3" aria-hidden="true" /></button>
                   </div>
                 ))}
               </div>
               <div className="relative">
-                <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-slate-400" />
-                <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search products..." className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E60028]/20" />
+                <Search className="pointer-events-none absolute left-3 top-2.5 h-3.5 w-3.5 text-muted" aria-hidden="true" />
+                <input
+                  type="text"
+                  aria-label="Search products"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search products..."
+                  className="rounded-control border border-line bg-surface-2 py-1.5 pl-8 pr-3 text-label-s text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark"
+                />
               </div>
-            </div>
+            </Card>
 
             {categories.length === 0 && (
               <EmptyState title="No menu categories yet" description="Create your first category (e.g. Starters, Mains, Drinks) then add menu items to it."
-                action={<button onClick={() => openCategoryModal()} className="px-4 py-2 bg-[#E60028] hover:bg-[#CC0024] text-white text-xs font-bold rounded-xl">Add Category</button>} />
+                action={<Button onClick={() => openCategoryModal()}>Add Category</Button>} />
             )}
 
             {categories.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {filteredProducts.length === 0 && (
-                  <div className="col-span-full bg-white p-12 rounded-2xl border border-slate-200 text-center text-slate-400 space-y-2">
-                    <Utensils className="w-12 h-12 mx-auto stroke-1 text-slate-300" />
-                    <p className="text-sm font-semibold">No menu items found.</p>
-                    <button onClick={() => openProductModal()} className="text-xs font-bold text-[#E60028] hover:underline">+ Add your first menu item</button>
-                  </div>
+                  <Card className="col-span-full space-y-2 p-12 text-center">
+                    <Utensils className="mx-auto h-12 w-12 stroke-1 text-line-strong" aria-hidden="true" />
+                    <p className="text-label-m text-ink">No menu items found.</p>
+                    <Button variant="link" onClick={() => openProductModal()}>+ Add your first menu item</Button>
+                  </Card>
                 )}
                 {filteredProducts.map((product) => (
-                  <div key={product.id} className={`bg-white rounded-2xl p-4 border shadow-sm flex flex-col justify-between space-y-3 transition-all hover:shadow-md ${!product.available ? 'opacity-60 bg-slate-50/80 border-slate-200' : 'border-slate-200'}`}>
+                  <Card key={product.id} compact className={`flex flex-col justify-between space-y-3 transition-shadow hover:shadow-[var(--shadow-lift)] ${!product.available ? 'bg-surface-2 opacity-70' : ''}`}>
                     <div className="flex gap-3">
-                      {product.image ? <img src={resolveMediaUrl(product.image)} alt={product.name} className="w-20 h-20 rounded-xl object-cover shrink-0" />
-                        : <div className="w-20 h-20 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 shrink-0"><ImageIcon className="w-6 h-6" /></div>}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1 mb-1">
-                          <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md truncate">{product.categoryName}</span>
-                          <button onClick={() => handleToggleAvailability(product)} className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold transition-colors ${product.available ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
-                            {product.available ? 'In Stock' : 'Out of Stock'}
+                      {product.image ? (
+                        <img src={resolveMediaUrl(product.image)} alt={product.name} className="h-20 w-20 shrink-0 rounded-[var(--radius-xl2)] object-cover" />
+                      ) : (
+                        <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-[var(--radius-xl2)] bg-surface-2 text-muted">
+                          <ImageIcon className="h-6 w-6" aria-hidden="true" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-1 flex items-center justify-between gap-1">
+                          <IdentityChip className="truncate">{product.categoryName}</IdentityChip>
+                          <button
+                            onClick={() => handleToggleAvailability(product)}
+                            className="shrink-0"
+                            aria-label={product.available ? `Mark ${product.name} out of stock` : `Mark ${product.name} in stock`}
+                          >
+                            <StatusChip status={product.available ? 'success' : 'danger'}>
+                              {product.available ? 'In Stock' : 'Out of Stock'}
+                            </StatusChip>
                           </button>
                         </div>
-                        <h3 className="font-extrabold text-sm text-slate-900 truncate">{product.name}</h3>
-                        <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">{product.description}</p>
+                        <h3 className="truncate text-label-m text-ink">{product.name}</h3>
+                        <p className="mt-0.5 line-clamp-2 text-body-m text-muted">{product.description}</p>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                    <div className="flex items-center justify-between border-t border-line pt-2 text-body-m">
                       <div className="flex items-center gap-2">
                         {product.effectivePrice < product.price ? (
                           <span className="flex items-baseline gap-1.5">
-                            <span className="font-black text-sm text-emerald-700">{Number(product.effectivePrice).toLocaleString()} ETB</span>
-                            <span className="text-[10px] text-slate-400 line-through">{Number(product.price).toLocaleString()} ETB</span>
+                            <span className="text-label-m text-success [font-variant-numeric:tabular-nums]">{Number(product.effectivePrice).toLocaleString()} ETB</span>
+                            <span className="text-label-s text-muted line-through [font-variant-numeric:tabular-nums]">{Number(product.price).toLocaleString()} ETB</span>
                           </span>
                         ) : (
-                          <span className="font-black text-sm text-slate-900">{Number(product.price).toLocaleString()} ETB</span>
+                          <span className="text-label-m text-ink [font-variant-numeric:tabular-nums]">{Number(product.price).toLocaleString()} ETB</span>
                         )}
-                        <span className="text-[10px] text-slate-400 flex items-center gap-0.5"><Clock className="w-3 h-3" />{product.preparationTime} min</span>
+                        <span className="flex items-center gap-0.5 text-label-s text-muted"><Clock className="h-3 w-3" aria-hidden="true" />{product.preparationTime} min</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <button onClick={() => openProductModal(product)} className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"><Edit3 className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => handleDeleteProduct(product)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => openProductModal(product)} aria-label={`Edit ${product.name}`} className="rounded-control p-1.5 text-muted transition-colors hover:bg-info-soft hover:text-info"><Edit3 className="h-3.5 w-3.5" aria-hidden="true" /></button>
+                        <button onClick={() => handleDeleteProduct(product)} aria-label={`Delete ${product.name}`} className="rounded-control p-1.5 text-danger/70 transition-colors hover:bg-danger-soft hover:text-danger"><Trash2 className="h-3.5 w-3.5" aria-hidden="true" /></button>
                       </div>
                     </div>
-                  </div>
+                  </Card>
                 ))}
               </div>
             )}
@@ -364,123 +393,164 @@ export const MenuBuilderPage: React.FC = () => {
         )}
       </div>
 
-      {categoryModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <form onSubmit={handleSaveCategory} className="bg-white max-w-sm w-full p-6 rounded-2xl shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-extrabold text-base text-slate-900">{categoryForm.id ? 'Edit Category' : 'Create New Category'}</h3>
-              <button type="button" onClick={() => setCategoryModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Category Name</label>
-              <input type="text" required value={categoryForm.name} onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })} placeholder="e.g. Artisanal Pizza" className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20" />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Display Order</label>
-              <input type="number" min={1} value={categoryForm.displayOrder || 1} onChange={(e) => setCategoryForm({ ...categoryForm, displayOrder: parseInt(e.target.value) || 1 })} className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none" />
-            </div>
-            <div className="flex gap-2 pt-2">
-              <button type="submit" disabled={createCategory.isPending || updateCategory.isPending} className="flex-1 py-2.5 bg-[#E60028] text-white font-bold text-xs rounded-xl shadow-sm disabled:opacity-50 flex items-center justify-center gap-2">
-                {(createCategory.isPending || updateCategory.isPending) && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Save Category
-              </button>
-              <button type="button" onClick={() => setCategoryModalOpen(false)} className="py-2.5 px-4 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl">Cancel</button>
-            </div>
-          </form>
-        </div>
-      )}
+      <Modal
+        open={categoryModalOpen}
+        onClose={() => setCategoryModalOpen(false)}
+        title={categoryForm.id ? 'Edit Category' : 'Create New Category'}
+      >
+        <form onSubmit={handleSaveCategory} className="space-y-4">
+          <FormField
+            label="Category Name"
+            required
+            value={categoryForm.name}
+            onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
+            placeholder="e.g. Artisanal Pizza"
+          />
+          <FormField
+            label="Display Order"
+            type="number"
+            min={1}
+            value={categoryForm.displayOrder || 1}
+            onChange={(e) => setCategoryForm({ ...categoryForm, displayOrder: parseInt(e.target.value) || 1 })}
+          />
+          <div className="flex gap-2 pt-2">
+            <Button type="submit" loading={createCategory.isPending || updateCategory.isPending} fullWidth>
+              Save Category
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => setCategoryModalOpen(false)}>Cancel</Button>
+          </div>
+        </form>
+      </Modal>
 
-      {productModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <form onSubmit={handleSaveProduct} className="bg-white max-w-lg w-full p-6 rounded-2xl shadow-2xl space-y-4 my-8">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-lg text-slate-900">{productForm.id ? 'Edit Menu Item' : 'Add New Menu Item'}</h3>
-              <button type="button" onClick={() => setProductModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+      <Modal
+        open={productModalOpen}
+        onClose={() => setProductModalOpen(false)}
+        title={productForm.id ? 'Edit Menu Item' : 'Add New Menu Item'}
+      >
+        <form onSubmit={handleSaveProduct} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <FormField
+                label="Product Name"
+                required
+                value={productForm.name}
+                onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
+                placeholder="e.g. Caramel Macchiato Supreme"
+              />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Product Name</label>
-                <input type="text" required value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} placeholder="e.g. Caramel Macchiato Supreme" className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Category</label>
-                <select value={productForm.categoryId} onChange={(e) => setProductForm({ ...productForm, categoryId: Number(e.target.value) })} className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none">
-                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Price (ETB)</label>
-                <input type="number" step="0.01" required value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: parseFloat(e.target.value) })} className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Prep Time (Minutes)</label>
-                <input type="number" min={1} value={productForm.preparationTime} onChange={(e) => setProductForm({ ...productForm, preparationTime: parseInt(e.target.value) || 10 })} className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Available</label>
-                <select value={productForm.available ? 'true' : 'false'} onChange={(e) => setProductForm({ ...productForm, available: e.target.value === 'true' })} className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none">
-                  <option value="true">In Stock</option><option value="false">Out of Stock</option>
-                </select>
-              </div>
-              <div className="col-span-2 grid grid-cols-3 gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <div className="col-span-3 flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase">Promotional Pricing (Optional)</span>
-                  {productForm.discountPrice != null && (
-                    <button type="button" onClick={() => setProductForm({ ...productForm, discountPrice: undefined, discountStartAt: undefined, discountEndAt: undefined })} className="text-[10px] font-bold text-slate-400 hover:text-red-600">Clear</button>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Discount Price</label>
-                  <input type="number" step="0.01" min={0} value={productForm.discountPrice ?? ''} onChange={(e) => setProductForm({ ...productForm, discountPrice: e.target.value ? parseFloat(e.target.value) : undefined })} placeholder="e.g. 7.99" className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Starts</label>
-                  <input type="datetime-local" value={productForm.discountStartAt || ''} onChange={(e) => setProductForm({ ...productForm, discountStartAt: e.target.value || undefined })} className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Ends</label>
-                  <input type="datetime-local" value={productForm.discountEndAt || ''} onChange={(e) => setProductForm({ ...productForm, discountEndAt: e.target.value || undefined })} className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none" />
-                </div>
-                <p className="col-span-3 text-[10px] text-slate-400">Leave Starts/Ends blank for an always-on discount while a discount price is set. Otherwise the discount is active only between them.</p>
-              </div>
-              <div className="col-span-2">
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Description</label>
-                <textarea rows={2} value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })} placeholder="Ingredients and taste profile description..." className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none" />
-              </div>
-              <div className="col-span-2 space-y-2">
-                <label className="block text-xs font-bold text-slate-700 uppercase">Product Photo</label>
-                {productForm.id ? (
-                  <div className="flex items-center gap-2">
-                    <label className={`px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl cursor-pointer flex items-center gap-1.5 ${uploadProductImage.isPending ? 'opacity-50 pointer-events-none' : ''}`}>
-                      {uploadProductImage.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                      Upload a Photo
-                      <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleUploadImage} className="hidden" />
-                    </label>
-                    <span className="text-[10px] text-slate-400">JPEG, PNG, or WebP, up to 5MB</span>
-                  </div>
-                ) : (
-                  <p className="text-[10px] text-slate-400">Save this item first, then come back to edit it to upload a real photo.</p>
+            <div>
+              <label className={labelClasses}>Category</label>
+              <select value={productForm.categoryId} onChange={(e) => setProductForm({ ...productForm, categoryId: Number(e.target.value) })} className={controlClasses}>
+                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <FormField
+              label="Price (ETB)"
+              type="number"
+              step="0.01"
+              required
+              value={productForm.price}
+              onChange={(e) => setProductForm({ ...productForm, price: parseFloat(e.target.value) })}
+            />
+            <FormField
+              label="Prep Time (Minutes)"
+              type="number"
+              min={1}
+              value={productForm.preparationTime}
+              onChange={(e) => setProductForm({ ...productForm, preparationTime: parseInt(e.target.value) || 10 })}
+            />
+            <div>
+              <label className={labelClasses}>Available</label>
+              <select value={productForm.available ? 'true' : 'false'} onChange={(e) => setProductForm({ ...productForm, available: e.target.value === 'true' })} className={controlClasses}>
+                <option value="true">In Stock</option><option value="false">Out of Stock</option>
+              </select>
+            </div>
+            <div className="col-span-2 grid grid-cols-3 gap-3 rounded-control border border-line bg-surface-2 p-3">
+              <div className="col-span-3 flex items-center justify-between">
+                <span className="text-label-s uppercase text-muted">Promotional Pricing (Optional)</span>
+                {productForm.discountPrice != null && (
+                  <Button variant="link" type="button" onClick={() => setProductForm({ ...productForm, discountPrice: undefined, discountStartAt: undefined, discountEndAt: undefined })}>
+                    Clear
+                  </Button>
                 )}
-                <label className="block text-xs font-bold text-slate-700 uppercase mt-2">Or Paste an Image URL</label>
-                <input type="text" value={productForm.image || ''} onChange={(e) => setProductForm({ ...productForm, image: e.target.value })} placeholder="https://..." className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none" />
-                <div className="text-[11px] font-bold text-slate-400">Or Select Unsplash Food Preset:</div>
-                <div className="grid grid-cols-4 gap-2">
-                  {FOOD_IMAGE_PRESETS.map((preset, idx) => (
-                    <button key={idx} type="button" onClick={() => setProductForm({ ...productForm, image: preset.url })} className={`relative h-14 rounded-xl overflow-hidden border-2 transition-all ${productForm.image === preset.url ? 'border-[#E60028] ring-2 ring-red-500/20' : 'border-transparent'}`}>
-                      <img src={preset.url} alt={preset.label} className="w-full h-full object-cover" />
-                    </button>
-                  ))}
+              </div>
+              <FormField
+                label="Discount Price"
+                type="number"
+                step="0.01"
+                min={0}
+                value={productForm.discountPrice ?? ''}
+                onChange={(e) => setProductForm({ ...productForm, discountPrice: e.target.value ? parseFloat(e.target.value) : undefined })}
+                placeholder="e.g. 7.99"
+              />
+              <FormField
+                label="Starts"
+                type="datetime-local"
+                value={productForm.discountStartAt || ''}
+                onChange={(e) => setProductForm({ ...productForm, discountStartAt: e.target.value || undefined })}
+              />
+              <FormField
+                label="Ends"
+                type="datetime-local"
+                value={productForm.discountEndAt || ''}
+                onChange={(e) => setProductForm({ ...productForm, discountEndAt: e.target.value || undefined })}
+              />
+              <p className="col-span-3 text-label-s text-muted">Leave Starts/Ends blank for an always-on discount while a discount price is set. Otherwise the discount is active only between them.</p>
+            </div>
+            <div className="col-span-2">
+              <FormField
+                as="textarea"
+                rows={2}
+                label="Description"
+                value={productForm.description}
+                onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
+                placeholder="Ingredients and taste profile description..."
+              />
+            </div>
+            <div className="col-span-2 space-y-2">
+              <label className={labelClasses}>Product Photo</label>
+              {productForm.id ? (
+                <div className="flex items-center gap-2">
+                  <label className={`flex cursor-pointer items-center gap-1.5 rounded-control border border-line-strong bg-surface-2 px-3 py-2 text-label-s text-ink hover:bg-line ${uploadProductImage.isPending ? 'pointer-events-none opacity-50' : ''}`}>
+                    {uploadProductImage.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
+                    Upload a Photo
+                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleUploadImage} className="hidden" />
+                  </label>
+                  <span className="text-label-s text-muted">JPEG, PNG, or WebP, up to 5MB</span>
                 </div>
+              ) : (
+                <p className="text-label-s text-muted">Save this item first, then come back to edit it to upload a real photo.</p>
+              )}
+              <FormField
+                label="Or Paste an Image URL"
+                value={productForm.image || ''}
+                onChange={(e) => setProductForm({ ...productForm, image: e.target.value })}
+                placeholder="https://..."
+              />
+              <div className="text-label-s text-muted">Or Select Unsplash Food Preset:</div>
+              <div className="grid grid-cols-4 gap-2">
+                {FOOD_IMAGE_PRESETS.map((preset, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setProductForm({ ...productForm, image: preset.url })}
+                    aria-label={`Use ${preset.label} preset image`}
+                    className={`relative h-14 overflow-hidden rounded-control border-2 transition-all ${productForm.image === preset.url ? 'border-brand-dark ring-2 ring-brand-dark/20' : 'border-transparent'}`}
+                  >
+                    <img src={preset.url} alt={preset.label} className="h-full w-full object-cover" />
+                  </button>
+                ))}
               </div>
             </div>
-            <div className="flex gap-2 pt-3 border-t border-slate-100">
-              <button type="submit" disabled={createProduct.isPending || updateProduct.isPending} className="flex-1 py-3 bg-[#E60028] text-white font-bold text-xs rounded-xl shadow-md disabled:opacity-50 flex items-center justify-center gap-2">
-                {(createProduct.isPending || updateProduct.isPending) && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Save Product
-              </button>
-              <button type="button" onClick={() => setProductModalOpen(false)} className="py-3 px-5 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl">Cancel</button>
-            </div>
-          </form>
-        </div>
-      )}
+          </div>
+          <div className="flex gap-2 border-t border-line pt-3">
+            <Button type="submit" loading={createProduct.isPending || updateProduct.isPending} fullWidth>
+              Save Product
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => setProductModalOpen(false)}>Cancel</Button>
+          </div>
+        </form>
+      </Modal>
     </DashboardLayout>
   );
 };
