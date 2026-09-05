@@ -2,14 +2,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { OrderStatus } from '../lib/orderStatus';
 import { isTerminal } from '../lib/orderStatus';
 import { useAuth } from '../context/AuthContext';
-import { 
+import {
   ApiError,
-  analyticsApi, 
-  authApi, 
-  branchApi, 
-  menuApi, 
-  merchantApi, 
-  orderApi, 
+  analyticsApi,
+  authApi,
+  backOfficeApi,
+  branchApi,
+  menuApi,
+  merchantApi,
+  orderApi,
   qrApi,
   reviewApi,
   tableApi,
@@ -31,6 +32,8 @@ import {
   WaiterEntity,
   ProductEntity,
   ReviewEntity,
+  PlatformSummary,
+  AuditLogEntry,
   CreateMerchantRequest,
   CreateBranchRequest,
   CreateTableRequest,
@@ -126,6 +129,27 @@ export const useReviews = (params: { branchId?: number; merchantId?: string } = 
   return useQuery({
     queryKey: ['reviews', params.branchId ?? null, params.merchantId ?? null],
     queryFn: (): Promise<ReviewEntity[]> => reviewApi.getReviews(params),
+    enabled: isAuth,
+  });
+};
+
+// ============ Back Office Queries ============
+// SUPER_ADMIN-only cross-tenant reporting/audit trail (Phase 2, requiresPhase2).
+
+export const useBackOfficeSummary = () => {
+  const { isAuthenticated: isAuth } = useAuth();
+  return useQuery({
+    queryKey: ['back-office', 'summary'],
+    queryFn: (): Promise<PlatformSummary> => backOfficeApi.getPlatformSummary(),
+    enabled: isAuth,
+  });
+};
+
+export const useAuditLogs = (params: { merchantId?: string; action?: string } = {}) => {
+  const { isAuthenticated: isAuth } = useAuth();
+  return useQuery({
+    queryKey: ['back-office', 'audit-logs', params.merchantId ?? null, params.action ?? null],
+    queryFn: (): Promise<AuditLogEntry[]> => backOfficeApi.getAuditLogs(params),
     enabled: isAuth,
   });
 };

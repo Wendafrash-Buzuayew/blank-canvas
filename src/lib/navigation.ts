@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   QrCode,
   Star,
+  ShieldCheck,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -40,6 +41,7 @@ export const ROLE_NAVIGATION: Record<string, NavItem[]> = {
     { label: 'Waiters', path: '/admin/waiters', icon: UserCog },
     { label: 'Analytics', path: '/admin/analytics', icon: BarChart3 },
     { label: 'Subscriptions', path: '/admin/subscriptions', icon: CreditCard },
+    { label: 'Back Office', path: '/admin/back-office', icon: ShieldCheck },
     { label: 'Settings', path: '/admin/settings', icon: Settings },
   ],
   MERCHANT_OWNER: [

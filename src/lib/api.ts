@@ -524,6 +524,42 @@ export const reviewApi = {
   },
 };
 
+// ============ Back Office API ============
+// SUPER_ADMIN-only cross-tenant reporting and audit trail, served by
+// back-office-service via the gateway's /api/audit-logs and /api/reports
+// routes (see backend/api-gateway's application.yml).
+
+export interface PlatformSummary {
+  merchantCount: number;
+  branchCount: number;
+  auditEventCount: number;
+}
+
+export interface AuditLogEntry {
+  id: number;
+  actorUserId?: string | null;
+  actorRole?: string | null;
+  action: string;
+  entityType: string;
+  entityId?: string | null;
+  merchantId?: string | null;
+  details?: string | null;
+  createdAt: string;
+}
+
+export const backOfficeApi = {
+  getPlatformSummary: () =>
+    request<PlatformSummary>('/reports/platform-summary'),
+
+  getAuditLogs: (params: { merchantId?: string; action?: string } = {}) => {
+    const query = new URLSearchParams();
+    if (params.merchantId) query.set('merchantId', params.merchantId);
+    if (params.action) query.set('action', params.action);
+    const qs = query.toString();
+    return request<AuditLogEntry[]>(`/audit-logs${qs ? `?${qs}` : ''}`);
+  },
+};
+
 // ============ Branch API ============
 
 export interface BranchEntity {

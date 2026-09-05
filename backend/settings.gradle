@@ -22,6 +22,7 @@ include 'order-service'
 include 'qr-service'
 include 'notification-service'
 include 'analytics-service'
+include 'back-office-service'
 include 'api-gateway'
 include ':discovery-service'
 

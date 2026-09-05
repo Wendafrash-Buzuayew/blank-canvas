@@ -1,0 +1,70 @@
+server:
+  port: 8090
+
+spring:
+  application:
+    name: back-office-service
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/qrserve_backoffice}
+    username: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      idle-timeout: 30000
+      max-lifetime: 1800000
+      connection-timeout: 10000
+  jpa:
+    hibernate:
+      ddl-auto: ${DDL_AUTO:update}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: ${SHOW_SQL:false}
+  flyway:
+    enabled: false
+
+services:
+  merchant-service-url: ${MERCHANT_SERVICE_URL:http://localhost:8085}
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-expiration-ms: 3600000
+  refresh-expiration-ms: 604800000
+
+# Required, no default: PublicMenuUrl/DigitalMenuUrl are @Component in
+# com.qrserve.shared.common, which this service's @ComponentScan includes —
+# see BackOfficeServiceApplication. A default would let this service start
+# while emitting QR codes/URLs that point at the wrong host.
+app:
+  public-base-domain: ${PUBLIC_BASE_DOMAIN}
+  public-menu-domain: ${PUBLIC_MENU_DOMAIN}
+  public-url-scheme: ${PUBLIC_URL_SCHEME:https}
+
+qr:
+  signature-secret: ${QR_SIGNATURE_SECRET}
+  signature-secret-previous: ${QR_SIGNATURE_SECRET_PREVIOUS:}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka}
+    fetch-registry: true
+    register-with-eureka: true
+    registry-fetch-interval-seconds: 5
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"

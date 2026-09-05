@@ -58,6 +58,9 @@ app:
       secret-key: ${MEDIA_S3_SECRET_KEY:}
       public-url-base: ${MEDIA_S3_PUBLIC_URL_BASE:http://localhost:9000/qrserve-media}
 
+services:
+  back-office-service-url: ${BACK_OFFICE_SERVICE_URL:http://localhost:8090}
+
 qr:
   signature-secret: ${QR_SIGNATURE_SECRET}
   # Verify-only. Set to the OUTGOING secret during a rotation so QR codes

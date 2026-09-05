@@ -171,6 +171,25 @@ spring:
                       maxBackoff: 500ms
                       factor: 2
 
+            # Back Office Service Route
+            - id: back-office-service
+              uri: lb://back-office-service
+              predicates:
+                - Path=/api/audit-logs/**, /api/reports/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: default
+                    fallbackUri: forward:/fallback
+                - name: Retry
+                  args:
+                    retries: 2
+                    methods: GET
+                    backoff:
+                      firstBackoff: 50ms
+                      maxBackoff: 500ms
+                      factor: 2
+
             # Notification Service Route (WebSocket)
             - id: notification-service
               uri: lb://notification-service

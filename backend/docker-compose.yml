@@ -89,6 +89,7 @@ services:
       - PUBLIC_BASE_DOMAIN=${PUBLIC_BASE_DOMAIN:?PUBLIC_BASE_DOMAIN must be set}
       - PUBLIC_MENU_DOMAIN=${PUBLIC_MENU_DOMAIN:?PUBLIC_MENU_DOMAIN must be set}
       - PUBLIC_URL_SCHEME=${PUBLIC_URL_SCHEME:-https}
+      - BACK_OFFICE_SERVICE_URL=http://back-office-service:8090
       - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -246,6 +247,33 @@ services:
       discovery-service:
         condition: service_healthy
 
+  back-office-service:
+    build:
+      context: .
+      dockerfile: back-office-service/Dockerfile
+    container_name: qrserve-back-office-service
+    ports:
+      - "8090:8090"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/qrserve_backoffice
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=postgres
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
+      - QR_SIGNATURE_SECRET=${QR_SIGNATURE_SECRET:?QR_SIGNATURE_SECRET must be set}
+      - QR_SIGNATURE_SECRET_PREVIOUS=${QR_SIGNATURE_SECRET_PREVIOUS:-}
+      - PUBLIC_BASE_DOMAIN=${PUBLIC_BASE_DOMAIN:?PUBLIC_BASE_DOMAIN must be set}
+      - PUBLIC_MENU_DOMAIN=${PUBLIC_MENU_DOMAIN:?PUBLIC_MENU_DOMAIN must be set}
+      - PUBLIC_URL_SCHEME=${PUBLIC_URL_SCHEME:-https}
+      - MERCHANT_SERVICE_URL=http://merchant-service:8085
+      - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+
   api-gateway:
     build:
       context: .
@@ -284,6 +312,8 @@ services:
       notification-service:
         condition: service_started
       analytics-service:
+        condition: service_started
+      back-office-service:
         condition: service_started
 
 volumes:

@@ -2,6 +2,7 @@ package com.qrserve.merchant.controller;
 
 import com.qrserve.merchant.dto.CreateMerchantRequest;
 import com.qrserve.merchant.entity.MerchantEntity;
+import com.qrserve.merchant.service.AuditLogClient;
 import com.qrserve.merchant.service.MerchantService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,12 +24,19 @@ import java.util.UUID;
 public class MerchantController {
 
     private final MerchantService merchantService;
+    private final AuditLogClient auditLogClient;
 
     @PostMapping
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @Operation(summary = "Create a new merchant tenant account")
     public ResponseEntity<MerchantEntity> createMerchant(@Valid @RequestBody CreateMerchantRequest request) {
-        return ResponseEntity.ok(merchantService.createMerchant(request));
+        MerchantEntity merchant = merchantService.createMerchant(request);
+        // Runs after the creating transaction has committed — never inside it,
+        // since this is an outbound HTTP call (see AuditLogClient, and the same
+        // reasoning that dropped @Transactional from exchangeAndLogin).
+        auditLogClient.record("MERCHANT_CREATED", "MERCHANT", merchant.getId().toString(),
+                merchant.getId(), "slug=" + merchant.getSlug());
+        return ResponseEntity.ok(merchant);
     }
 
     @GetMapping

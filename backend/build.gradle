@@ -148,6 +148,7 @@ def microservices = [
     ':qr-service',
     ':notification-service',
     ':analytics-service',
+    ':back-office-service',
     ':api-gateway'
 ]
 
@@ -236,6 +237,10 @@ project(':analytics-service') {
     dependencies {
         implementation project(':shared:events')
     }
+}
+
+project(':back-office-service') {
+    springBoot { mainClass = 'com.qrserve.backoffice.BackOfficeServiceApplication' }
 }
 
 // 6. Reactive API Gateway Configuration
