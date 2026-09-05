@@ -1,14 +1,21 @@
 import React, { useMemo, useState } from 'react';
-import { Table as TableIcon, Plus, Trash2, X, Loader2, Search, QrCode } from 'lucide-react';
+import { Table as TableIcon, Plus, Trash2, Loader2, Search, QrCode } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Spinner, ErrorState, EmptyState } from '../components/ui/States';
 import { EntitySelect } from '../components/ui/EntitySelect';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Modal } from '../components/ui/Modal';
+import { FormField } from '../components/ui/FormField';
+import { StatusChip } from '../components/ui/Chip';
 import { useTables, useCreateTable, useDeleteTable, useUpdateTableStatus, useAssignWaiterV1, useTableQr } from '../hooks/useApiData';
 import { useBranchesLookup, useMerchantsLookup, useUsersLookup, useWaitersLookup } from '../hooks/useLookups';
 import { friendlyError } from '../lib/errors';
 import { isAuthenticated, tableAssignmentApi, TableAssignmentEntity, CreateTableResponse } from '../lib/api';
 import { canRenderQr, qrCaption, qrImageSrc } from '../lib/qrDisplay';
+
+const selectClasses = 'h-9 rounded-control border border-line bg-surface px-2 text-label-s text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark';
 
 export const TableManagement: React.FC = () => {
   const tablesQuery = useTables();
@@ -28,7 +35,7 @@ export const TableManagement: React.FC = () => {
   const [pageError, setPageError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [branchFilter, setBranchFilter] = useState<string>('');
-  // The table just created, so we can show its QR immediately — the whole point of
+  // The table just created, so we can show its QR immediately - the whole point of
   // creating a table is printing this sticker, so the merchant should see it now
   // rather than hunting for it in the list.
   const [createdTable, setCreatedTable] = useState<CreateTableResponse | null>(null);
@@ -41,7 +48,7 @@ export const TableManagement: React.FC = () => {
 
   const merchantIds = useMemo(() => merchants.map((m) => m.id).sort(), [merchants]);
 
-  // Active waiter assignments — fetched once per merchant, never per row.
+  // Active waiter assignments - fetched once per merchant, never per row.
   const assignmentsQuery = useQuery({
     queryKey: ['table-assignments', merchantIds],
     queryFn: async (): Promise<TableAssignmentEntity[]> => {
@@ -149,35 +156,31 @@ export const TableManagement: React.FC = () => {
 
   return (
     <DashboardLayout title="Table Management">
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="mx-auto max-w-[80rem] space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-              <TableIcon className="w-5 h-5 text-[#E60028]" />
+            <h2 className="flex items-center gap-2 text-title-m text-ink">
+              <TableIcon className="h-5 w-5 text-brand-press" aria-hidden="true" />
               Tables
             </h2>
-            <p className="text-xs text-slate-500 mt-1">Manage tables, seating and QR codes</p>
+            <p className="mt-1 text-body-m text-muted">Manage tables, seating and QR codes</p>
           </div>
-          <button
-            onClick={openCreate}
-            disabled={merchants.length === 0}
-            className="px-4 py-2 bg-[#E60028] hover:bg-[#CC0024] disabled:opacity-50 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
+          <Button onClick={openCreate} disabled={merchants.length === 0}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
             Add Table
-          </button>
+          </Button>
         </div>
 
         {tables.length > 0 && (
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <div className="relative flex-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search tables or branches..."
                 aria-label="Search tables"
-                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-[#E60028]/20 focus:border-[#E60028]"
+                className="h-11 w-full rounded-control border border-line bg-surface pl-9 pr-3 text-body-m text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark"
               />
             </div>
             <div className="sm:w-56">
@@ -196,7 +199,7 @@ export const TableManagement: React.FC = () => {
         )}
 
         {pageError && (
-          <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-700">
+          <div role="alert" className="rounded-control bg-danger-soft px-3 py-3 text-label-s text-ink">
             {pageError}
           </div>
         )}
@@ -214,16 +217,7 @@ export const TableManagement: React.FC = () => {
           <EmptyState
             title="No tables yet"
             description="Create your first table to generate its QR code."
-            action={
-              merchants.length > 0 ? (
-                <button
-                  onClick={openCreate}
-                  className="px-4 py-2 bg-[#E60028] hover:bg-[#CC0024] text-white text-xs font-bold rounded-xl"
-                >
-                  Add Table
-                </button>
-              ) : undefined
-            }
+            action={merchants.length > 0 ? <Button onClick={openCreate}>Add Table</Button> : undefined}
           />
         )}
 
@@ -232,34 +226,34 @@ export const TableManagement: React.FC = () => {
         )}
 
         {visibleTables.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {visibleTables.map((table) => (
-              <div key={table.id} className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3 shadow-sm">
+              <Card key={table.id} compact className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <h3 className="font-bold text-sm text-slate-900 truncate">Table {table.tableNumber}</h3>
-                    <p className="text-xs text-slate-500 truncate">
-                      {branchNameById.get(table.branchId) ?? (allBranchesQuery.isLoading ? 'Loading…' : '—')}
+                    <h3 className="truncate text-label-m text-ink">Table {table.tableNumber}</h3>
+                    <p className="truncate text-body-m text-muted">
+                      {branchNameById.get(table.branchId) ?? (allBranchesQuery.isLoading ? 'Loading...' : '-')}
                     </p>
                   </div>
                   <button
                     onClick={() => handleDelete(table.id, table.tableNumber)}
                     disabled={isBusy}
                     aria-label={`Delete table ${table.tableNumber}`}
-                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg shrink-0"
+                    className="shrink-0 rounded-control p-1.5 text-muted hover:bg-danger-soft hover:text-danger"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>
                 </div>
 
-                <dl className="grid grid-cols-2 gap-2 text-xs">
+                <dl className="grid grid-cols-2 gap-2 text-body-m">
                   <div>
-                    <dt className="text-slate-400">Seats</dt>
-                    <dd className="font-bold text-slate-700">{table.capacity}</dd>
+                    <dt className="text-label-s text-muted">Seats</dt>
+                    <dd className="text-ink">{table.capacity}</dd>
                   </div>
                   <div className="min-w-0">
-                    <dt className="text-slate-400">Waiter</dt>
-                    <dd className="font-bold text-slate-700 truncate">
+                    <dt className="text-label-s text-muted">Waiter</dt>
+                    <dd className="truncate text-ink">
                       {waiterNameByTable.get(table.id) ?? 'Unassigned'}
                     </dd>
                   </div>
@@ -271,20 +265,16 @@ export const TableManagement: React.FC = () => {
                     onChange={(e) => handleStatusChange(table.id, e.target.value)}
                     disabled={isBusy}
                     aria-label={`Status for table ${table.tableNumber}`}
-                    className="flex-1 px-2 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20"
+                    className={`${selectClasses} flex-1`}
                   >
                     <option value="AVAILABLE">Available</option>
                     <option value="OCCUPIED">Occupied</option>
                     <option value="RESERVED">Reserved</option>
                   </select>
-                  <span
-                    className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1.5 rounded-lg ${
-                      table.qrToken ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
-                    }`}
-                  >
-                    <QrCode className="w-3 h-3" />
+                  <StatusChip status={table.qrToken ? 'success' : 'neutral'}>
+                    <QrCode className="h-3 w-3" aria-hidden="true" />
                     {table.qrToken ? 'QR Active' : 'No QR'}
-                  </span>
+                  </StatusChip>
                 </div>
 
                 <div>
@@ -296,7 +286,7 @@ export const TableManagement: React.FC = () => {
                     }}
                     disabled={assignWaiterMutation.isPending}
                     aria-label={`Assign waiter to table ${table.tableNumber}`}
-                    className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20"
+                    className={`${selectClasses} w-full`}
                   >
                     <option value="">
                       {waiterNameByTable.get(table.id) ? `Assigned: ${waiterNameByTable.get(table.id)}` : 'Assign waiter...'}
@@ -313,161 +303,107 @@ export const TableManagement: React.FC = () => {
                       })}
                   </select>
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         )}
       </div>
 
-      {showForm && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start justify-between p-4 border-b border-slate-200">
-              <div>
-                <h3 className="font-bold text-sm">Create Table</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">A QR code is generated automatically.</p>
-              </div>
-              <button
-                onClick={() => setShowForm(false)}
-                aria-label="Close"
-                className="p-1 text-slate-400 hover:text-slate-900 rounded-lg"
-              >
-                <X className="w-4 h-4" />
-              </button>
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Create Table">
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <p className="-mt-1 text-label-s text-muted">A QR code is generated automatically.</p>
+          <EntitySelect
+            label="Merchant"
+            required
+            placeholder="Select merchant"
+            value={formData.merchantId}
+            onChange={(value) => setFormData({ ...formData, merchantId: value ?? '', branchId: 0 })}
+            options={merchants}
+            descriptionKey="city"
+            isLoading={merchantsQuery.isLoading}
+            loadingMessage="Loading merchants..."
+            emptyMessage="No merchants found."
+          />
+
+          <EntitySelect
+            label="Branch"
+            required
+            placeholder={formData.merchantId ? 'Select branch' : 'Select a merchant first'}
+            value={formData.branchId || ''}
+            onChange={(value) => setFormData({ ...formData, branchId: value ? Number(value) : 0 })}
+            options={formBranchesQuery.data ?? []}
+            descriptionKey="address"
+            disabled={!formData.merchantId}
+            isLoading={!!formData.merchantId && formBranchesQuery.isLoading}
+            loadingMessage="Loading branches..."
+            emptyMessage="No branches found. Create a branch before adding tables."
+          />
+
+          <FormField
+            label="Table Number"
+            required
+            maxLength={20}
+            value={formData.tableNumber}
+            onChange={(e) => setFormData({ ...formData, tableNumber: e.target.value })}
+            placeholder="e.g. 12"
+          />
+
+          <FormField
+            label="Seats"
+            type="number"
+            required
+            min={1}
+            max={50}
+            value={formData.capacity}
+            onChange={(e) => setFormData({ ...formData, capacity: Number(e.target.value) })}
+          />
+
+          {formError && (
+            <div role="alert" className="rounded-control bg-danger-soft px-3 py-3 text-label-s text-ink">
+              {formError}
             </div>
+          )}
 
-            <form onSubmit={handleSubmit} className="p-4 space-y-3">
-              <EntitySelect
-                label="Merchant"
-                required
-                placeholder="Select merchant"
-                value={formData.merchantId}
-                onChange={(value) => setFormData({ ...formData, merchantId: value ?? '', branchId: 0 })}
-                options={merchants}
-                descriptionKey="city"
-                isLoading={merchantsQuery.isLoading}
-                loadingMessage="Loading merchants..."
-                emptyMessage="No merchants found."
-              />
+          <div className="flex gap-2 pt-1">
+            <Button type="button" variant="secondary" onClick={() => setShowForm(false)} fullWidth>
+              Cancel
+            </Button>
+            <Button type="submit" loading={createMutation.isPending} fullWidth>
+              {createMutation.isPending ? 'Saving...' : 'Create Table'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
-              <EntitySelect
-                label="Branch"
-                required
-                placeholder={formData.merchantId ? 'Select branch' : 'Select a merchant first'}
-                value={formData.branchId || ''}
-                onChange={(value) => setFormData({ ...formData, branchId: value ? Number(value) : 0 })}
-                options={formBranchesQuery.data ?? []}
-                descriptionKey="address"
-                disabled={!formData.merchantId}
-                isLoading={!!formData.merchantId && formBranchesQuery.isLoading}
-                loadingMessage="Loading branches..."
-                emptyMessage="No branches found. Create a branch before adding tables."
-              />
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Table Number *</label>
-                <input
-                  type="text"
-                  required
-                  maxLength={20}
-                  value={formData.tableNumber}
-                  onChange={(e) => setFormData({ ...formData, tableNumber: e.target.value })}
-                  placeholder="e.g. 12"
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20 focus:border-[#E60028]"
+      <Modal
+        open={!!createdTable}
+        onClose={() => setCreatedTable(null)}
+        title={createdTable ? `Table ${createdTable.tableNumber} created` : ''}
+      >
+        {createdTable && (
+          <div className="flex flex-col items-center gap-3">
+            <p className="-mt-2 self-start text-label-s text-muted">Print this code and place it on the table.</p>
+            <div className="flex h-48 w-48 items-center justify-center rounded-card border border-line bg-surface shadow-inner">
+              {createdTableQr.isLoading ? (
+                <Loader2 className="h-6 w-6 animate-spin text-brand-dark" aria-hidden="true" />
+              ) : canRenderQr(createdTableQr.data) ? (
+                <img
+                  src={qrImageSrc(createdTableQr.data)!}
+                  alt={`QR code for Table ${createdTable.tableNumber}`}
+                  className="h-full w-full rounded-[var(--radius-xl2)] object-contain"
                 />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Seats *</label>
-                <input
-                  type="number"
-                  required
-                  min={1}
-                  max={50}
-                  value={formData.capacity}
-                  onChange={(e) => setFormData({ ...formData, capacity: Number(e.target.value) })}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20 focus:border-[#E60028]"
-                />
-              </div>
-
-              {formError && (
-                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-700">
-                  {formError}
+              ) : (
+                <div className="flex flex-col items-center gap-1.5 px-3 text-center">
+                  <QrCode className="h-6 w-6 text-line-strong" aria-hidden="true" />
+                  <span className="text-label-s text-muted">{qrCaption(createdTableQr.data)}</span>
                 </div>
               )}
-
-              <div className="flex gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="flex-1 py-2.5 border border-slate-200 text-slate-700 text-sm font-bold rounded-xl hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={createMutation.isPending}
-                  className="flex-1 py-2.5 bg-[#E60028] hover:bg-[#CC0024] disabled:opacity-60 text-white text-sm font-bold rounded-xl flex items-center justify-center gap-2"
-                >
-                  {createMutation.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" /> Saving...
-                    </>
-                  ) : (
-                    'Create Table'
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {createdTable && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-sm max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start justify-between p-4 border-b border-slate-200">
-              <div>
-                <h3 className="font-bold text-sm">Table {createdTable.tableNumber} created</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">Print this code and place it on the table.</p>
-              </div>
-              <button
-                onClick={() => setCreatedTable(null)}
-                aria-label="Close"
-                className="p-1 text-slate-400 hover:text-slate-900 rounded-lg"
-              >
-                <X className="w-4 h-4" />
-              </button>
             </div>
-
-            <div className="p-4 flex flex-col items-center gap-3">
-              <div className="w-48 h-48 bg-white rounded-2xl border border-slate-200 shadow-inner flex items-center justify-center">
-                {createdTableQr.isLoading ? (
-                  <Loader2 className="w-6 h-6 animate-spin text-[#E60028]" />
-                ) : canRenderQr(createdTableQr.data) ? (
-                  <img
-                    src={qrImageSrc(createdTableQr.data)!}
-                    alt={`QR code for Table ${createdTable.tableNumber}`}
-                    className="rounded-xl w-full h-full object-contain"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center gap-1.5 text-center px-3">
-                    <QrCode className="w-6 h-6 text-slate-300" />
-                    <span className="text-[10px] font-bold text-slate-400">{qrCaption(createdTableQr.data)}</span>
-                  </div>
-                )}
-              </div>
-              <p className="text-xs font-bold text-slate-600">{qrCaption(createdTableQr.data)}</p>
-              <button
-                onClick={() => setCreatedTable(null)}
-                className="w-full py-2.5 bg-[#E60028] hover:bg-[#CC0024] text-white text-sm font-bold rounded-xl"
-              >
-                Done
-              </button>
-            </div>
+            <p className="text-label-m text-ink">{qrCaption(createdTableQr.data)}</p>
+            <Button onClick={() => setCreatedTable(null)} fullWidth>Done</Button>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </DashboardLayout>
   );
 };

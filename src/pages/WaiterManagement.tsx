@@ -1,8 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { UserCog, Plus, Trash2, X, Loader2 } from 'lucide-react';
+import { UserCog, Plus, Trash2 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Spinner, ErrorState, EmptyState } from '../components/ui/States';
 import { EntitySelect } from '../components/ui/EntitySelect';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Modal } from '../components/ui/Modal';
 import { useCreateWaiter, useDeleteWaiter, useUpdateWaiter, useWaiters } from '../hooks/useApiData';
 import { useBranchesLookup, useMerchantsLookup, useUsersLookup } from '../hooks/useLookups';
 import { friendlyError } from '../lib/errors';
@@ -13,6 +16,8 @@ const SHIFTS = [
   { id: 'EVENING', name: 'Evening' },
   { id: 'NIGHT', name: 'Night' },
 ];
+
+const selectClasses = 'h-9 rounded-control border border-line bg-surface px-2 text-label-s text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark';
 
 export const WaiterManagement: React.FC = () => {
   const waitersQuery = useWaiters();
@@ -111,29 +116,33 @@ export const WaiterManagement: React.FC = () => {
 
   const isBusy = createMutation.isPending || deleteMutation.isPending || updateMutation.isPending;
 
+  const statusOptions = (
+    <>
+      <option value="ACTIVE">Active</option>
+      <option value="INACTIVE">Inactive</option>
+      <option value="ON_BREAK">On Break</option>
+    </>
+  );
+
   return (
     <DashboardLayout title="Waiter Management">
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="mx-auto max-w-[80rem] space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-              <UserCog className="w-5 h-5 text-[#E60028]" />
+            <h2 className="flex items-center gap-2 text-title-m text-ink">
+              <UserCog className="h-5 w-5 text-brand-press" aria-hidden="true" />
               Waiters
             </h2>
-            <p className="text-xs text-slate-500 mt-1">Assign staff to branches and manage shifts</p>
+            <p className="mt-1 text-body-m text-muted">Assign staff to branches and manage shifts</p>
           </div>
-          <button
-            onClick={openCreate}
-            disabled={merchants.length === 0}
-            className="px-4 py-2 bg-[#E60028] hover:bg-[#CC0024] disabled:opacity-50 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
+          <Button onClick={openCreate} disabled={merchants.length === 0}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
             Add Waiter
-          </button>
+          </Button>
         </div>
 
         {pageError && (
-          <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-700">
+          <div role="alert" className="rounded-control bg-danger-soft px-3 py-3 text-label-s text-ink">
             {pageError}
           </div>
         )}
@@ -155,183 +164,190 @@ export const WaiterManagement: React.FC = () => {
         )}
 
         {waiters.length > 0 && (
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-x-auto shadow-sm">
-            <table className="w-full text-sm min-w-[720px]">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase">Waiter</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase">Merchant</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase">Branch</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase">Shift</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase">Status</th>
-                  <th className="text-right px-4 py-3 text-xs font-bold text-slate-600 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {waiters.map((waiter) => {
-                  const person = userById.get(waiter.userId);
-                  const displayName = person?.name ?? (usersQuery.isLoading ? 'Loading…' : 'Unknown staff');
-                  return (
-                    <tr key={waiter.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3">
-                        <p className="font-bold text-slate-900">{displayName}</p>
-                        {person?.email && <p className="text-[11px] text-slate-500">{person.email}</p>}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {merchantNameById.get(waiter.merchantId) ?? '—'}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {branchNameById.get(waiter.branchId) ??
-                          (allBranchesQuery.isLoading ? 'Loading…' : '—')}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {SHIFTS.find((s) => s.id === waiter.shift)?.name ?? '—'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <select
-                          value={waiter.status}
-                          onChange={(e) => handleStatusChange(waiter.id, e.target.value)}
-                          disabled={isBusy}
-                          aria-label={`Status for ${displayName}`}
-                          className="px-2 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#E60028]/20"
-                        >
-                          <option value="ACTIVE">Active</option>
-                          <option value="INACTIVE">Inactive</option>
-                          <option value="ON_BREAK">On Break</option>
-                        </select>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => handleDelete(waiter.id, displayName)}
-                          disabled={isBusy}
-                          aria-label={`Remove ${displayName}`}
-                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {/* DESIGN.md 6.6: below md, a table becomes a card list, not a horizontal scroll. */}
+            <div className="space-y-3 md:hidden">
+              {waiters.map((waiter) => {
+                const person = userById.get(waiter.userId);
+                const displayName = person?.name ?? (usersQuery.isLoading ? 'Loading...' : 'Unknown staff');
+                return (
+                  <Card key={waiter.id} compact>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-label-m text-ink">{displayName}</p>
+                        {person?.email && <p className="truncate text-body-m text-muted">{person.email}</p>}
+                        <p className="mt-1 text-label-s text-muted">
+                          {merchantNameById.get(waiter.merchantId) ?? '-'} - {branchNameById.get(waiter.branchId) ?? '-'} - {SHIFTS.find((s) => s.id === waiter.shift)?.name ?? '-'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleDelete(waiter.id, displayName)}
+                        disabled={isBusy}
+                        aria-label={`Remove ${displayName}`}
+                        className="shrink-0 rounded-control p-1.5 text-muted hover:bg-danger-soft hover:text-danger"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                    </div>
+                    <select
+                      value={waiter.status}
+                      onChange={(e) => handleStatusChange(waiter.id, e.target.value)}
+                      disabled={isBusy}
+                      aria-label={`Status for ${displayName}`}
+                      className={`${selectClasses} mt-2 w-full`}
+                    >
+                      {statusOptions}
+                    </select>
+                  </Card>
+                );
+              })}
+            </div>
+
+            <div className="hidden overflow-x-auto rounded-card border border-line bg-surface shadow-[var(--shadow-card)] md:block">
+              <table className="w-full min-w-[45rem] text-body-m">
+                <thead className="border-b border-line bg-surface-2">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-label-s uppercase text-muted">Waiter</th>
+                    <th className="px-4 py-3 text-left text-label-s uppercase text-muted">Merchant</th>
+                    <th className="px-4 py-3 text-left text-label-s uppercase text-muted">Branch</th>
+                    <th className="px-4 py-3 text-left text-label-s uppercase text-muted">Shift</th>
+                    <th className="px-4 py-3 text-left text-label-s uppercase text-muted">Status</th>
+                    <th className="px-4 py-3 text-right text-label-s uppercase text-muted">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {waiters.map((waiter) => {
+                    const person = userById.get(waiter.userId);
+                    const displayName = person?.name ?? (usersQuery.isLoading ? 'Loading...' : 'Unknown staff');
+                    return (
+                      <tr key={waiter.id} className="min-h-12 hover:bg-surface-2">
+                        <td className="px-4 py-3">
+                          <p className="text-ink">{displayName}</p>
+                          {person?.email && <p className="text-label-s text-muted">{person.email}</p>}
+                        </td>
+                        <td className="px-4 py-3 text-muted">
+                          {merchantNameById.get(waiter.merchantId) ?? '-'}
+                        </td>
+                        <td className="px-4 py-3 text-muted">
+                          {branchNameById.get(waiter.branchId) ??
+                            (allBranchesQuery.isLoading ? 'Loading...' : '-')}
+                        </td>
+                        <td className="px-4 py-3 text-muted">
+                          {SHIFTS.find((s) => s.id === waiter.shift)?.name ?? '-'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <select
+                            value={waiter.status}
+                            onChange={(e) => handleStatusChange(waiter.id, e.target.value)}
+                            disabled={isBusy}
+                            aria-label={`Status for ${displayName}`}
+                            className={selectClasses}
+                          >
+                            {statusOptions}
+                          </select>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => handleDelete(waiter.id, displayName)}
+                            disabled={isBusy}
+                            aria-label={`Remove ${displayName}`}
+                            className="rounded-control p-1.5 text-muted hover:bg-danger-soft hover:text-danger"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
-      {showForm && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start justify-between p-4 border-b border-slate-200">
-              <div>
-                <h3 className="font-bold text-sm">Create Waiter</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">Link an existing staff account to a branch.</p>
-              </div>
-              <button
-                onClick={() => setShowForm(false)}
-                aria-label="Close"
-                className="p-1 text-slate-400 hover:text-slate-900 rounded-lg"
-              >
-                <X className="w-4 h-4" />
-              </button>
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Create Waiter">
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <p className="-mt-1 text-label-s text-muted">Link an existing staff account to a branch.</p>
+          <EntitySelect
+            label="Merchant"
+            required
+            placeholder="Select merchant"
+            value={formData.merchantId}
+            onChange={(value) =>
+              setFormData({ ...formData, merchantId: value ?? '', branchId: 0, userId: '' })
+            }
+            options={merchants}
+            descriptionKey="city"
+            isLoading={merchantsQuery.isLoading}
+            loadingMessage="Loading merchants..."
+            emptyMessage="No merchants found."
+          />
+
+          <EntitySelect
+            label="Branch"
+            required
+            placeholder={formData.merchantId ? 'Select branch' : 'Select a merchant first'}
+            value={formData.branchId || ''}
+            onChange={(value) => setFormData({ ...formData, branchId: value ? Number(value) : 0 })}
+            options={branchesQuery.data ?? []}
+            descriptionKey="address"
+            disabled={!formData.merchantId}
+            isLoading={!!formData.merchantId && branchesQuery.isLoading}
+            loadingMessage="Loading branches..."
+            emptyMessage="No branches found. Create a branch before assigning waiters."
+          />
+
+          <EntitySelect
+            label="Staff Member"
+            required
+            placeholder={formData.merchantId ? 'Select staff member' : 'Select a merchant first'}
+            value={formData.userId}
+            onChange={(value) => setFormData({ ...formData, userId: value ?? '' })}
+            options={selectableUsers}
+            descriptionKey="email"
+            disabled={!formData.merchantId}
+            isLoading={usersQuery.isLoading}
+            loadingMessage="Loading users..."
+            emptyMessage="No available staff accounts. Create a user with the Waiter role first."
+            helperText="Only unassigned Waiter/Cashier accounts are listed."
+          />
+
+          <EntitySelect
+            label="Shift"
+            value={formData.shift}
+            onChange={(value) => setFormData({ ...formData, shift: value ?? 'MORNING' })}
+            options={SHIFTS}
+            searchThreshold={99}
+          />
+
+          <EntitySelect
+            label="Status"
+            value={formData.status}
+            onChange={(value) => setFormData({ ...formData, status: value ?? 'ACTIVE' })}
+            options={[
+              { id: 'ACTIVE', name: 'Active' },
+              { id: 'INACTIVE', name: 'Inactive' },
+            ]}
+            searchThreshold={99}
+          />
+
+          {formError && (
+            <div role="alert" className="rounded-control bg-danger-soft px-3 py-3 text-label-s text-ink">
+              {formError}
             </div>
+          )}
 
-            <form onSubmit={handleSubmit} className="p-4 space-y-3">
-              <EntitySelect
-                label="Merchant"
-                required
-                placeholder="Select merchant"
-                value={formData.merchantId}
-                onChange={(value) =>
-                  setFormData({ ...formData, merchantId: value ?? '', branchId: 0, userId: '' })
-                }
-                options={merchants}
-                descriptionKey="city"
-                isLoading={merchantsQuery.isLoading}
-                loadingMessage="Loading merchants..."
-                emptyMessage="No merchants found."
-              />
-
-              <EntitySelect
-                label="Branch"
-                required
-                placeholder={formData.merchantId ? 'Select branch' : 'Select a merchant first'}
-                value={formData.branchId || ''}
-                onChange={(value) => setFormData({ ...formData, branchId: value ? Number(value) : 0 })}
-                options={branchesQuery.data ?? []}
-                descriptionKey="address"
-                disabled={!formData.merchantId}
-                isLoading={!!formData.merchantId && branchesQuery.isLoading}
-                loadingMessage="Loading branches..."
-                emptyMessage="No branches found. Create a branch before assigning waiters."
-              />
-
-              <EntitySelect
-                label="Staff Member"
-                required
-                placeholder={formData.merchantId ? 'Select staff member' : 'Select a merchant first'}
-                value={formData.userId}
-                onChange={(value) => setFormData({ ...formData, userId: value ?? '' })}
-                options={selectableUsers}
-                descriptionKey="email"
-                disabled={!formData.merchantId}
-                isLoading={usersQuery.isLoading}
-                loadingMessage="Loading users..."
-                emptyMessage="No available staff accounts. Create a user with the Waiter role first."
-                helperText="Only unassigned Waiter/Cashier accounts are listed."
-              />
-
-              <EntitySelect
-                label="Shift"
-                value={formData.shift}
-                onChange={(value) => setFormData({ ...formData, shift: value ?? 'MORNING' })}
-                options={SHIFTS}
-                searchThreshold={99}
-              />
-
-              <EntitySelect
-                label="Status"
-                value={formData.status}
-                onChange={(value) => setFormData({ ...formData, status: value ?? 'ACTIVE' })}
-                options={[
-                  { id: 'ACTIVE', name: 'Active' },
-                  { id: 'INACTIVE', name: 'Inactive' },
-                ]}
-                searchThreshold={99}
-              />
-
-              {formError && (
-                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-700">
-                  {formError}
-                </div>
-              )}
-
-              <div className="flex gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="flex-1 py-2.5 border border-slate-200 text-slate-700 text-sm font-bold rounded-xl hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={createMutation.isPending}
-                  className="flex-1 py-2.5 bg-[#E60028] hover:bg-[#CC0024] disabled:opacity-60 text-white text-sm font-bold rounded-xl flex items-center justify-center gap-2"
-                >
-                  {createMutation.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" /> Saving...
-                    </>
-                  ) : (
-                    'Create Waiter'
-                  )}
-                </button>
-              </div>
-            </form>
+          <div className="flex gap-2 pt-1">
+            <Button type="button" variant="secondary" onClick={() => setShowForm(false)} fullWidth>
+              Cancel
+            </Button>
+            <Button type="submit" loading={createMutation.isPending} fullWidth>
+              {createMutation.isPending ? 'Saving...' : 'Create Waiter'}
+            </Button>
           </div>
-        </div>
-      )}
+        </form>
+      </Modal>
     </DashboardLayout>
   );
 };
