@@ -28,11 +28,11 @@ test('phase 1 gives MERCHANT_OWNER exactly Dashboard, Branches, Menu & QR, Revie
   );
 });
 
-test('phase 1 gives SUPER_ADMIN exactly Back Office, Merchants, Settings', () => {
+test('phase 1 gives SUPER_ADMIN exactly Back Office, Merchants, Templates, Settings', () => {
   const items = getNavigationForRole('SUPER_ADMIN', false);
   assert.deepEqual(
     items.map((i) => i.path),
-    ['/admin/back-office', '/admin/merchants', '/admin/settings'],
+    ['/admin/back-office', '/admin/merchants', '/admin/templates', '/admin/settings'],
   );
 });
 

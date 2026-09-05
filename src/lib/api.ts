@@ -747,6 +747,37 @@ export const menuApi = {
     }),
 };
 
+// ============ Menu Template Definitions API ============
+// The admin-editable visual DEFINITIONS behind the 3 curated templates
+// above (MenuTemplateStyle) - what a merchant picks by name in
+// menuApi.setTemplate, SUPER_ADMIN edits the actual look of here.
+
+import type { BackgroundMode, AccentToken } from './menuTemplates';
+
+export interface MenuTemplateDefinitionEntity {
+  key: string;
+  displayName: string;
+  backgroundMode: BackgroundMode;
+  accentToken: AccentToken;
+}
+
+export interface UpdateMenuTemplateDefinitionRequest {
+  displayName: string;
+  backgroundMode: BackgroundMode;
+  accentToken: AccentToken;
+}
+
+export const menuTemplateApi = {
+  /** Public - the customer digital menu reads this to render the active template. */
+  getAll: () => request<MenuTemplateDefinitionEntity[]>('/menu/templates'),
+
+  update: (key: string, data: UpdateMenuTemplateDefinitionRequest) =>
+    request<MenuTemplateDefinitionEntity>(`/menu/templates/${key}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+};
+
 // ============ Order API ============
 
 export interface OrderEntity {

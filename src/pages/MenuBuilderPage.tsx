@@ -8,17 +8,12 @@ import { Modal } from '../components/ui/Modal';
 import { FormField } from '../components/ui/FormField';
 import { IdentityChip, StatusChip } from '../components/ui/Chip';
 import { useAuth } from '../context/AuthContext';
-import { useBranchMenu, useCreateCategory, useUpdateCategory, useDeleteCategory, useCreateProduct, useUpdateProduct, useDeleteProduct, useSetMenuTemplate, useUploadProductImage } from '../hooks/useApiData';
+import { useBranchMenu, useCreateCategory, useUpdateCategory, useDeleteCategory, useCreateProduct, useUpdateProduct, useDeleteProduct, useSetMenuTemplate, useUploadProductImage, useMenuTemplateDefinitions } from '../hooks/useApiData';
 import { useBranchesLookup, useMerchantsLookup } from '../hooks/useLookups';
 import { friendlyError } from '../lib/errors';
 import { useNavigate } from 'react-router-dom';
 import { resolveMediaUrl, type MenuResponse, type MenuTemplateStyle } from '../lib/api';
-
-const TEMPLATE_OPTIONS: { value: MenuTemplateStyle; label: string; swatch: string }[] = [
-  { value: 'CLASSIC', label: 'Classic', swatch: 'bg-surface border-2 border-brand-dark' },
-  { value: 'MODERN_DARK', label: 'Modern Dark', swatch: 'bg-ink border-2 border-brand' },
-  { value: 'VIBRANT', label: 'Vibrant', swatch: 'bg-brand-soft border-2 border-brand-press' },
-];
+import { resolveTemplateClasses } from '../lib/menuTemplates';
 
 const FOOD_IMAGE_PRESETS = [
   { label: 'Cappuccino', url: 'https://images.unsplash.com/photo-1534778101976-62847782c213?w=600&auto=format&fit=crop&q=80' },
@@ -59,6 +54,7 @@ export const MenuBuilderPage: React.FC = () => {
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
   const setMenuTemplate = useSetMenuTemplate();
+  const templatesQuery = useMenuTemplateDefinitions();
   const uploadProductImage = useUploadProductImage();
 
   const [activeCategoryId, setActiveCategoryId] = useState<number | 'all'>('all');
@@ -263,18 +259,19 @@ export const MenuBuilderPage: React.FC = () => {
               <Palette className="h-4 w-4 text-brand-press" aria-hidden="true" /> Digital Menu Look
             </span>
             <div className="flex items-center gap-2">
-              {TEMPLATE_OPTIONS.map((opt) => {
-                const isActive = (menu?.templateStyle ?? 'CLASSIC') === opt.value;
+              {(templatesQuery.data ?? []).map((def) => {
+                const isActive = (menu?.templateStyle ?? 'CLASSIC') === def.key;
+                const swatch = resolveTemplateClasses(def).swatch;
                 return (
                   <button
-                    key={opt.value}
-                    onClick={() => handleSelectTemplate(opt.value)}
+                    key={def.key}
+                    onClick={() => handleSelectTemplate(def.key as MenuTemplateStyle)}
                     disabled={setMenuTemplate.isPending}
-                    title={opt.label}
+                    title={def.displayName}
                     className={`flex items-center gap-1.5 rounded-control border-2 px-3 py-1.5 text-label-s transition-all disabled:opacity-50 ${isActive ? 'border-brand-dark bg-brand-soft text-brand-press' : 'border-transparent bg-surface-2 text-muted hover:bg-line'}`}
                   >
-                    <span className={`h-4 w-4 rounded-pill ${opt.swatch}`} aria-hidden="true" />
-                    {opt.label}
+                    <span className={swatch} aria-hidden="true" />
+                    {def.displayName}
                   </button>
                 );
               })}

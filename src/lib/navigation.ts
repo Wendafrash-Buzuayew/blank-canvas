@@ -16,6 +16,7 @@ import {
   QrCode,
   Star,
   ShieldCheck,
+  Palette,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -42,6 +43,7 @@ export const ROLE_NAVIGATION: Record<string, NavItem[]> = {
     { label: 'Analytics', path: '/admin/analytics', icon: BarChart3 },
     { label: 'Subscriptions', path: '/admin/subscriptions', icon: CreditCard },
     { label: 'Back Office', path: '/admin/back-office', icon: ShieldCheck },
+    { label: 'Templates', path: '/admin/templates', icon: Palette },
     { label: 'Settings', path: '/admin/settings', icon: Settings },
   ],
   MERCHANT_OWNER: [
@@ -97,6 +99,7 @@ export const ROLE_NAVIGATION_PHASE1: Record<string, NavItem[]> = {
   SUPER_ADMIN: [
     { label: 'Back Office', path: '/admin/back-office', icon: ShieldCheck },
     { label: 'Merchants', path: '/admin/merchants', icon: Store },
+    { label: 'Templates', path: '/admin/templates', icon: Palette },
     { label: 'Settings', path: '/admin/settings', icon: Settings },
   ],
 };

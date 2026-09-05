@@ -9,62 +9,25 @@ import {
   fetchReviewSummary,
   submitReview,
   type DigitalMenuResolution,
-  type MenuTemplateStyle,
 } from '../lib/digitalMenu';
 import { resolveMediaUrl } from '../lib/api';
 import { Spinner, ErrorState } from '../components/ui/States';
 import { Button } from '../components/ui/Button';
+import { useMenuTemplateDefinitions } from '../hooks/useApiData';
+import { resolveTemplateClasses, type ResolvedTemplateClasses } from '../lib/menuTemplates';
 
 /**
  * A small, team-curated, fixed set of visual presentations — the merchant
  * picks one (MenuBuilderPage), not a merchant-authored/customizable
  * template system. DESIGN.md §1 rule 3 is why this page is allowed to be
  * expressive at all — it's the one context in the product that is. Each
- * template still stays inside documented-safe token pairings (§3):
- * CLASSIC is the light customer surface; MODERN_DARK reuses the console's
- * own measured dark-ground pair (--color-on-ink / --color-on-ink-muted,
- * §3.2) rather than inventing a new one; VIBRANT is the one place
- * --customer-accent (Fresh Green, §3.5) is allowed to appear, scoped here
- * by the page's own [data-view="customer"] root.
+ * template's actual colors come from the admin-editable definitions
+ * (Templates page, ../lib/menuTemplates.ts resolveTemplateClasses) rather
+ * than being hardcoded here, so an admin edit changes what customers see
+ * without a deploy. CLASSIC/MODERN_DARK/VIBRANT below is only the
+ * fallback used before the definitions have loaded.
  */
-const TEMPLATES: Record<MenuTemplateStyle, {
-  page: string; header: string; title: string; categoryHeading: string;
-  itemName: string; priceWrap: string; price: string; strikePrice: string; description: string;
-}> = {
-  CLASSIC: {
-    page: 'bg-canvas text-ink',
-    header: 'px-4 py-8 text-center border-b border-line',
-    title: 'font-display text-title-l',
-    categoryHeading: 'text-label-s uppercase text-brand-press mt-8 mb-2 px-4',
-    itemName: 'text-title-s text-ink',
-    priceWrap: '',
-    price: 'text-label-m text-brand-press [font-variant-numeric:tabular-nums]',
-    strikePrice: 'text-label-s text-muted line-through [font-variant-numeric:tabular-nums]',
-    description: 'text-body-m text-muted mt-1 line-clamp-2',
-  },
-  MODERN_DARK: {
-    page: 'bg-ink text-on-ink',
-    header: 'px-4 py-8 text-center border-b border-ink-2',
-    title: 'font-display text-title-l',
-    categoryHeading: 'text-label-s uppercase text-on-ink-muted mt-8 mb-2 px-4',
-    itemName: 'text-title-s text-on-ink',
-    priceWrap: 'rounded-pill bg-brand px-2 py-0.5',
-    price: 'text-label-m text-ink [font-variant-numeric:tabular-nums]',
-    strikePrice: 'text-label-s text-on-ink-muted line-through [font-variant-numeric:tabular-nums]',
-    description: 'text-body-m text-on-ink-muted mt-1 line-clamp-2',
-  },
-  VIBRANT: {
-    page: 'bg-brand-soft text-ink',
-    header: 'px-4 py-10 text-center',
-    title: 'font-display text-title-l text-brand-press',
-    categoryHeading: 'text-label-s uppercase text-brand-press mt-8 mb-3 px-4',
-    itemName: 'text-title-s text-ink',
-    priceWrap: '',
-    price: 'text-label-m text-brand-press [font-variant-numeric:tabular-nums]',
-    strikePrice: 'text-label-s text-muted line-through [font-variant-numeric:tabular-nums]',
-    description: 'text-body-m text-muted mt-1 line-clamp-2',
-  },
-};
+const FALLBACK_TEMPLATE = resolveTemplateClasses({ backgroundMode: 'LIGHT', accentToken: 'BRAND' });
 
 /**
  * Read-only digital menu view — no cart, no ordering (out of scope for the
@@ -133,6 +96,8 @@ function BranchMenu({ merchantSlug, branchSlug }: { merchantSlug: string; branch
     enabled: !!resolutionQuery.data,
   });
 
+  const templatesQuery = useMenuTemplateDefinitions();
+
   if (resolutionQuery.isError) {
     return <CenteredMessage>Menu not found.</CenteredMessage>;
   }
@@ -147,7 +112,11 @@ function BranchMenu({ merchantSlug, branchSlug }: { merchantSlug: string; branch
     return <CenteredMessage>Menu coming soon.</CenteredMessage>;
   }
 
-  const template = TEMPLATES[menuQuery.data?.templateStyle ?? 'CLASSIC'];
+  const templateStyle = menuQuery.data?.templateStyle ?? 'CLASSIC';
+  const templateDef = templatesQuery.data?.find((t) => t.key === templateStyle);
+  const template: ResolvedTemplateClasses = templateDef
+    ? resolveTemplateClasses(templateDef)
+    : FALLBACK_TEMPLATE;
   const branchId = resolutionQuery.data?.branchId;
 
   return (

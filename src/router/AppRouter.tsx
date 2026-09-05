@@ -13,6 +13,7 @@ const DigitalMenuPage = lazy(() => import('../pages/DigitalMenuPage').then((m) =
 const DashboardPage = lazy(() => import('../pages/DashboardPage').then((m) => ({ default: m.DashboardPage })));
 const MerchantManagement = lazy(() => import('../pages/MerchantManagement').then((m) => ({ default: m.MerchantManagement })));
 const BackOfficePage = lazy(() => import('../pages/BackOfficePage').then((m) => ({ default: m.BackOfficePage })));
+const TemplateManagement = lazy(() => import('../pages/TemplateManagement').then((m) => ({ default: m.TemplateManagement })));
 const BranchManagement = lazy(() => import('../pages/BranchManagement').then((m) => ({ default: m.BranchManagement })));
 const TableManagement = lazy(() => import('../pages/TableManagement').then((m) => ({ default: m.TableManagement })));
 const WaiterManagement = lazy(() => import('../pages/WaiterManagement').then((m) => ({ default: m.WaiterManagement })));
@@ -147,6 +148,14 @@ export const AppRouter: React.FC = () => {
             element={
               <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
                 <BackOfficePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/templates"
+            element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+                <TemplateManagement />
               </ProtectedRoute>
             }
           />

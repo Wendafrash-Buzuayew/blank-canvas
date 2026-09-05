@@ -9,6 +9,7 @@ import {
   backOfficeApi,
   branchApi,
   menuApi,
+  menuTemplateApi,
   merchantApi,
   orderApi,
   qrApi,
@@ -37,6 +38,7 @@ import {
   CreateMerchantRequest,
   CreateBranchRequest,
   UpdateBranchRequest,
+  UpdateMenuTemplateDefinitionRequest,
   CreateTableRequest,
 } from '../lib/api';
 
@@ -337,6 +339,26 @@ export const useSetMenuTemplate = () => {
       menuApi.setTemplate(branchId, templateStyle),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['menu', 'branch', variables.branchId] });
+    },
+  });
+};
+
+/** Public - safe for both the admin editor and the customer digital menu (no auth required). */
+export const useMenuTemplateDefinitions = () => {
+  return useQuery({
+    queryKey: ['menu-templates'],
+    queryFn: () => menuTemplateApi.getAll(),
+    staleTime: 5 * 60_000,
+  });
+};
+
+export const useUpdateMenuTemplateDefinition = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ key, data }: { key: string; data: UpdateMenuTemplateDefinitionRequest }) =>
+      menuTemplateApi.update(key, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menu-templates'] });
     },
   });
 };
