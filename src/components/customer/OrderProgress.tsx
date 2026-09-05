@@ -38,20 +38,22 @@ export const OrderProgress: React.FC<Props> = ({ orderNumber, status, connection
   return (
     <section
       aria-label="Live order status"
-      className="animate-rise rounded-3xl bg-ink text-white p-5 shadow-lift"
+      className="animate-rise rounded-card bg-ink p-5 text-on-ink shadow-[var(--shadow-lift)]"
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/50">
+          <p className="text-label-s uppercase tracking-[0.14em] text-on-ink-muted">
             Your order
           </p>
-          <h2 className="font-display text-xl font-extrabold">
+          <h2 className="font-display text-title-m">
             #{orderNumber || '—'}
           </h2>
         </div>
+        {/* DESIGN.md 6.9 realtime states: connected/connecting/disconnected each
+            get their own soft-ground pill rather than opacity-tinted white. */}
         <span
-          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-            live ? 'bg-success/20 text-white' : 'bg-white/10 text-white/70'
+          className={`inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-label-s text-ink ${
+            live ? 'bg-success-soft' : connection === 'connecting' ? 'bg-warn-soft signal-degraded' : 'bg-danger-soft'
           }`}
           title={
             live
@@ -62,7 +64,7 @@ export const OrderProgress: React.FC<Props> = ({ orderNumber, status, connection
           }
         >
           {live ? (
-            <Wifi className="h-3.5 w-3.5 animate-breathe" aria-hidden />
+            <Wifi className="h-3.5 w-3.5" aria-hidden />
           ) : connection === 'connecting' ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
           ) : (
@@ -81,31 +83,33 @@ export const OrderProgress: React.FC<Props> = ({ orderNumber, status, connection
             <li key={step.key} className="flex flex-1 items-center last:flex-none">
               <div className="flex flex-col items-center gap-1.5">
                 <span
-                  className={`relative flex h-9 w-9 items-center justify-center rounded-full transition-colors duration-500 ${
+                  className={`relative flex h-9 w-9 items-center justify-center rounded-pill transition-colors duration-500 ${
                     done
-                      ? 'bg-success text-white'
+                      ? 'bg-success text-on-ink'
                       : current
-                        ? 'bg-brand text-white'
-                        : 'bg-white/10 text-white/40'
+                        // brand-dark, not the hero green (--color-brand): white on
+                        // --color-brand measures 2.88 and fails (DESIGN.md 3.1 rule 1).
+                        ? 'bg-brand-dark text-brand-fg'
+                        : 'bg-white/10 text-on-ink-muted'
                   }`}
                 >
                   {current && (
-                    <span className="absolute inset-0 animate-ping rounded-full bg-brand/40" aria-hidden />
+                    <span className="absolute inset-0 animate-ping rounded-pill bg-brand/40" aria-hidden />
                   )}
                   <Icon className="relative h-4 w-4" aria-hidden />
                 </span>
                 <span
-                  className={`text-[10px] font-semibold ${
-                    done || current ? 'text-white' : 'text-white/40'
+                  className={`text-label-s ${
+                    done || current ? 'text-on-ink' : 'text-on-ink-muted'
                   }`}
                 >
                   {step.label}
                 </span>
               </div>
               {i < STEPS.length - 1 && (
-                <span className="mx-1 h-0.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                <span className="mx-1 h-0.5 flex-1 overflow-hidden rounded-pill bg-white/10">
                   <span
-                    className="block h-full rounded-full bg-success transition-all duration-700"
+                    className="block h-full rounded-pill bg-success transition-all duration-700"
                     style={{ width: i < active ? '100%' : '0%' }}
                   />
                 </span>
@@ -115,7 +119,7 @@ export const OrderProgress: React.FC<Props> = ({ orderNumber, status, connection
         })}
       </ol>
 
-      <p className="mt-4 text-xs text-white/60">
+      <p className="mt-4 text-body-m text-on-ink-muted">
         {active === CANCELLED_STEP && 'This order was cancelled. Please speak to a waiter if that is unexpected.'}
         {active === 0 && 'Sent to the kitchen — hang tight, we’ll update this live.'}
         {active === 1 && 'The kitchen is cooking your order right now.'}

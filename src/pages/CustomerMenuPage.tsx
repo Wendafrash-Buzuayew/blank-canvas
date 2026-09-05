@@ -32,16 +32,17 @@ import {
   type TrackedOrder,
 } from '../lib/orderSession';
 import { isPhase2Enabled } from '../lib/phase';
+import { IdentityChip } from '../components/ui/Chip';
 
 const MenuSkeleton: React.FC = () => (
   <div className="space-y-3" aria-hidden>
     {Array.from({ length: 5 }).map((_, i) => (
-      <div key={i} className="flex gap-3 rounded-3xl bg-surface p-3 shadow-card">
-        <div className="h-20 w-20 shrink-0 animate-pulse rounded-2xl bg-line/70" />
+      <div key={i} className="flex gap-3 rounded-card bg-surface p-3 shadow-card">
+        <div className="h-20 w-20 shrink-0 animate-pulse rounded-xl2 bg-line/70" />
         <div className="flex-1 space-y-2 py-1">
-          <div className="h-3.5 w-2/5 animate-pulse rounded-full bg-line/70" />
-          <div className="h-3 w-4/5 animate-pulse rounded-full bg-line/50" />
-          <div className="h-3 w-1/4 animate-pulse rounded-full bg-line/70" />
+          <div className="h-3.5 w-2/5 animate-pulse rounded-pill bg-line/70" />
+          <div className="h-3 w-4/5 animate-pulse rounded-pill bg-line/50" />
+          <div className="h-3 w-1/4 animate-pulse rounded-pill bg-line/70" />
         </div>
       </div>
     ))}
@@ -254,7 +255,7 @@ export const CustomerMenuPage: React.FC = () => {
     // the backend 403s the request anyway.
     return (
       <div className="flex min-h-screen items-center justify-center bg-canvas p-6">
-        <div className="w-full max-w-sm rounded-3xl bg-surface p-8 text-center shadow-card">
+        <div className="w-full max-w-sm rounded-card bg-surface p-8 text-center shadow-card">
           <h1 className="text-lg font-semibold">This link is for a different restaurant</h1>
           <p className="mt-2 text-sm text-muted">
             Please scan the QR code on your table again.
@@ -268,7 +269,7 @@ export const CustomerMenuPage: React.FC = () => {
     return (
       <div className="min-h-screen bg-canvas px-5 pt-16">
         <div className="mx-auto max-w-2xl space-y-6">
-          <div className="h-28 animate-pulse rounded-3xl bg-line/60" />
+          <div className="h-28 animate-pulse rounded-card bg-line/60" />
           <MenuSkeleton />
           <p className="text-center text-xs text-muted">Finding your table…</p>
         </div>
@@ -279,8 +280,8 @@ export const CustomerMenuPage: React.FC = () => {
   if (resolveError || !resolution) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-canvas p-6">
-        <div className="w-full max-w-sm rounded-3xl bg-surface p-8 text-center shadow-card">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-soft">
+        <div className="w-full max-w-sm rounded-card bg-surface p-8 text-center shadow-card">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl2 bg-brand-soft">
             <ScanLine className="h-7 w-7 text-brand" aria-hidden />
           </div>
           <h1 className="mt-4 font-display text-xl font-extrabold">We couldn’t open this table</h1>
@@ -296,7 +297,7 @@ export const CustomerMenuPage: React.FC = () => {
           </p>
           <button
             onClick={() => refetchResolution()}
-            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-3.5 text-sm font-bold text-white"
+            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-control bg-brand-dark py-3.5 text-label-m text-brand-fg"
           >
             <RefreshCw className="h-4 w-4" aria-hidden /> Try again
           </button>
@@ -310,27 +311,27 @@ export const CustomerMenuPage: React.FC = () => {
     return (
       <div className="flex min-h-screen items-center justify-center bg-ink p-6">
         <div className="w-full max-w-sm space-y-6 text-center">
-          <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-3xl bg-white/10 ring-2 ring-white/15">
+          <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-card bg-white/10 ring-2 ring-white/15">
             <ScanLine className="h-12 w-12 animate-breathe text-brand" aria-hidden />
           </div>
           <div>
-            <h1 className="font-display text-2xl font-extrabold text-white">QR scanned</h1>
-            <p className="mt-2 text-sm text-white/60">
-              You’re at <strong className="text-white">Table {resolution.tableNumber}</strong>
+            <h1 className="font-display text-2xl font-extrabold text-on-ink">QR scanned</h1>
+            <p className="mt-2 text-sm text-on-ink-muted">
+              You’re at <strong className="text-on-ink">Table {resolution.tableNumber}</strong>
             </p>
           </div>
-          <div className="rounded-3xl bg-white/5 p-4 text-left ring-1 ring-white/10">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/40">Detected</p>
-            <p className="mt-1 font-display text-lg font-extrabold text-white">
+          <div className="rounded-card bg-white/5 p-4 text-left ring-1 ring-white/10">
+            <p className="text-label-s font-semibold uppercase tracking-[0.14em] text-on-ink-muted">Detected</p>
+            <p className="mt-1 font-display text-lg font-extrabold text-on-ink">
               {resolution.merchantName || target?.merchantSlug}
             </p>
-            <p className="text-xs text-white/50">
+            <p className="text-xs text-on-ink-muted">
               {resolution.branchName || effectiveBranchSlug} · Table {resolution.tableNumber}
             </p>
           </div>
           <button
             onClick={() => setShowQrOverlay(false)}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-brand py-4 text-base font-bold text-brand-fg shadow-lift"
+            className="flex w-full items-center justify-center gap-2 rounded-control bg-brand-dark py-4 text-label-m text-brand-fg shadow-[var(--shadow-lift)]"
           >
             <X className="h-4 w-4" aria-hidden /> Open the menu
           </button>
@@ -347,25 +348,25 @@ export const CustomerMenuPage: React.FC = () => {
     // is perceptually identical to --color-kds-prep.
     <div data-view="customer" className="min-h-screen bg-canvas pb-36">
       {/* Header */}
-      <header className="bg-ink px-5 pb-8 pt-7 text-white">
+      <header className="bg-ink px-5 pb-8 pt-7 text-on-ink">
         <div className="mx-auto max-w-2xl">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h1 className="truncate font-display text-2xl font-extrabold">
                 {resolution.merchantName || target?.merchantSlug}
               </h1>
-              <p className="mt-1 flex items-center gap-1.5 text-xs text-white/60">
+              <p className="mt-1 flex items-center gap-1.5 text-xs text-on-ink-muted">
                 <MapPin className="h-3.5 w-3.5" aria-hidden />
                 {resolution.branchName || effectiveBranchSlug}
               </p>
             </div>
             {isPhase2Enabled() && (
-              <span className="shrink-0 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold ring-1 ring-white/15">
+              <span className="shrink-0 rounded-pill bg-white/10 px-3 py-1.5 text-xs font-bold ring-1 ring-white/15">
                 Table {resolution.tableNumber}
               </span>
             )}
           </div>
-          <p className="mt-3 flex items-center gap-1.5 text-xs text-white/50">
+          <p className="mt-3 flex items-center gap-1.5 text-xs text-on-ink-muted">
             <Sparkles className="h-3.5 w-3.5" aria-hidden />
             {isPhase2Enabled() ? 'Order from your table — no app, no queue.' : 'Browse our menu.'}
           </p>
@@ -389,7 +390,7 @@ export const CustomerMenuPage: React.FC = () => {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search dishes…"
-              className="w-full rounded-2xl bg-surface py-3.5 pl-11 pr-4 text-sm shadow-card outline-none ring-1 ring-line placeholder:text-muted focus:ring-2 focus:ring-brand"
+              className="w-full rounded-control bg-surface py-3.5 pl-11 pr-4 text-body-m shadow-card outline-none ring-1 ring-line placeholder:text-muted focus:ring-2 focus:ring-brand-dark"
             />
           </label>
         </div>
@@ -404,9 +405,9 @@ export const CustomerMenuPage: React.FC = () => {
                 key={c.id}
                 onClick={() => jumpTo(c.id)}
                 aria-current={activeCategory === c.id}
-                className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                className={`shrink-0 rounded-pill px-4 py-2 text-label-m transition-colors ${
                   activeCategory === c.id
-                    ? 'bg-ink text-white'
+                    ? 'bg-ink text-on-ink'
                     : 'bg-surface text-ink ring-1 ring-line hover:bg-surface-2'
                 }`}
               >
@@ -421,13 +422,13 @@ export const CustomerMenuPage: React.FC = () => {
           {menuLoading && <MenuSkeleton />}
 
           {menuError && !menuLoading && (
-            <div className="rounded-3xl bg-surface p-8 text-center shadow-card">
+            <div className="rounded-card bg-surface p-8 text-center shadow-card">
               <UtensilsCrossed className="mx-auto h-10 w-10 stroke-[1.25] text-line" aria-hidden />
               <h2 className="mt-3 font-display text-lg font-extrabold">The menu didn’t load</h2>
               <p className="mt-1 text-sm text-muted">This is on us, not you. Give it another try.</p>
               <button
                 onClick={() => refetchMenu()}
-                className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-ink px-5 py-3 text-sm font-bold text-white"
+                className="mt-4 inline-flex items-center gap-2 rounded-control bg-brand-dark px-5 py-3 text-label-m text-brand-fg"
               >
                 <RefreshCw className="h-4 w-4" aria-hidden /> Reload menu
               </button>
@@ -435,7 +436,7 @@ export const CustomerMenuPage: React.FC = () => {
           )}
 
           {!menuLoading && !menuError && totalItems === 0 && (
-            <div className="rounded-3xl bg-surface p-8 text-center shadow-card">
+            <div className="rounded-card bg-surface p-8 text-center shadow-card">
               <UtensilsCrossed className="mx-auto h-10 w-10 stroke-[1.25] text-line" aria-hidden />
               <h2 className="mt-3 font-display text-lg font-extrabold">Nothing on the menu yet</h2>
               <p className="mt-1 text-sm text-muted">
@@ -445,7 +446,7 @@ export const CustomerMenuPage: React.FC = () => {
           )}
 
           {!menuLoading && !menuError && totalItems > 0 && categories.length === 0 && (
-            <div className="rounded-3xl bg-surface p-8 text-center shadow-card">
+            <div className="rounded-card bg-surface p-8 text-center shadow-card">
               <Search className="mx-auto h-10 w-10 stroke-[1.25] text-line" aria-hidden />
               <h2 className="mt-3 font-display text-lg font-extrabold">No dishes match “{query}”</h2>
               <button onClick={() => setQuery('')} className="mt-4 text-sm font-bold text-brand underline">
@@ -472,13 +473,16 @@ export const CustomerMenuPage: React.FC = () => {
                   const line = cart.find((l) => l.productId === item.id);
                   const soldOut = item.available === false;
                   return (
+                    // DESIGN.md §6.11: unavailable items stay visible at 50%
+                    // opacity with an Unavailable identity chip and no add
+                    // control - not hidden, and not merely dimmed slightly.
                     <article
                       key={item.id}
                       className={`card-surface flex gap-3 p-3 transition-shadow ${
-                        soldOut ? 'opacity-90' : ''
+                        soldOut ? 'opacity-50' : ''
                       }`}
                     >
-                      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-canvas">
+                      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl2 bg-canvas">
                         {item.image ? (
                           <img
                             src={item.image}
@@ -491,52 +495,49 @@ export const CustomerMenuPage: React.FC = () => {
                             <UtensilsCrossed className="h-6 w-6 text-line" aria-hidden />
                           </div>
                         )}
-                        {soldOut && (
-                          <span className="absolute inset-x-0 bottom-0 bg-ink/85 py-1 text-center text-[10px] font-bold uppercase tracking-wider text-white">
-                            Sold out
-                          </span>
-                        )}
                       </div>
 
                       <div className="flex min-w-0 flex-1 flex-col justify-between">
                         <div>
-                          <h3 className="text-base font-bold leading-tight">{item.name}</h3>
+                          <h3 className="text-title-s leading-tight">{item.name}</h3>
                           {item.description && (
-                            <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted">{item.description}</p>
+                            <p className="mt-0.5 line-clamp-2 text-body-m leading-relaxed text-muted">{item.description}</p>
                           )}
                         </div>
                         <div className="mt-2 flex items-end justify-between gap-2">
-                          <span className="font-display text-base font-extrabold text-brand-dark tabular-nums">
+                          {/* brand-press, not brand-dark/brand: DESIGN.md §6.11
+                              and §3.1 - both of those fail AA at this size. */}
+                          <span className="font-display text-label-m text-brand-press [font-variant-numeric:tabular-nums]">
                             {Number(item.price).toLocaleString()}{' '}
-                            <span className="text-xs font-semibold text-muted">{currency}</span>
+                            <span className="text-label-s text-muted">{currency}</span>
                           </span>
 
                           {!isPhase2Enabled() ? null : soldOut ? (
-                            <span className="rounded-full bg-canvas px-3 py-1.5 text-xs font-semibold text-muted">
-                              Unavailable
-                            </span>
+                            <IdentityChip>Unavailable</IdentityChip>
                           ) : line ? (
-                            <div className="flex items-center gap-1 rounded-full bg-canvas p-1">
+                            <div className="flex items-center gap-1 rounded-pill bg-canvas p-1">
                               <button
                                 onClick={() => changeQty(item, -1)}
                                 aria-label={`Remove one ${item.name}`}
-                                className="flex h-9 w-9 items-center justify-center rounded-full bg-surface shadow-sm transition-transform active:scale-90"
+                                className="flex h-11 w-11 items-center justify-center rounded-pill bg-surface shadow-[var(--shadow-card)] transition-transform active:scale-90"
                               >
                                 <Minus className="h-4 w-4" aria-hidden />
                               </button>
-                              <span className="w-6 text-center text-sm font-extrabold tabular-nums">{line.quantity}</span>
+                              <span className="w-6 text-center text-label-m [font-variant-numeric:tabular-nums]">{line.quantity}</span>
                               <button
                                 onClick={() => changeQty(item, 1)}
                                 aria-label={`Add one ${item.name}`}
-                                className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-brand-fg transition-transform active:scale-90"
+                                className="flex h-11 w-11 items-center justify-center rounded-pill bg-brand-dark text-brand-fg transition-transform active:scale-90"
                               >
                                 <Plus className="h-4 w-4" aria-hidden />
                               </button>
                             </div>
                           ) : (
+                            // DESIGN.md §6.11: add control is brand-dark fill
+                            // with a brand-fg glyph, radius-pill, >=44.
                             <button
                               onClick={() => changeQty(item, 1)}
-                              className="flex items-center gap-1.5 rounded-full bg-ink px-4 py-2.5 text-sm font-bold text-white transition-transform active:scale-95"
+                              className="flex h-11 items-center gap-1.5 rounded-pill bg-brand-dark px-4 text-label-m text-brand-fg transition-transform active:scale-95"
                             >
                               <Plus className="h-4 w-4" aria-hidden /> Add
                             </button>
@@ -568,18 +569,18 @@ export const CustomerMenuPage: React.FC = () => {
           <div className="mx-auto max-w-2xl">
             <button
               onClick={() => setCartOpen(true)}
-              className="flex w-full items-center justify-between rounded-2xl bg-brand px-5 py-4 text-brand-fg shadow-lift transition-transform active:scale-[0.99]"
+              className="flex w-full items-center justify-between rounded-control bg-brand-dark px-5 py-4 text-brand-fg shadow-[var(--shadow-lift)] transition-transform active:scale-[0.99]"
             >
-              <span className="flex items-center gap-2.5 text-sm font-bold">
+              <span className="flex items-center gap-2.5 text-label-m">
                 <span key={bumpKey} className="relative flex animate-pop items-center">
                   <ShoppingCart className="h-5 w-5" aria-hidden />
-                  <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[11px] font-extrabold text-brand">
+                  <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-pill bg-surface px-1 text-label-s text-brand-press">
                     {cartCount}
                   </span>
                 </span>
                 Review order
               </span>
-              <span className="font-display text-base font-extrabold tabular-nums">
+              <span className="font-display text-label-m [font-variant-numeric:tabular-nums]">
                 {cartTotal.toLocaleString()} {currency}
               </span>
             </button>

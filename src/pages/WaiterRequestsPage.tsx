@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Bell, CheckCircle2, Clock, Radio, Table as TableIcon, RefreshCw } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Spinner, ErrorState } from '../components/ui/States';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { CountBadge } from '../components/ui/Chip';
 import { useAuth } from '../context/AuthContext';
 import { useWaiterTasks, useResolveRequest, useBranches } from '../hooks/useApiData';
 import { useWaiterStream } from '../hooks/useRealtime';
@@ -27,7 +30,7 @@ const ConnectionBadge: React.FC<{ status: string }> = ({ status }) => {
   return (
     <span
       role="status"
-      className={`inline-flex items-center gap-1.5 rounded-pill border px-3 py-1.5 text-xs font-bold uppercase tracking-wide ${map[status] || map.idle} ${
+      className={`inline-flex items-center gap-1.5 rounded-pill border px-3 py-1.5 text-label-s uppercase tracking-wide ${map[status] || map.idle} ${
         shout ? 'animate-breathe' : ''
       }`}
     >
@@ -90,7 +93,7 @@ export const WaiterRequestsPage: React.FC = () => {
                 aria-label="Branch"
                 value={effectiveBranchId ?? ''}
                 onChange={(e) => setBranchId(Number(e.target.value))}
-                className="rounded-xl border border-line bg-surface px-3 py-2 text-sm font-bold"
+                className="h-11 rounded-control border border-line bg-surface px-3 text-label-m text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark"
               >
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>
@@ -100,13 +103,10 @@ export const WaiterRequestsPage: React.FC = () => {
               </select>
             )}
           </div>
-          <button
-            onClick={() => refetch()}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-line bg-surface px-4 text-sm font-bold hover:bg-canvas"
-          >
+          <Button variant="secondary" onClick={() => refetch()}>
             <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} aria-hidden="true" />
             Refresh
-          </button>
+          </Button>
         </div>
 
         {isLoading ? (
@@ -115,22 +115,20 @@ export const WaiterRequestsPage: React.FC = () => {
           <ErrorState message={`Failed to load waiter tasks: ${(error as Error).message}`} />
         ) : (
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <section className="card-surface p-6 lg:col-span-2">
-              <h3 className="mb-4 flex items-center gap-2 text-base font-bold">
-                <Bell className="h-4 w-4 text-brand" aria-hidden="true" />
+            <Card compact className="lg:col-span-2">
+              <h3 className="mb-4 flex items-center gap-2 text-label-m text-ink">
+                <Bell className="h-4 w-4 text-brand-press" aria-hidden="true" />
                 Pending requests
-                <span className="ml-1 rounded-pill bg-brand-soft px-2.5 py-0.5 text-xs font-black text-brand-dark tabular-nums">
-                  {pending.length}
-                </span>
+                <CountBadge count={pending.length} />
                 {overdueCount > 0 && (
-                  <span className="rounded-pill bg-danger px-2.5 py-0.5 text-xs font-black text-white tabular-nums">
+                  <span className="rounded-pill bg-danger px-2.5 py-0.5 text-label-s text-white tabular-nums">
                     {overdueCount} overdue
                   </span>
                 )}
               </h3>
 
               {pending.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted">No pending customer requests.</p>
+                <p className="py-8 text-center text-body-m text-muted">No pending customer requests.</p>
               ) : (
                 <ul className="space-y-3">
                   {pending.map((req) => {
@@ -142,16 +140,16 @@ export const WaiterRequestsPage: React.FC = () => {
                       >
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="text-base font-bold">
+                            <span className="text-label-m text-ink">
                               {REQUEST_LABEL[req.requestType] || req.requestType}
                             </span>
                             <span
-                              className={`rounded-pill px-2 py-0.5 text-[11px] font-black uppercase tracking-wide tabular-nums ${URGENCY_BADGE[tier]}`}
+                              className={`rounded-pill px-2 py-0.5 text-label-s uppercase tracking-wide tabular-nums ${URGENCY_BADGE[tier]}`}
                             >
                               {waitedLabel(req.createdAt, now)}
                             </span>
                           </div>
-                          <div className="mt-1 flex items-center gap-2 text-sm text-muted">
+                          <div className="mt-1 flex items-center gap-2 text-body-m text-muted">
                             <TableIcon className="h-3.5 w-3.5" aria-hidden="true" />
                             <span className="tabular-nums">Table {req.tableId}</span>
                             <Clock className="ml-2 h-3.5 w-3.5" aria-hidden="true" />
@@ -159,74 +157,75 @@ export const WaiterRequestsPage: React.FC = () => {
                               {new Date(req.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           </div>
-                          {req.note && <p className="mt-1 text-sm italic text-muted">“{req.note}”</p>}
+                          {req.note && <p className="mt-1 text-body-m italic text-muted">&ldquo;{req.note}&rdquo;</p>}
                         </div>
                         {/* 56px targets: tapped fast, often with wet hands. */}
                         <div className="flex gap-2">
-                          <button
+                          <Button
+                            variant="secondary"
+                            size="lg"
                             disabled={resolveRequest.isPending}
                             onClick={() =>
                               resolveRequest.mutate({ requestId: req.id, status: 'ACKNOWLEDGED', merchantId })
                             }
-                            className="min-h-14 rounded-xl border border-line bg-surface px-4 text-sm font-bold hover:bg-canvas disabled:opacity-50"
                           >
                             Acknowledge
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            size="lg"
                             disabled={resolveRequest.isPending}
                             onClick={() =>
                               resolveRequest.mutate({ requestId: req.id, status: 'COMPLETED', merchantId })
                             }
-                            className="inline-flex min-h-14 items-center gap-1.5 rounded-xl bg-success px-4 text-sm font-bold text-white hover:brightness-95 disabled:opacity-50"
                           >
                             <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
                             Complete
-                          </button>
+                          </Button>
                         </div>
                       </li>
                     );
                   })}
                 </ul>
               )}
-            </section>
+            </Card>
 
             <div className="space-y-6">
-              <section className="card-surface p-6">
-                <h3 className="mb-4 flex items-center gap-2 text-base font-bold">
-                  <TableIcon className="h-4 w-4 text-brand" aria-hidden="true" />
+              <Card compact>
+                <h3 className="mb-4 flex items-center gap-2 text-label-m text-ink">
+                  <TableIcon className="h-4 w-4 text-brand-press" aria-hidden="true" />
                   My tables
                 </h3>
                 {assigned.length === 0 ? (
-                  <p className="text-sm text-muted">No active table assignments.</p>
+                  <p className="text-body-m text-muted">No active table assignments.</p>
                 ) : (
                   <div className="grid grid-cols-3 gap-2">
                     {assigned.map((a) => (
                       <div
                         key={a.assignmentId ?? `${a.tableId}`}
-                        className="rounded-xl border border-line bg-canvas p-3 text-center"
+                        className="rounded-control border border-line bg-canvas p-3 text-center"
                       >
-                        <div className="text-lg font-black tabular-nums">{a.tableNumber || `#${a.tableId}`}</div>
-                        <div className="text-[11px] font-bold uppercase tracking-wide text-muted">
+                        <div className="text-title-s text-ink tabular-nums">{a.tableNumber || `#${a.tableId}`}</div>
+                        <div className="text-label-s uppercase tracking-wide text-muted">
                           {a.shift || 'ACTIVE'}
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
-              </section>
+              </Card>
 
-              <section className="card-surface p-6">
-                <h3 className="mb-4 flex items-center gap-2 text-base font-bold">
+              <Card compact>
+                <h3 className="mb-4 flex items-center gap-2 text-label-m text-ink">
                   <Radio className="h-4 w-4 text-success" aria-hidden="true" />
                   Live alerts
                 </h3>
                 {events.length === 0 ? (
-                  <p className="text-sm text-muted">Waiting for real-time alerts…</p>
+                  <p className="text-body-m text-muted">Waiting for real-time alerts...</p>
                 ) : (
                   <ul className="max-h-72 space-y-2 overflow-y-auto">
                     {events.map((e) => (
-                      <li key={e.id} className="rounded-xl border border-line bg-canvas p-2.5 text-sm">
-                        <span className="font-black">{e.eventType}</span>
+                      <li key={e.id} className="rounded-control border border-line bg-canvas p-2.5 text-body-m">
+                        <span className="text-label-m text-ink">{e.eventType}</span>
                         <span className="ml-2 text-muted tabular-nums">
                           {new Date(e.receivedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
@@ -235,7 +234,7 @@ export const WaiterRequestsPage: React.FC = () => {
                     ))}
                   </ul>
                 )}
-              </section>
+              </Card>
             </div>
           </div>
         )}

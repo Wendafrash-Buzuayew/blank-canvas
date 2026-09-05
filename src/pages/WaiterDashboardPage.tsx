@@ -1,10 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Bell, CheckCircle2, Clock, Radio, Table as TableIcon, RefreshCw, UserCog, CookingPot, HandPlatter } from 'lucide-react';
+import { Bell, CheckCircle2, Clock, Radio, Table as TableIcon, RefreshCw, CookingPot, HandPlatter } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Spinner, ErrorState, EmptyState } from '../components/ui/States';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { StatusChip, CountBadge } from '../components/ui/Chip';
 import { useAuth } from '../context/AuthContext';
 import { useWaiterTasks, useResolveRequest, useBranches, useKitchenOrders } from '../hooks/useApiData';
 import { useWaiterStream } from '../hooks/useRealtime';
+import { ORDER_STATUS, type OrderStatus } from '../lib/orderStatus';
 import { URGENCY_BADGE, URGENCY_CARD, byLongestWaiting, urgencyOf, waitedLabel } from '../lib/urgency';
 
 const REQUEST_LABEL: Record<string, string> = {
@@ -19,6 +23,17 @@ const REQUEST_ICON: Record<string, React.ElementType> = {
   REQUEST_BILL: CheckCircle2,
 };
 
+/** DESIGN.md 3.7 order-status -> chip mapping, console register. */
+const ORDER_STATUS_CHIP: Record<OrderStatus, { status: 'info' | 'warn' | 'success' | 'neutral' | 'danger'; label: string }> = {
+  [ORDER_STATUS.PENDING]: { status: 'info', label: 'Received' },
+  [ORDER_STATUS.ACCEPTED]: { status: 'info', label: 'Received' },
+  [ORDER_STATUS.PREPARING]: { status: 'warn', label: 'Cooking' },
+  [ORDER_STATUS.READY]: { status: 'success', label: 'Ready' },
+  [ORDER_STATUS.DELIVERED]: { status: 'success', label: 'Served' },
+  [ORDER_STATUS.PAID]: { status: 'neutral', label: 'Paid' },
+  [ORDER_STATUS.CANCELLED]: { status: 'danger', label: 'Cancelled' },
+};
+
 const ConnectionBadge: React.FC<{ status: string }> = ({ status }) => {
   const map: Record<string, string> = {
     connected: 'bg-success-soft text-success border-success/30',
@@ -28,7 +43,7 @@ const ConnectionBadge: React.FC<{ status: string }> = ({ status }) => {
     idle: 'bg-canvas text-muted border-line',
   };
   return (
-    <span role="status" className={`inline-flex items-center gap-1.5 rounded-pill border px-3 py-1.5 text-xs font-bold uppercase tracking-wide ${map[status] || map.idle} ${
+    <span role="status" className={`inline-flex items-center gap-1.5 rounded-pill border px-3 py-1.5 text-label-s uppercase tracking-wide ${map[status] || map.idle} ${
       status !== 'connected' && status !== 'idle' ? 'animate-breathe' : ''
     }`}>
       <Radio className="h-3.5 w-3.5" aria-hidden="true" /> Live {status}
@@ -95,9 +110,10 @@ export const WaiterDashboardPage: React.FC = () => {
             <ConnectionBadge status={status} />
             {branches && branches.length > 0 && (
               <select
+                aria-label="Branch"
                 value={effectiveBranchId ?? ''}
                 onChange={(e) => setBranchId(Number(e.target.value))}
-                className="text-xs font-bold rounded-xl border border-line bg-surface px-3 py-2"
+                className="h-11 rounded-control border border-line bg-surface px-3 text-label-m text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark"
               >
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>{b.name}</option>
@@ -105,12 +121,9 @@ export const WaiterDashboardPage: React.FC = () => {
               </select>
             )}
           </div>
-          <button
-            onClick={() => refetch()}
-            className="inline-flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-lg border border-line bg-surface hover:bg-canvas"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} /> Refresh
-          </button>
+          <Button variant="secondary" onClick={() => refetch()}>
+            <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} aria-hidden="true" /> Refresh
+          </Button>
         </div>
 
         {isLoading ? (
@@ -120,11 +133,11 @@ export const WaiterDashboardPage: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Pending customer requests */}
-            <section className="lg:col-span-2 card-surface p-6">
-              <h3 className="flex items-center gap-2 text-sm font-bold text-ink mb-4">
-                <Bell className="w-4 h-4 text-brand" />
+            <Card compact className="lg:col-span-2">
+              <h3 className="flex items-center gap-2 text-label-m text-ink mb-4">
+                <Bell className="w-4 h-4 text-brand-press" aria-hidden="true" />
                 Customer Calls
-                <span className="ml-1 px-2 py-0.5 rounded-full bg-brand-soft text-brand-dark text-[10px] font-black">{pending.length}</span>
+                <CountBadge count={pending.length} />
               </h3>
 
               {pending.length === 0 ? (
@@ -137,108 +150,112 @@ export const WaiterDashboardPage: React.FC = () => {
                     return (
                       <li key={req.id} className={`flex flex-wrap items-center justify-between gap-3 rounded-card border p-4 ${URGENCY_CARD[tier]}`}>
                         <div className="flex items-center gap-3">
-                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface text-brand">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control bg-surface text-brand-press">
                             <Icon className="h-5 w-5" aria-hidden="true" />
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="text-base font-black">{REQUEST_LABEL[req.requestType] || req.requestType}</span>
-                              <span className={`rounded-pill px-2 py-0.5 text-[11px] font-black uppercase tracking-wide tabular-nums ${URGENCY_BADGE[tier]}`}>
+                              <span className="text-label-m text-ink">{REQUEST_LABEL[req.requestType] || req.requestType}</span>
+                              <span className={`rounded-pill px-2 py-0.5 text-label-s uppercase tracking-wide tabular-nums ${URGENCY_BADGE[tier]}`}>
                                 {waitedLabel(req.createdAt, now)}
                               </span>
                             </div>
-                            <div className="text-[11px] text-muted flex items-center gap-2 mt-0.5">
-                              <TableIcon className="w-3 h-3" /> Table #{req.tableId}
-                              <Clock className="w-3 h-3 ml-2" /> {new Date(req.createdAt).toLocaleTimeString()}
+                            <div className="text-label-s text-muted flex items-center gap-2 mt-0.5">
+                              <TableIcon className="w-3 h-3" aria-hidden="true" /> Table #{req.tableId}
+                              <Clock className="w-3 h-3 ml-2" aria-hidden="true" /> {new Date(req.createdAt).toLocaleTimeString()}
                             </div>
-                            {req.note && <p className="text-[11px] text-muted mt-1 italic">“{req.note}”</p>}
+                            {req.note && <p className="text-label-s text-muted mt-1 italic">&ldquo;{req.note}&rdquo;</p>}
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <button
+                          <Button
+                            variant="secondary"
+                            size="lg"
                             disabled={resolveRequest.isPending}
                             onClick={() => resolveRequest.mutate({ requestId: req.id, status: 'ACKNOWLEDGED', merchantId })}
-                            className="min-h-14 rounded-xl border border-line bg-surface px-4 text-sm font-bold hover:bg-canvas disabled:opacity-50"
                           >
                             Acknowledge
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            size="lg"
                             disabled={resolveRequest.isPending}
                             onClick={() => resolveRequest.mutate({ requestId: req.id, status: 'COMPLETED', merchantId })}
-                            className="inline-flex min-h-14 items-center gap-1.5 rounded-xl bg-success px-4 text-sm font-bold text-white hover:brightness-95 disabled:opacity-50"
                           >
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Complete
-                          </button>
+                            <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" /> Complete
+                          </Button>
                         </div>
                       </li>
                     );
                   })}
                 </ul>
               )}
-            </section>
+            </Card>
 
             {/* Right column */}
             <div className="space-y-6">
               {/* Assigned tables */}
-              <section className="card-surface p-6">
-                <h3 className="flex items-center gap-2 text-sm font-bold text-ink mb-4">
-                  <TableIcon className="w-4 h-4 text-brand" /> My Tables
+              <Card compact>
+                <h3 className="flex items-center gap-2 text-label-m text-ink mb-4">
+                  <TableIcon className="w-4 h-4 text-brand-press" aria-hidden="true" /> My Tables
                 </h3>
                 {assigned.length === 0 ? (
-                  <p className="text-xs text-muted">No active table assignments. A manager will assign tables to you.</p>
+                  <p className="text-body-m text-muted">No active table assignments. A manager will assign tables to you.</p>
                 ) : (
                   <div className="grid grid-cols-2 gap-2">
                     {assigned.map((a) => (
-                      <div key={a.assignmentId ?? `${a.tableId}`} className="p-3 rounded-xl border border-line bg-canvas text-center">
-                        <div className="text-sm font-black text-ink">{a.tableNumber || `#${a.tableId}`}</div>
-                        <div className="text-[10px] text-muted font-bold">{a.shift || 'ACTIVE'}</div>
+                      <div key={a.assignmentId ?? `${a.tableId}`} className="p-3 rounded-control border border-line bg-canvas text-center">
+                        <div className="text-label-m text-ink tabular-nums">{a.tableNumber || `#${a.tableId}`}</div>
+                        <div className="text-label-s text-muted">{a.shift || 'ACTIVE'}</div>
                       </div>
                     ))}
                   </div>
                 )}
-              </section>
+              </Card>
 
               {/* My table orders */}
-              <section className="card-surface p-6">
-                <h3 className="flex items-center gap-2 text-sm font-bold text-ink mb-4">
-                  <CookingPot className="w-4 h-4 text-warn" /> Active Table Orders
+              <Card compact>
+                <h3 className="flex items-center gap-2 text-label-m text-ink mb-4">
+                  <CookingPot className="w-4 h-4 text-warn" aria-hidden="true" /> Active Table Orders
                 </h3>
                 {myOrders.length === 0 ? (
-                  <p className="text-xs text-muted">No active orders on your assigned tables.</p>
+                  <p className="text-body-m text-muted">No active orders on your assigned tables.</p>
                 ) : (
                   <ul className="space-y-2">
-                    {myOrders.map((o) => (
-                      <li key={o.id} className="rounded-xl border border-line bg-canvas p-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-black text-ink">Table {o.tableNumber || o.tableId}</span>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{o.status}</span>
-                        </div>
-                        <div className="text-[11px] text-muted mt-1">#{o.orderNumber} · {o.items?.reduce((n, i) => n + i.quantity, 0)} items</div>
-                      </li>
-                    ))}
+                    {myOrders.map((o) => {
+                      const chip = ORDER_STATUS_CHIP[o.status as OrderStatus] ?? { status: 'neutral' as const, label: o.status };
+                      return (
+                        <li key={o.id} className="rounded-control border border-line bg-canvas p-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-label-m text-ink tabular-nums">Table {o.tableNumber || o.tableId}</span>
+                            <StatusChip status={chip.status}>{chip.label}</StatusChip>
+                          </div>
+                          <div className="text-label-s text-muted mt-1">#{o.orderNumber} - {o.items?.reduce((n, i) => n + i.quantity, 0)} items</div>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
-              </section>
+              </Card>
 
               {/* Live alerts */}
-              <section className="card-surface p-6">
-                <h3 className="flex items-center gap-2 text-sm font-bold text-ink mb-4">
+              <Card compact>
+                <h3 className="flex items-center gap-2 text-label-m text-ink mb-4">
                   <Radio className="h-4 w-4 text-success" aria-hidden="true" /> Live alerts
                 </h3>
                 {events.length === 0 ? (
-                  <p className="text-xs text-muted">Waiting for real-time alerts…</p>
+                  <p className="text-body-m text-muted">Waiting for real-time alerts...</p>
                 ) : (
                   <ul className="space-y-2 max-h-64 overflow-y-auto">
                     {events.map((e) => (
-                      <li key={e.id} className="rounded-xl border border-line bg-canvas p-2.5 text-sm">
-                        <span className="font-black text-ink">{e.eventType}</span>
-                        <span className="text-muted ml-2">{new Date(e.receivedAt).toLocaleTimeString()}</span>
+                      <li key={e.id} className="rounded-control border border-line bg-canvas p-2.5 text-body-m">
+                        <span className="text-label-m text-ink">{e.eventType}</span>
+                        <span className="text-muted ml-2 tabular-nums">{new Date(e.receivedAt).toLocaleTimeString()}</span>
                         {e.payload?.message && <p className="text-muted mt-0.5">{e.payload.message}</p>}
                       </li>
                     ))}
                   </ul>
                 )}
-              </section>
+              </Card>
             </div>
           </div>
         )}

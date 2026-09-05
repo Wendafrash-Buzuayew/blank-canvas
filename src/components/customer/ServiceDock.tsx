@@ -35,7 +35,7 @@ export const ServiceDock: React.FC<Props> = ({ onRequest, pending, sentType, fai
               setOpen(false);
             }}
             disabled={pending}
-            className="animate-rise flex items-center gap-2 rounded-full bg-surface py-2.5 pl-3 pr-4 text-sm font-semibold shadow-card ring-1 ring-line disabled:opacity-60"
+            className="animate-rise flex items-center gap-2 rounded-pill bg-surface py-2.5 pl-3 pr-4 text-label-m text-ink shadow-card ring-1 ring-line disabled:opacity-60"
           >
             <Icon className="h-4 w-4 text-brand" aria-hidden />
             {label}
@@ -46,8 +46,8 @@ export const ServiceDock: React.FC<Props> = ({ onRequest, pending, sentType, fai
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-label={open ? 'Close service requests' : 'Request service'}
-        className={`flex h-12 w-12 items-center justify-center rounded-full shadow-lift transition-transform active:scale-90 ${
-          open ? 'bg-ink text-white' : 'bg-surface text-ink ring-1 ring-line'
+        className={`flex h-12 w-12 items-center justify-center rounded-pill shadow-[var(--shadow-lift)] transition-transform active:scale-90 ${
+          open ? 'bg-ink text-on-ink' : 'bg-surface text-ink ring-1 ring-line'
         }`}
       >
         {pending ? (
@@ -62,14 +62,14 @@ export const ServiceDock: React.FC<Props> = ({ onRequest, pending, sentType, fai
       {sentType && !open && (
         <div
           role="status"
-          className="animate-rise flex items-center gap-1.5 rounded-full bg-success-soft px-3 py-1.5 text-[11px] font-semibold text-success"
+          className="animate-rise flex items-center gap-1.5 rounded-pill bg-success-soft px-3 py-1.5 text-label-s text-ink"
         >
-          <Check className="h-3.5 w-3.5" aria-hidden />
+          <Check className="h-3.5 w-3.5 text-success" aria-hidden />
           Waiter notified
         </div>
       )}
       {failed && !open && (
-        <div role="status" className="rounded-full bg-danger-soft px-3 py-1.5 text-[11px] font-semibold text-danger">
+        <div role="status" className="rounded-pill bg-danger-soft px-3 py-1.5 text-label-s text-ink">
           Couldn’t send — tap to retry
         </div>
       )}

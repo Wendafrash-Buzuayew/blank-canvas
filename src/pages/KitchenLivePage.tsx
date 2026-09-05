@@ -90,7 +90,7 @@ export const KitchenLivePage: React.FC = () => {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <span
-                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-base font-bold uppercase tracking-wide ${
+                className={`inline-flex items-center gap-2 rounded-pill px-4 py-2 text-base font-bold uppercase tracking-wide ${
                   live ? 'bg-kds-ready text-kds-fg' : 'bg-kds-new text-kds-fg animate-breathe'
                 }`}
               >
@@ -102,7 +102,7 @@ export const KitchenLivePage: React.FC = () => {
                   aria-label="Branch"
                   value={effectiveBranchId ?? ''}
                   onChange={(e) => setBranchId(Number(e.target.value))}
-                  className="rounded-xl border border-kds-line bg-kds-panel px-4 py-2 text-base font-bold text-white"
+                  className="rounded-control border border-kds-line bg-kds-panel px-4 py-2 text-base font-bold text-white"
                 >
                   {branches.map((b) => (
                     <option key={b.id} value={b.id}>
@@ -114,7 +114,7 @@ export const KitchenLivePage: React.FC = () => {
             </div>
             <button
               onClick={() => refetch()}
-              className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-kds-line bg-kds-panel px-4 text-base font-bold text-white hover:brightness-125"
+              className="inline-flex min-h-12 items-center gap-2 rounded-control border border-kds-line bg-kds-panel px-4 text-base font-bold text-white hover:brightness-125"
             >
               <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} aria-hidden="true" /> Refresh
             </button>
@@ -130,13 +130,13 @@ export const KitchenLivePage: React.FC = () => {
                 <section className="rounded-card border border-kds-line bg-kds-panel p-4">
                   <h3 className="mb-3 flex items-center gap-2 text-lg font-black uppercase tracking-wide text-kds-prep">
                     <Bell className="h-5 w-5" aria-hidden="true" /> Customer calls
-                    <span className="ml-auto rounded-full bg-kds-prep px-3 py-0.5 text-base font-black text-kds-fg">
+                    <span className="ml-auto rounded-pill bg-kds-prep px-3 py-0.5 text-base font-black text-kds-fg">
                       {pendingRequests.length}
                     </span>
                   </h3>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {pendingRequests.map((req) => (
-                      <div key={req.id} className="rounded-xl border border-kds-line bg-kds-bg p-4">
+                      <div key={req.id} className="rounded-[var(--radius-surface-sm)] border border-kds-line bg-kds-bg p-4">
                         <div className="flex items-baseline justify-between gap-2">
                           <span className="text-xl font-black">
                             {req.requestType === 'CALL_WAITER'
@@ -155,7 +155,7 @@ export const KitchenLivePage: React.FC = () => {
                             resolveRequest.mutate({ requestId: req.id, status: 'COMPLETED', merchantId: merchantId ?? undefined })
                           }
                           disabled={resolveRequest.isPending}
-                          className="mt-3 min-h-16 w-full rounded-xl bg-kds-ready text-lg font-black text-kds-fg disabled:opacity-50"
+                          className="mt-3 min-h-16 w-full rounded-control bg-kds-ready text-lg font-black text-kds-fg disabled:opacity-50"
                         >
                           <CheckCircle2 className="mr-2 inline h-5 w-5" aria-hidden="true" /> Done
                         </button>
@@ -181,23 +181,24 @@ export const KitchenLivePage: React.FC = () => {
                         {tickets.map((order) => (
                           <article key={order.id} className={`kds-ticket ${col.fill} p-4`}>
                             <div className="flex items-baseline justify-between gap-2">
-                              <span className="text-4xl font-black leading-none tabular-nums">
+                              {/* Table number is the largest thing on the ticket (DESIGN.md 6.10). */}
+                              <span className="text-kds-number leading-none">
                                 {order.tableNumber || order.tableId}
                               </span>
-                              <span className="flex items-center gap-1 text-base font-bold tabular-nums">
+                              <span className="flex items-center gap-1 text-kds-meta">
                                 <Clock className="h-4 w-4" aria-hidden="true" />
                                 {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </span>
                             </div>
-                            <div className="mt-1 text-base font-semibold opacity-80 tabular-nums">
+                            <div className="mt-1 text-kds-meta opacity-80">
                               #{order.orderNumber}
                               {order.customerName ? ` · ${order.customerName}` : ''}
                             </div>
                             <ul className="mt-3 space-y-1">
                               {order.items?.map((it, i) => (
-                                <li key={i} className="text-2xl font-bold leading-tight">
+                                <li key={i} className="text-kds-item leading-tight">
                                   <span className="tabular-nums">{it.quantity}×</span> {it.productName}
-                                  {it.notes && <span className="block text-lg font-medium italic opacity-70">{it.notes}</span>}
+                                  {it.notes && <span className="block text-kds-meta font-medium italic opacity-70">{it.notes}</span>}
                                 </li>
                               ))}
                             </ul>
@@ -205,7 +206,7 @@ export const KitchenLivePage: React.FC = () => {
                               <button
                                 disabled={updateStatus.isPending}
                                 onClick={() => updateStatus.mutate({ id: order.id, status: col.next! })}
-                                className="mt-4 min-h-16 w-full rounded-xl bg-kds-fg text-xl font-black text-white disabled:opacity-50"
+                                className="mt-4 min-h-16 w-full rounded-control bg-kds-fg text-kds-action text-white disabled:opacity-50"
                               >
                                 {col.nextLabel ?? col.next}
                               </button>
