@@ -58,7 +58,11 @@ export const AppRouter: React.FC = () => {
         <Routes>
           {/* ===== Public Routes ===== */}
           <Route path="/" element={<LandingPage
-            onStartCustomerDemo={() => { window.location.href = '/menu/demo/main/1'; }}
+            // /menu/demo/main/1 pointed at the parked table-scoped ordering
+            // route with a merchant slug ("demo") that never existed - the
+            // real Phase 1 customer experience is the path-based digital
+            // menu, and this is the one seeded merchant it can demo.
+            onStartCustomerDemo={() => { window.location.href = '/m/sunrise-coffee'; }}
             onStartMerchantDemo={() => { window.location.href = '/login'; }}
             onBookDemo={() => alert('Demo booking request sent! We will contact you at wendebuzu@gmail.com')}
           />} />

@@ -1,21 +1,17 @@
 import React from 'react';
-import { 
-  QrCode, 
-  Smartphone, 
-  ChefHat, 
-  Table as TableIcon, 
-  Printer, 
-  BarChart3, 
-  Building2, 
-  CheckCircle2, 
-  ArrowRight, 
-  Sparkles, 
-  Flame, 
-  ShieldCheck,
-  Zap,
-  Clock,
-  DollarSign
+import {
+  QrCode,
+  Smartphone,
+  ChefHat,
+  Table as TableIcon,
+  Printer,
+  BarChart3,
+  Building2,
+  Sparkles,
 } from 'lucide-react';
+import { Button } from '../ui/Button';
+import { Card } from '../ui/Card';
+import { IdentityChip } from '../ui/Chip';
 
 interface LandingPageProps {
   onStartCustomerDemo: () => void;
@@ -23,205 +19,140 @@ interface LandingPageProps {
   onBookDemo: () => void;
 }
 
+const FEATURES = [
+  { icon: QrCode, iconClass: 'bg-brand-soft text-brand-press', title: 'Smart QR Menus', body: 'Customers point their phone camera to instantly view interactive digital menus with appetizing photos, filter tags, and dietary options without downloading an app.' },
+  { icon: ChefHat, iconClass: 'bg-warn-soft text-warn', title: 'Real-Time Kitchen Orders', body: 'Orders land instantly on the kitchen display board (KDS) with table identification, exact quantities, special customer notes, and prep timer alerts.' },
+  { icon: Printer, iconClass: 'bg-success-soft text-success', title: 'Printable QR Stand Designer', body: 'Customize brand colors, logo overlays, and call-to-actions. Export vector SVGs, PNGs, or print-ready 4x6" acrylic table stand templates in seconds.' },
+  { icon: TableIcon, iconClass: 'bg-info-soft text-info', title: 'Table & Floor Management', body: 'Organize multiple branches, floors, and VIP sections. Assign unique QR links per table so the kitchen knows exactly where to deliver meals.' },
+  { icon: BarChart3, iconClass: 'bg-info-soft text-info', title: 'Analytics Dashboard', body: 'Track daily sales volume, peak ordering hours, bestselling dishes, table turnover speed, and customer order notes.' },
+  { icon: Building2, iconClass: 'bg-danger-soft text-danger', title: 'Multi-Branch & Multi-Tenant', body: 'Expand effortlessly from single coffee shops to hotel chains with role-based staff permissions for Cashiers, Waiters, and Managers.' },
+];
+
 export const LandingPage: React.FC<LandingPageProps> = ({
   onStartCustomerDemo,
   onStartMerchantDemo,
   onBookDemo,
 }) => {
   return (
-    <div className="space-y-16 pb-16">
-
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-gray-900 via-gray-950 to-black text-white py-20 px-4 sm:px-6 lg:px-8 rounded-3xl shadow-2xl">
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#E60028_1px,transparent_1px)] [background-size:16px_16px]" />
-        
-        <div className="relative max-w-4xl mx-auto text-center space-y-6">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/20 text-xs font-bold text-amber-300 backdrop-blur-md">
-            <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
-            <span>Next-Gen Smart QR Menu & Order Management Platform</span>
+    <div className="space-y-20 pb-16">
+      {/* Hero - DESIGN.md 4.2: display-xl is landing-hero-only. Dark ground
+          uses only the measured-safe on-ink / on-ink-muted pair; the four
+          stat callouts differentiate by icon and position, not by four
+          unverified hues on a dark background. */}
+      <section className="relative overflow-hidden rounded-card bg-ink-gradient px-4 py-16 text-on-ink shadow-[var(--shadow-lift)] sm:px-6 sm:py-20 lg:px-8">
+        <div className="relative mx-auto max-w-4xl space-y-6 text-center">
+          <div className="inline-flex items-center gap-2 rounded-pill border border-white/20 bg-white/10 px-3.5 py-1.5 text-label-s text-on-ink backdrop-blur-md">
+            <Sparkles className="h-4 w-4 text-brand" aria-hidden="true" />
+            <span>Next-Gen Smart QR Menu &amp; Order Management Platform</span>
           </div>
 
-          <h1 className="text-4xl sm:text-6xl font-black tracking-tight leading-tight">
-            Transform Your Restaurant with <span className="bg-gradient-to-r from-[#E60028] via-amber-400 to-[#FF4D6D] bg-clip-text text-transparent">Smart QR Menus</span>
+          <h1 className="font-display text-display-l tracking-tight sm:text-display-xl">
+            Transform Your Restaurant with <span className="text-brand-gradient">Smart QR Menus</span>
           </h1>
 
-          <p className="text-base sm:text-lg text-gray-300 max-w-2xl mx-auto font-medium leading-relaxed">
-            Create menus, generate table QR codes, receive real-time kitchen orders, and print acrylic stands — all from one unified platform.
+          <p className="mx-auto max-w-2xl text-body-l text-on-ink-muted">
+            Create menus, generate table QR codes, receive real-time kitchen orders, and print acrylic stands - all from one unified platform.
           </p>
 
-          <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button
-              onClick={onStartCustomerDemo}
-              className="w-full sm:w-auto px-8 py-4 bg-[#E60028] hover:bg-[#CC0024] text-white font-extrabold text-sm rounded-2xl shadow-xl shadow-red-500/30 flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5"
-            >
-              <Smartphone className="w-5 h-5" />
-              Try Customer QR Menu (Scan Simulation)
-            </button>
-
-            <button
-              onClick={onStartMerchantDemo}
-              className="w-full sm:w-auto px-8 py-4 bg-white text-gray-900 hover:bg-gray-100 font-extrabold text-sm rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5"
-            >
-              <ChefHat className="w-5 h-5 text-[#E60028]" />
+          <div className="flex flex-col items-center justify-center gap-4 pt-4 sm:flex-row">
+            <Button onClick={onStartCustomerDemo} size="lg" fullWidth className="sm:w-auto">
+              <Smartphone className="h-5 w-5" aria-hidden="true" />
+              Try Customer QR Menu
+            </Button>
+            <Button onClick={onStartMerchantDemo} variant="secondary" size="lg" fullWidth className="sm:w-auto !bg-surface">
+              <ChefHat className="h-5 w-5 text-brand-press" aria-hidden="true" />
               Merchant Portal Demo
-            </button>
+            </Button>
           </div>
 
-          {/* Key Metrics Banner */}
-          <div className="pt-10 grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-3xl mx-auto text-left">
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
-              <div className="text-2xl font-black text-amber-400">0s</div>
-              <div className="text-xs text-gray-400">App Download Needed</div>
-            </div>
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
-              <div className="text-2xl font-black text-red-400">3x</div>
-              <div className="text-xs text-gray-400">Faster Table Turnover</div>
-            </div>
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
-              <div className="text-2xl font-black text-emerald-400">+25%</div>
-              <div className="text-xs text-gray-400">Avg Order Value Increase</div>
-            </div>
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
-              <div className="text-2xl font-black text-indigo-400">100%</div>
-              <div className="text-xs text-gray-400">Real-Time Kitchen Sync</div>
-            </div>
+          <div className="mx-auto grid max-w-3xl grid-cols-2 gap-4 pt-10 text-left sm:grid-cols-4">
+            {[
+              { value: '0s', label: 'App Download Needed' },
+              { value: '3x', label: 'Faster Table Turnover' },
+              { value: '+25%', label: 'Avg Order Value Increase' },
+              { value: '100%', label: 'Real-Time Kitchen Sync' },
+            ].map((stat) => (
+              <div key={stat.label} className="rounded-card border border-white/10 bg-white/5 p-4 backdrop-blur-md">
+                <div className="text-title-l text-on-ink [font-variant-numeric:tabular-nums]">{stat.value}</div>
+                <div className="text-label-s text-on-ink-muted">{stat.label}</div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Value Proposition Grid */}
-      <section className="space-y-8 max-w-6xl mx-auto px-4">
-        <div className="text-center space-y-2">
-          <span className="text-xs font-black uppercase text-[#E60028] tracking-widest">Platform Capabilities</span>
-          <h2 className="text-3xl font-black text-gray-900">One QR. One Table. One Seamless Experience.</h2>
-          <p className="text-sm text-gray-500 max-w-xl mx-auto">
+      {/* Value proposition grid */}
+      <section className="mx-auto max-w-6xl space-y-8 px-4">
+        <div className="space-y-2 text-center">
+          <span className="text-label-s uppercase tracking-widest text-brand-press">Platform Capabilities</span>
+          <h2 className="font-display text-display-l text-ink">One QR. One Table. One Seamless Experience.</h2>
+          <p className="mx-auto max-w-xl text-body-m text-muted">
             Everything your restaurant, cafe, bar, or hotel needs to digitize dining operations.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          
-          <div className="p-6 rounded-3xl bg-white border border-gray-100 shadow-xs hover:shadow-xl transition-shadow space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-red-50 text-[#E60028] flex items-center justify-center">
-              <QrCode className="w-6 h-6" />
-            </div>
-            <h3 className="font-extrabold text-lg text-gray-900">Smart QR Menus</h3>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Customers point their phone camera to instantly view interactive digital menus with appetizing photos, filter tags, and dietary options without downloading an app.
-            </p>
-          </div>
-
-          <div className="p-6 rounded-3xl bg-white border border-gray-100 shadow-xs hover:shadow-xl transition-shadow space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
-              <ChefHat className="w-6 h-6" />
-            </div>
-            <h3 className="font-extrabold text-lg text-gray-900">Real-Time Kitchen Orders</h3>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Orders land instantly on the kitchen display board (KDS) with table identification, exact quantities, special customer notes, and prep timer alerts.
-            </p>
-          </div>
-
-          <div className="p-6 rounded-3xl bg-white border border-gray-100 shadow-xs hover:shadow-xl transition-shadow space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <Printer className="w-6 h-6" />
-            </div>
-            <h3 className="font-extrabold text-lg text-gray-900">Printable QR Stand Designer</h3>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Customize brand colors, logo overlays, and call-to-actions. Export vector SVGs, PNGs, or print-ready 4x6" acrylic table stand templates in seconds.
-            </p>
-          </div>
-
-          <div className="p-6 rounded-3xl bg-white border border-gray-100 shadow-xs hover:shadow-xl transition-shadow space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-              <TableIcon className="w-6 h-6" />
-            </div>
-            <h3 className="font-extrabold text-lg text-gray-900">Table & Floor Management</h3>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Organize multiple branches, floors, and VIP sections. Assign unique QR links per table so the kitchen knows exactly where to deliver meals.
-            </p>
-          </div>
-
-          <div className="p-6 rounded-3xl bg-white border border-gray-100 shadow-xs hover:shadow-xl transition-shadow space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
-              <BarChart3 className="w-6 h-6" />
-            </div>
-            <h3 className="font-extrabold text-lg text-gray-900">Analytics Dashboard</h3>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Track daily sales volume, peak ordering hours, bestselling dishes, table turnover speed, and customer order notes.
-            </p>
-          </div>
-
-          <div className="p-6 rounded-3xl bg-white border border-gray-100 shadow-xs hover:shadow-xl transition-shadow space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
-              <Building2 className="w-6 h-6" />
-            </div>
-            <h3 className="font-extrabold text-lg text-gray-900">Multi-Branch & Multi-Tenant</h3>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Expand effortlessly from single coffee shops to hotel chains with role-based staff permissions for Cashiers, Waiters, and Managers.
-            </p>
-          </div>
-
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          {FEATURES.map((feature) => (
+            <Card key={feature.title} interactive className="space-y-4">
+              <div className={`flex h-12 w-12 items-center justify-center rounded-[var(--radius-xl2)] ${feature.iconClass}`}>
+                <feature.icon className="h-6 w-6" aria-hidden="true" />
+              </div>
+              <h3 className="text-title-s text-ink">{feature.title}</h3>
+              <p className="text-body-m text-muted">{feature.body}</p>
+            </Card>
+          ))}
         </div>
       </section>
 
-      {/* Simple Pricing Section */}
-      <section className="max-w-5xl mx-auto px-4 text-center space-y-8">
+      {/* Pricing */}
+      <section className="mx-auto max-w-5xl space-y-8 px-4 text-center">
         <div className="space-y-2">
-          <span className="text-xs font-black uppercase text-[#E60028] tracking-widest">Pricing Plans</span>
-          <h2 className="text-3xl font-black text-gray-900">Transparent Plans for Every Business</h2>
+          <span className="text-label-s uppercase tracking-widest text-brand-press">Pricing Plans</span>
+          <h2 className="font-display text-display-l text-ink">Transparent Plans for Every Business</h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-          
-          <div className="p-6 rounded-3xl bg-white border border-gray-200 shadow-xs space-y-4">
-            <span className="text-xs font-bold text-gray-400 uppercase">Starter Free</span>
-            <div className="text-3xl font-black text-gray-900">$0 <span className="text-xs font-normal text-gray-500">/ forever</span></div>
-            <p className="text-xs text-gray-500">Perfect for small pop-ups & coffee corners.</p>
-            <ul className="text-xs text-gray-600 space-y-2 border-t pt-3">
-              <li className="flex items-center gap-2">✓ Up to 5 Tables</li>
-              <li className="flex items-center gap-2">✓ Basic Menu Builder</li>
-              <li className="flex items-center gap-2">✓ Standard QR Code Export</li>
+        <div className="grid grid-cols-1 gap-6 text-left md:grid-cols-3">
+          <Card className="space-y-4">
+            <IdentityChip>Starter Free</IdentityChip>
+            <div className="text-title-l text-ink [font-variant-numeric:tabular-nums]">$0 <span className="text-body-m font-normal text-muted">/ forever</span></div>
+            <p className="text-body-m text-muted">Perfect for small pop-ups &amp; coffee corners.</p>
+            <ul className="space-y-2 border-t border-line pt-3 text-body-m text-ink">
+              <li>&#10003; Up to 5 Tables</li>
+              <li>&#10003; Basic Menu Builder</li>
+              <li>&#10003; Standard QR Code Export</li>
             </ul>
-            <button onClick={onStartMerchantDemo} className="w-full py-3 bg-gray-900 text-white font-bold text-xs rounded-xl">
-              Start Free
-            </button>
-          </div>
+            <Button onClick={onStartMerchantDemo} variant="secondary" fullWidth>Start Free</Button>
+          </Card>
 
-          <div className="p-6 rounded-3xl bg-white border-2 border-[#E60028] shadow-xl space-y-4 relative">
-            <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-[#E60028] text-white text-[10px] font-black rounded-full uppercase">
+          <Card className="relative space-y-4 border-2 !border-brand-dark shadow-[var(--shadow-lift)]">
+            <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-pill bg-brand-dark px-3 py-1 text-label-s uppercase text-brand-fg">
               Most Popular
             </span>
-            <span className="text-xs font-bold text-[#E60028] uppercase">Standard SaaS</span>
-            <div className="text-3xl font-black text-gray-900">$29 <span className="text-xs font-normal text-gray-500">/ month</span></div>
-            <p className="text-xs text-gray-500">Ideal for busy restaurants & bars.</p>
-            <ul className="text-xs text-gray-600 space-y-2 border-t pt-3">
-              <li className="flex items-center gap-2">✓ Up to 50 Tables</li>
-              <li className="flex items-center gap-2">✓ Real-time Kitchen Board (KDS)</li>
-              <li className="flex items-center gap-2">✓ QR Stand Studio Customizer</li>
-              <li className="flex items-center gap-2">✓ Sales Analytics & PDF Export</li>
+            <span className="text-label-s uppercase text-brand-press">Standard SaaS</span>
+            <div className="text-title-l text-ink [font-variant-numeric:tabular-nums]">$29 <span className="text-body-m font-normal text-muted">/ month</span></div>
+            <p className="text-body-m text-muted">Ideal for busy restaurants &amp; bars.</p>
+            <ul className="space-y-2 border-t border-line pt-3 text-body-m text-ink">
+              <li>&#10003; Up to 50 Tables</li>
+              <li>&#10003; Real-time Kitchen Board (KDS)</li>
+              <li>&#10003; QR Stand Studio Customizer</li>
+              <li>&#10003; Sales Analytics &amp; PDF Export</li>
             </ul>
-            <button onClick={onStartMerchantDemo} className="w-full py-3 bg-[#E60028] text-white font-bold text-xs rounded-xl shadow-md">
-              Launch Merchant Trial
-            </button>
-          </div>
+            <Button onClick={onStartMerchantDemo} fullWidth>Launch Merchant Trial</Button>
+          </Card>
 
-          <div className="p-6 rounded-3xl bg-white border border-gray-200 shadow-xs space-y-4">
-            <span className="text-xs font-bold text-gray-400 uppercase">Enterprise</span>
-            <div className="text-3xl font-black text-gray-900">Custom</div>
-            <p className="text-xs text-gray-500">For hotel chains & large franchises.</p>
-            <ul className="text-xs text-gray-600 space-y-2 border-t pt-3">
-              <li className="flex items-center gap-2">✓ Unlimited Tables & Branches</li>
-              <li className="flex items-center gap-2">✓ POS & M-PESA Integration</li>
-              <li className="flex items-center gap-2">✓ White-Label Domain</li>
+          <Card className="space-y-4">
+            <IdentityChip>Enterprise</IdentityChip>
+            <div className="text-title-l text-ink">Custom</div>
+            <p className="text-body-m text-muted">For hotel chains &amp; large franchises.</p>
+            <ul className="space-y-2 border-t border-line pt-3 text-body-m text-ink">
+              <li>&#10003; Unlimited Tables &amp; Branches</li>
+              <li>&#10003; POS &amp; M-PESA Integration</li>
+              <li>&#10003; White-Label Domain</li>
             </ul>
-            <button onClick={onBookDemo} className="w-full py-3 bg-gray-100 text-gray-900 font-bold text-xs rounded-xl">
-              Book Demo
-            </button>
-          </div>
-
+            <Button onClick={onBookDemo} variant="secondary" fullWidth>Book Demo</Button>
+          </Card>
         </div>
       </section>
-
     </div>
   );
 };
