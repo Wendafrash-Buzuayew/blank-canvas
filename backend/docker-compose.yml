@@ -139,6 +139,9 @@ services:
       - MEDIA_S3_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
       - MEDIA_S3_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
       - MEDIA_S3_PUBLIC_URL_BASE=${MEDIA_S3_PUBLIC_URL_BASE:-http://localhost:9000/qrserve-media}
+      # One-off, opt-in migration (see BranchMenuBackfillRunner) — leave
+      # false; flip to true in .env for exactly one restart, then back off.
+      - BACKFILL_BRANCH_MENUS_ENABLED=${BACKFILL_BRANCH_MENUS_ENABLED:-false}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
