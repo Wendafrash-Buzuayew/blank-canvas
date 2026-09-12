@@ -48,8 +48,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
   const navItems = getNavigationForRole(user.role);
   const roleLabel = getRoleLabel(user.role);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    // Must await: logout() clears auth state only after its network call
+    // resolves. Navigating before then leaves isAuthenticated/user stale,
+    // and LoginPage's own "already authenticated" redirect (see
+    // LoginPage.tsx) immediately bounces straight back to the dashboard —
+    // logout would appear to silently do nothing.
+    await logout();
     navigate('/login', { replace: true });
   };
 

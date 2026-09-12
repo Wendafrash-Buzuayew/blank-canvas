@@ -34,8 +34,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, titl
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    // Must await: logout() clears auth state only after its network call
+    // resolves. Navigating before then leaves isAuthenticated/user stale,
+    // and LoginPage's own "already authenticated" redirect (see
+    // LoginPage.tsx) immediately bounces straight back to the dashboard —
+    // logout would appear to silently do nothing.
+    await logout();
     navigate('/login', { replace: true });
   };
 
