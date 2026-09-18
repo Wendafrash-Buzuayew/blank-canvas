@@ -83,16 +83,31 @@ public class QrGeneratorService {
     }
 
     /**
+     * The exact string a branch's digital-menu QR encodes, signature included.
+     *
+     * <p>Extracted so the PNG render and the URL the merchant portal renders
+     * its own SVG/high-res QR from cannot diverge. That matters more than it
+     * looks: the signature is an HMAC only this backend can compute, so a
+     * frontend that built this URL itself would produce a code missing the
+     * signature — and would then laminate it onto a table. The portal asks for
+     * this string and encodes it verbatim; it never assembles one. Same
+     * principle as src/lib/qrDisplay.ts's "never construct a code".
+     */
+    public String branchMenuUrl(String merchantSlug, String branchSlug) {
+        DigitalMenuResolution resolution = fetchDigitalMenuResolution(merchantSlug, branchSlug);
+        String url = digitalMenuUrl.branchUrl(resolution.merchantSlug(), resolution.branchSlug());
+        String signature = qrSignatureService.generateSignature(resolution.merchantId(), resolution.branchId());
+        return url + "?signature=" + signature;
+    }
+
+    /**
      * Renders a QR for the phase-1 digital-menu branch URL. No stored QR
      * state exists for this scheme (unlike table QR's rotation-tracked
      * payload) — slugs are permanent, so the URL is fully reproducible from
      * merchant-service data on every call.
      */
     public byte[] getQrForBranch(String merchantSlug, String branchSlug) {
-        DigitalMenuResolution resolution = fetchDigitalMenuResolution(merchantSlug, branchSlug);
-        String url = digitalMenuUrl.branchUrl(resolution.merchantSlug(), resolution.branchSlug());
-        String signature = qrSignatureService.generateSignature(resolution.merchantId(), resolution.branchId());
-        return renderPng(url + "?signature=" + signature, QR_SIZE);
+        return renderPng(branchMenuUrl(merchantSlug, branchSlug), QR_SIZE);
     }
 
     private DigitalMenuResolution fetchDigitalMenuResolution(String merchantSlug, String branchSlug) {

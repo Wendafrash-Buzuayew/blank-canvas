@@ -191,7 +191,9 @@ export function EntitySelect<T extends Record<string, any>>({
         </button>
 
         {open && !isDisabled && (
-          <div className="absolute z-modal mt-1 w-full overflow-hidden rounded-card border border-line bg-surface shadow-[var(--shadow-lift)]">
+          // z-50, not z-modal — see the comment in Modal.tsx: that name was
+          // never defined in the Tailwind theme and compiled to no CSS.
+          <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-card border border-line bg-surface shadow-[var(--shadow-lift)]">
             {showSearch && (
               <div className="flex items-center gap-2 border-b border-line px-3 py-2">
                 <Search className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden="true" />

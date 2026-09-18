@@ -1,8 +1,10 @@
 package com.qrserve.auth.superapp;
 
 import com.qrserve.auth.dto.LoginResponse;
+import com.qrserve.auth.dto.SuperAppLoginRequest;
 import com.qrserve.auth.entity.UserEntity;
 import com.qrserve.auth.repository.UserRepository;
+import com.qrserve.shared.exceptions.UnauthorizedException;
 import com.qrserve.shared.security.JwtTokenProvider;
 import com.qrserve.shared.security.UserPrincipal;
 import com.qrserve.shared.security.UserRole;
@@ -23,6 +25,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -41,8 +44,10 @@ class SuperAppProvisioningServiceTest {
     private RestTemplate restTemplate;
     private SuperAppProvisioningService service;
 
+    private static final String MSISDN = "+254700000000";
+
     private static SuperAppMerchantClaim claim() {
-        return new SuperAppMerchantClaim(MERCHANT_REF, "Sunrise Cafe", "+254700000000", "Nairobi", "123 Moi Ave", "Restaurant");
+        return new SuperAppMerchantClaim(MERCHANT_REF, MSISDN);
     }
 
     @BeforeEach
@@ -138,5 +143,43 @@ class SuperAppProvisioningServiceTest {
         assertEquals("mpesa-biz-001@superapp.qrserve.internal", saved.getEmail());
         assertNotNull(saved.getPasswordHash());
         assertEquals(true, saved.isEnabled());
+        assertEquals(false, saved.isOnboardingComplete());
+    }
+
+    private SuperAppLoginRequest loginRequest(String signature) {
+        SuperAppLoginRequest request = new SuperAppLoginRequest();
+        request.setShortCode(MERCHANT_REF);
+        request.setMsisdn(MSISDN);
+        request.setSignature(signature);
+        return request;
+    }
+
+    @Test
+    @DisplayName("POST /superapp-login is refused when SUPERAPP_DEV_FAKE_ENABLED is off, even with a well-formed request")
+    void superAppLoginRefusedWhenDevFakeDisabled() {
+        // devFakeEnabled defaults to false; not set in setUp().
+        assertThrows(UnauthorizedException.class, () -> service.exchangeAndLoginFromSuperApp(loginRequest(null)));
+        verifyNoInteractions(userRepository);
+    }
+
+    @Test
+    @DisplayName("POST /superapp-login logs an existing merchant straight in once enabled, signature or not")
+    void superAppLoginSucceedsWhenDevFakeEnabled() {
+        ReflectionTestUtils.setField(service, "devFakeEnabled", true);
+        UserEntity existing = UserEntity.builder()
+                .id(UUID.randomUUID())
+                .merchantId(MERCHANT_ID)
+                .email("mpesa-biz-001@superapp.qrserve.internal")
+                .passwordHash("hashed")
+                .role(UserRole.MERCHANT_OWNER)
+                .enabled(true)
+                .superAppMerchantRef(MERCHANT_REF)
+                .build();
+        when(userRepository.findBySuperAppMerchantRef(MERCHANT_REF)).thenReturn(Optional.of(existing));
+
+        LoginResponse response = service.exchangeAndLoginFromSuperApp(loginRequest("unverified-signature"));
+
+        assertEquals("access-token", response.getAccessToken());
+        verifyNoInteractions(restTemplate);
     }
 }

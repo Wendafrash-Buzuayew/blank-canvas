@@ -27,6 +27,24 @@ public class GlobalExceptionHandler {
         private LocalDateTime timestamp;
     }
 
+    /**
+     * {@link ErrorResponse} plus the name of the dependency that failed.
+     *
+     * <p>A separate type rather than a nullable field on ErrorResponse: this
+     * module has no Jackson on its compile classpath (so no
+     * {@code @JsonInclude} to suppress a null), and every other error body
+     * would otherwise have gained an always-null {@code upstream} key.
+     */
+    @Data
+    @AllArgsConstructor
+    public static class UpstreamErrorResponse {
+        private int status;
+        private String message;
+        private LocalDateTime timestamp;
+        /** A stable identifier, never a URL — see {@link UpstreamServiceException}. */
+        private String upstream;
+    }
+
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException ex) {
         ErrorResponse response = new ErrorResponse(
@@ -114,6 +132,37 @@ public class GlobalExceptionHandler {
                 LocalDateTime.now()
         );
         return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+    }
+
+    /** A subscription-tier limit, not a role/permission failure — carries its real message, unlike handleAccessDenied above. */
+    @ExceptionHandler(TierLimitExceededException.class)
+    public ResponseEntity<ErrorResponse> handleTierLimitExceeded(TierLimitExceededException ex) {
+        ErrorResponse response = new ErrorResponse(
+                HttpStatus.FORBIDDEN.value(),
+                ex.getMessage(),
+                LocalDateTime.now()
+        );
+        return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
+    }
+
+    /**
+     * A named dependency failed — 502, and the body says which one.
+     *
+     * <p>Deliberately more informative than the 503 below: the message is
+     * authored by the throw site (never an exception message from a client
+     * library, which can carry internal URLs) and {@code upstream} is a
+     * fixed identifier. The full cause and target URL go to the log only.
+     */
+    @ExceptionHandler(UpstreamServiceException.class)
+    public ResponseEntity<UpstreamErrorResponse> handleUpstreamServiceException(UpstreamServiceException ex) {
+        log.error("Upstream dependency '{}' failed", ex.getUpstream(), ex);
+        UpstreamErrorResponse response = new UpstreamErrorResponse(
+                HttpStatus.BAD_GATEWAY.value(),
+                ex.getMessage(),
+                LocalDateTime.now(),
+                ex.getUpstream()
+        );
+        return new ResponseEntity<>(response, HttpStatus.BAD_GATEWAY);
     }
 
     @ExceptionHandler(ServiceUnavailableException.class)

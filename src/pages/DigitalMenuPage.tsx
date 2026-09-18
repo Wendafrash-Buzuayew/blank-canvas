@@ -13,6 +13,7 @@ import {
 import { resolveMediaUrl } from '../lib/api';
 import { Spinner, ErrorState } from '../components/ui/States';
 import { Button } from '../components/ui/Button';
+import { TemplatedMenu } from '../components/menu/TemplatedMenu';
 import { useMenuTemplateDefinitions } from '../hooks/useApiData';
 import { resolveTemplateClasses, type ResolvedTemplateClasses } from '../lib/menuTemplates';
 
@@ -119,51 +120,47 @@ function BranchMenu({ merchantSlug, branchSlug }: { merchantSlug: string; branch
     : FALLBACK_TEMPLATE;
   const branchId = resolutionQuery.data?.branchId;
 
+  /**
+   * The template's structural controls (layout, card style, image position and
+   * ratio, face, header alignment) all arrive through `template` and are
+   * applied by TemplatedMenu - the same component the admin preview renders,
+   * so what an admin approves is literally what a guest gets.
+   *
+   * HEADER ARTWORK is all optional and all currently unset in production:
+   * coverImageUrl and tagline are new columns nobody has filled in, and no
+   * merchant has uploaded a logoUrl either. That is fine by design - when the
+   * cover is absent TemplatedMenu borrows the branch's first dish photo, so a
+   * real menu still opens on a banner rather than a bare heading, and the logo
+   * and tagline are simply omitted. As merchants add artwork the header gets
+   * better with no further code change.
+   */
+  const resolution = resolutionQuery.data;
+
   return (
     <div data-view="customer" className={`min-h-screen ${template.page}`}>
       <div className="mx-auto max-w-[40rem]">
-        <header className={template.header}>
-          <h1 className={template.title}>{resolutionQuery.data?.branchName}</h1>
-          {branchId != null && <RatingBadge branchId={branchId} textClass={template.description} />}
-        </header>
-        {menuQuery.data?.categories.map((category) => (
-          <section key={category.id}>
-            <h2 className={template.categoryHeading}>{category.name}</h2>
-            <div className="space-y-3 px-4">
-              {category.items.map((item) => (
-                <div key={item.id} className="card-surface flex gap-3 p-3">
-                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-[var(--radius-xl2)] border border-line bg-surface-2">
-                    {item.image && (
-                      <img
-                        src={resolveMediaUrl(item.image)}
-                        alt=""
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                      />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className={template.itemName}>{item.name}</div>
-                      <div className={`shrink-0 text-right ${template.priceWrap}`}>
-                        {item.effectivePrice < item.price ? (
-                          <>
-                            <div className={template.strikePrice}>{item.price} ETB</div>
-                            <div className={template.price}>{item.effectivePrice} ETB</div>
-                          </>
-                        ) : (
-                          <div className={template.price}>{item.price} ETB</div>
-                        )}
-                      </div>
-                    </div>
-                    {item.description && <p className={template.description}>{item.description}</p>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        ))}
-        {branchId != null && <ReviewForm branchId={branchId} />}
+        <TemplatedMenu
+          template={template}
+          title={resolution?.branchName ?? ''}
+          tagline={resolution?.tagline}
+          coverImage={resolution?.coverImageUrl ? resolveMediaUrl(resolution.coverImageUrl) : undefined}
+          logoImage={resolution?.logoUrl ? resolveMediaUrl(resolution.logoUrl) : undefined}
+          categories={menuQuery.data?.categories ?? []}
+          resolveImageUrl={resolveMediaUrl}
+          // Badges are sample-only; a live menu has no badge data (see
+          // src/constants/sampleMenuData.ts).
+          showBadges={false}
+          // The slot is handed the right secondary-text class for whichever
+          // ground the header ended up on — page ground, or the dark scrim over
+          // a cover photo. Passing template.description here would have put
+          // grey text on the scrim.
+          headerSlot={
+            branchId != null
+              ? (secondaryTextClass) => <RatingBadge branchId={branchId} textClass={secondaryTextClass} />
+              : undefined
+          }
+          footerSlot={branchId != null ? <ReviewForm branchId={branchId} /> : undefined}
+        />
       </div>
     </div>
   );

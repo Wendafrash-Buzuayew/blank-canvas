@@ -4,6 +4,7 @@ import com.qrserve.auth.dto.CreateUserRequest;
 import com.qrserve.auth.dto.LoginRequest;
 import com.qrserve.auth.dto.LoginResponse;
 import com.qrserve.auth.dto.RefreshRequest;
+import com.qrserve.auth.dto.UpdateCredentialsRequest;
 import com.qrserve.auth.dto.UserInfoResponse;
 import com.qrserve.auth.entity.UserEntity;
 import com.qrserve.auth.repository.UserRepository;
@@ -161,6 +162,71 @@ public class AuthService {
         UserEntity user = userRepository.findById(principal.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + principal.getUserId()));
 
+        return toUserInfoResponse(user);
+    }
+
+    /**
+     * Marks the current merchant's onboarding form (business name, city,
+     * address, category) as filled in. Called once, right after the merchant
+     * submits it - see AuthController#completeOnboarding. Idempotent: calling
+     * it again on an already-complete account is a no-op.
+     */
+    @Transactional
+    public UserInfoResponse completeOnboarding(UserPrincipal principal) {
+        UserEntity user = userRepository.findById(principal.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + principal.getUserId()));
+        user.setOnboardingComplete(true);
+        return toUserInfoResponse(userRepository.save(user));
+    }
+
+    /**
+     * Optionally sets a real email and/or password on the calling user, as a
+     * fallback browser login alongside their Super App token exchange. Either
+     * field may be omitted; an omitted or blank field is left unchanged.
+     */
+    @Transactional
+    public UserInfoResponse updateOwnCredentials(UserPrincipal principal, UpdateCredentialsRequest request) {
+        UserEntity user = userRepository.findById(principal.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + principal.getUserId()));
+
+        // Once onboarding is complete, this account's password is one the
+        // merchant actually knows (or inherited at creation) - changing it
+        // without proving that would let a merely-stolen bearer token
+        // permanently lock the real owner out, with no revocation list and no
+        // password-reset flow to recover through (see AuthController#logout,
+        // which does not invalidate anything). During onboarding itself the
+        // stored password is still the random UUID minted at auto-provisioning
+        // (SuperAppProvisioningService), which the merchant can never know, so
+        // that one-time window is exempt - it is the only case this endpoint
+        // was built for.
+        if (user.isOnboardingComplete()) {
+            String currentPassword = request.getCurrentPassword();
+            if (currentPassword == null || currentPassword.isBlank()
+                    || !passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+                throw new UnauthorizedException("Current password is required and must match to change credentials");
+            }
+        }
+
+        String email = request.getEmail();
+        if (email != null && !email.isBlank() && !email.equalsIgnoreCase(user.getEmail())) {
+            if (userRepository.existsByEmail(email)) {
+                throw new IllegalArgumentException("User with email " + email + " already exists.");
+            }
+            user.setEmail(email);
+        }
+
+        String password = request.getPassword();
+        if (password != null && !password.isBlank()) {
+            if (password.length() < 8) {
+                throw new IllegalArgumentException("Password must be at least 8 characters");
+            }
+            user.setPasswordHash(passwordEncoder.encode(password));
+        }
+
+        return toUserInfoResponse(userRepository.save(user));
+    }
+
+    private UserInfoResponse toUserInfoResponse(UserEntity user) {
         return UserInfoResponse.builder()
                 .id(user.getId())
                 .merchantId(user.getMerchantId())
@@ -168,6 +234,7 @@ public class AuthService {
                 .email(user.getEmail())
                 .role(user.getRole())
                 .enabled(user.isEnabled())
+                .onboardingComplete(user.isOnboardingComplete())
                 .build();
     }
 
@@ -183,14 +250,7 @@ public class AuthService {
 
         return users.stream()
                 .sorted(Comparator.comparing(UserEntity::getName, Comparator.nullsLast(String::compareToIgnoreCase)))
-                .map(user -> UserInfoResponse.builder()
-                        .id(user.getId())
-                        .merchantId(user.getMerchantId())
-                        .name(user.getName())
-                        .email(user.getEmail())
-                        .role(user.getRole())
-                        .enabled(user.isEnabled())
-                        .build())
+                .map(this::toUserInfoResponse)
                 .collect(Collectors.toList());
     }
 }

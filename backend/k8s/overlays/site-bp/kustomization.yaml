@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# BP is the first site, and today the only one — so this overlay is a
+# pass-through with no patches yet. Its entire value is structural: it's the
+# thing you actually run (`kubectl apply -k backend/k8s/overlays/site-bp`),
+# and it's where a second site's per-site differences (data-tier-external.yaml's
+# hostname if it ever needs to differ, replica counts, a site identity label,
+# etc.) get patched in later WITHOUT touching base/ or this file's siblings —
+# see docs/superpowers/specs/2026-09-16-multi-dc-production-deployment-design.md.
+labels:
+  - pairs:
+      site: bp
+    includeSelectors: true
+
+resources:
+  - ../../base

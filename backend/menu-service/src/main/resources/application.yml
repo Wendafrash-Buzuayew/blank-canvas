@@ -88,6 +88,19 @@ qr:
   # reprinting is done. Signing always uses signature-secret above.
   signature-secret-previous: ${QR_SIGNATURE_SECRET_PREVIOUS:}
 
+# Safaricom ETHQR payment-QR generator (PaymentController / SafaricomEthQrService).
+# A Pro-tier feature — the standee studio's payment QR toggle, not the digital
+# menu's own QR. Empty api-key by default rather than a hard `:?` failure:
+# unlike jwt.secret/qr.signature-secret above, this is genuinely optional, not
+# just tolerated-while-broken — a real call to qr.safaricom.et with no
+# Authorization header at all was confirmed to succeed, so an unconfigured
+# environment calls the real endpoint successfully, not just boots without
+# crashing. See SafaricomEthQrService's header comment.
+safaricom:
+  ethqr:
+    base-url: ${SAFARICOM_QR_BASE_URL:https://qr.safaricom.et/api/qr/generate}
+    api-key: ${SAFARICOM_QR_API_KEY:}
+
 # One-off, opt-in migration (BranchMenuBackfillRunner): does nothing on every
 # normal boot. Flip to true for exactly one deploy to give every existing
 # branch its own independent copy of its merchant's current catalog, then

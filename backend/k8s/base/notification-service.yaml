@@ -1,0 +1,118 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: default
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values: ["notification-service"]
+              topologyKey: topology.kubernetes.io/zone
+      containers:
+      - name: notification-service
+        image: qrserve-notification-service:latest
+        ports:
+        - containerPort: 8084
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
+        - name: DATABASE_URL
+          value: "jdbc:postgresql://postgres-db:5432/qrserve_notification"
+        - name: DATABASE_USERNAME
+          value: "postgres"
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef: { name: qrserve-secrets, key: db-password }
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef: { name: qrserve-secrets, key: jwt-secret }
+        - name: QR_SIGNATURE_SECRET
+          valueFrom:
+            secretKeyRef: { name: qrserve-secrets, key: qr-signature-secret }
+        - name: PUBLIC_BASE_DOMAIN
+          valueFrom:
+            configMapKeyRef: { name: qrserve-config, key: public-base-domain }
+        - name: PUBLIC_MENU_DOMAIN
+          valueFrom:
+            configMapKeyRef: { name: qrserve-config, key: public-menu-domain }
+        - name: REDIS_HOST
+          value: "redis-cache"
+        - name: REDIS_PORT
+          value: "6379"
+        # NOTE the different variable name from every other service: this
+        # service reads spring.kafka.bootstrap-servers directly (see
+        # KafkaConsumerConfig.java's @Value) rather than exposing its own
+        # KAFKA_BOOTSTRAP_SERVERS binding, so it needs Spring Boot's relaxed
+        # env-var form of that exact property path.
+        - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+          value: "kafka-service:9092"
+        - name: EUREKA_SERVER_URL
+          value: "http://discovery-service:8761/eureka"
+        resources:
+          requests: { cpu: "200m", memory: "512Mi" }
+          limits: { cpu: "600m", memory: "1Gi" }
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8084
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8084
+          initialDelaySeconds: 15
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: default
+  annotations:
+    service.kubernetes.io/topology-mode: Auto
+spec:
+  ports:
+    - port: 8084
+      targetPort: 8084
+  selector:
+    app: notification-service
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: notification-service-hpa
+  namespace: default
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: notification-service }
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+  - type: Resource
+    resource: { name: cpu, target: { type: Utilization, averageUtilization: 75 } }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: notification-service-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: notification-service

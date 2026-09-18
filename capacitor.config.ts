@@ -5,8 +5,9 @@ const config: CapacitorConfig = {
   appName: 'com.safaricomet.qrserve',
   webDir: 'dist',
   server: {
-    // Replace with your exact Windows IP and development server port
-    url: 'http://192.168.1.45:5173', 
+    // Windows Wi-Fi adapter IP (LAN), not the WSL vEthernet IP — phones on
+    // the same Wi-Fi network reach the dev server through this one.
+    url: 'http://192.168.8.135:3000',
     cleartext: true
   }
 };

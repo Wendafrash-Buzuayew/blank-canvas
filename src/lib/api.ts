@@ -57,6 +57,20 @@ export interface UserInfoResponse {
   merchantId?: string | null;
   branchId?: number | null;
   enabled?: boolean;
+  /** False right after a Super App auto-registration, until the merchant fills in the onboarding form. */
+  onboardingComplete?: boolean;
+}
+
+/**
+ * Both email/password are optional - a merchant may set just one, both, or
+ * skip entirely. currentPassword is required by the backend once the account
+ * has already completed onboarding (not during the one-time onboarding
+ * window, where the stored password is an unguessable placeholder).
+ */
+export interface UpdateCredentialsRequest {
+  email?: string;
+  password?: string;
+  currentPassword?: string;
 }
 
 export interface CreateUserRequest {
@@ -76,6 +90,8 @@ export interface CreateUserResponse {
 
 export interface CreateMerchantRequest {
   name: string;
+  /** Required by the backend on every call; omit only when creating (server derives one), always echo back the existing value when updating - see MerchantService.updateMerchant, which rejects a changed slug. */
+  slug?: string;
   phone: string;
   city: string;
   address: string;
@@ -251,11 +267,14 @@ export function isAuthenticated(): boolean {
   return !!authToken;
 }
 
-export function setUser(user: { id: string; email: string; name: string; role: string; merchantId?: string }) {
+/** Kept loose (not the frontend's AuthUser type) so this module has no dependency on AuthContext. */
+export type StoredUser = { id: string; email: string; name: string; role: string; merchantId?: string; onboardingComplete?: boolean };
+
+export function setUser(user: StoredUser) {
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
-export function getUser(): { id: string; email: string; name: string; role: string; merchantId?: string } | null {
+export function getUser(): StoredUser | null {
   try {
     const raw = localStorage.getItem(USER_KEY);
     return raw ? JSON.parse(raw) : null;
@@ -443,9 +462,27 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  /** PATCH /api/auth/me/onboarding - flips onboardingComplete once the merchant submits the profile form. */
+  completeOnboarding: () =>
+    request<UserInfoResponse>('/auth/me/onboarding', {
+      method: 'PATCH',
+    }),
+
+  /** PATCH /api/auth/me/credentials - optionally sets a real email/password as a fallback login. */
+  updateOwnCredentials: (data: UpdateCredentialsRequest) =>
+    request<UserInfoResponse>('/auth/me/credentials', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
 };
 
 // ============ Merchant API ============
+
+export type MerchantTier = 'FREE' | 'PRO';
+
+/** Mirrors BranchService.FREE_TIER_MAX_BRANCHES (merchant-service) — UI-side so the "Add Branch" button can disable itself before the round trip, not just show the 403 after. */
+export const FREE_TIER_MAX_BRANCHES = 1;
 
 export interface MerchantEntity {
   id: string;
@@ -456,6 +493,8 @@ export interface MerchantEntity {
   address: string;
   logoUrl?: string;
   category: string;
+  /** No billing flow yet — every merchant is FREE unless set directly in the database. */
+  tier: MerchantTier;
   createdAt: string;
   updatedAt?: string;
 }
@@ -754,23 +793,56 @@ export const menuApi = {
 // menuApi.setTemplate, SUPER_ADMIN creates/edits/deletes the actual looks
 // here (src/pages/TemplateManagement.tsx).
 
-import type { BackgroundMode, AccentToken } from './menuTemplates';
+import type {
+  BackgroundMode,
+  AccentToken,
+  LayoutStructure,
+  ItemCardStyle,
+  ImagePosition,
+  ImageAspectRatio,
+  TemplateFontFamily,
+  HeaderAlignment,
+} from './menuTemplates';
 
-export interface MenuTemplateDefinitionEntity {
+/**
+ * The structural half of a template definition, as it travels over the wire.
+ *
+ * Every field is optional AND nullable on purpose, matching the backend
+ * exactly: MenuTemplateEntity declares these columns nullable so ddl-auto can
+ * add them to a populated table, and they read back as null until
+ * db/manual/001-menu-template-structure.sql has run. Callers must go through
+ * normaliseStructure() (src/lib/menuTemplates.ts) rather than reading them
+ * directly.
+ *
+ * On a request, an omitted field means "use the default" for a create and
+ * "leave unchanged" for an update — see the two DTOs in menu-service.
+ */
+export interface MenuTemplateStructureFields {
+  layoutStructure?: LayoutStructure | null;
+  itemCardStyle?: ItemCardStyle | null;
+  showImages?: boolean | null;
+  imagePosition?: ImagePosition | null;
+  imageAspectRatio?: ImageAspectRatio | null;
+  fontFamily?: TemplateFontFamily | null;
+  headerAlignment?: HeaderAlignment | null;
+  showCoverImage?: boolean | null;
+}
+
+export interface MenuTemplateDefinitionEntity extends MenuTemplateStructureFields {
   key: string;
   displayName: string;
   backgroundMode: BackgroundMode;
   accentToken: AccentToken;
 }
 
-export interface CreateMenuTemplateDefinitionRequest {
+export interface CreateMenuTemplateDefinitionRequest extends MenuTemplateStructureFields {
   key: string;
   displayName: string;
   backgroundMode: BackgroundMode;
   accentToken: AccentToken;
 }
 
-export interface UpdateMenuTemplateDefinitionRequest {
+export interface UpdateMenuTemplateDefinitionRequest extends MenuTemplateStructureFields {
   displayName: string;
   backgroundMode: BackgroundMode;
   accentToken: AccentToken;
@@ -870,7 +942,45 @@ export const orderApi = {
   },
 };
 
+// ============ Payment (ETHQR) API ============
+// menu-service's Safaricom ETHQR proxy (PaymentController). Pro-tier standee
+// feature — see StandeeStudio's payment-QR toggle.
+//
+// One request shape (branchId alone) and one response shape. There is no
+// `amount` parameter: the ETHQR request body Safaricom accepts is
+// `accountNumber` alone, and a printed standee code is reusable and
+// open-amount by definition. Sending an amount made the provider return a
+// different payload entirely, which is why this used to expose an untyped
+// `providerResponse` the UI had to interrogate — see EthQrResponse's Javadoc
+// backend-side.
+
+/** Mirrors menu-service's EthQrResponse exactly. */
+export interface EthQrResponse {
+  /** Always a usable <img src> — the backend normalises bare base64 to a data URL. */
+  qrImageUrl: string;
+  /** Safaricom's own merchant name for the short code, not this app's record. */
+  merchantName: string;
+  /** The merchant's Safaricom short code, e.g. "8319389". */
+  accountNumber: string;
+  /** e.g. "+251718788479". Null when the provider has none on file. */
+  mobileNumber: string | null;
+  /** Frequently null in real responses. */
+  city: string | null;
+}
+
+export const paymentApi = {
+  getEthQr: (branchId: number) =>
+    request<EthQrResponse>(`/payment/ethqr?branchId=${encodeURIComponent(String(branchId))}`),
+};
+
 // ============ QR API ============
+
+/** Mirrors QrController.BranchMenuUrlResponse. */
+export interface BranchMenuUrlResponse {
+  url: string;
+  merchantSlug: string;
+  branchSlug: string;
+}
 
 export const qrApi = {
   getQrForTable: (tableId: number) =>
@@ -883,12 +993,31 @@ export const qrApi = {
       isBlob: true,
     }),
 
+  /**
+   * @deprecated Returns bytes that are not a valid PDF — qr-service assembles
+   * the file by hand with no xref table and a mismatched image filter, so no
+   * reader opens it. The Standee Studio prints from the browser instead
+   * (src/components/qr/StandeeStudio.tsx). Do not wire new UI to this.
+   */
   exportPdf: (data: { tableId: number; format?: string; brandColor?: string; titleText?: string }) =>
     request<Blob>('/qr/export/pdf', {
       method: 'POST',
       body: JSON.stringify(data),
       isBlob: true,
     }),
+
+  /**
+   * The canonical, signed URL a branch's digital-menu QR must encode.
+   *
+   * The signature is an HMAC only the backend can compute, so this is the only
+   * correct source for the string — see the note at the top of
+   * src/lib/qrRender.ts on why the browser may encode this payload but must
+   * never assemble one.
+   */
+  getBranchMenuUrl: (merchantSlug: string, branchSlug: string) =>
+    request<BranchMenuUrlResponse>(
+      `/qr/digital-menu/${encodeURIComponent(merchantSlug)}/${encodeURIComponent(branchSlug)}/url`,
+    ),
 };
 
 // ============ Waiter API ============

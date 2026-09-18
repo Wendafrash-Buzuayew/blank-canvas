@@ -3,10 +3,14 @@ package com.qrserve.merchant.service;
 import com.qrserve.merchant.dto.CreateBranchRequest;
 import com.qrserve.merchant.dto.UpdateBranchRequest;
 import com.qrserve.merchant.entity.BranchEntity;
+import com.qrserve.merchant.entity.MerchantEntity;
+import com.qrserve.merchant.entity.MerchantTier;
 import com.qrserve.merchant.repository.BranchRepository;
+import com.qrserve.merchant.repository.MerchantRepository;
 import com.qrserve.shared.common.Slugs;
 import com.qrserve.shared.exceptions.BusinessException;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
+import com.qrserve.shared.exceptions.TierLimitExceededException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,7 +22,11 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class BranchService {
 
+    /** Free tier's branch cap (see createBranch). No Pro cap — Pro is unlimited today. */
+    private static final int FREE_TIER_MAX_BRANCHES = 1;
+
     private final BranchRepository branchRepository;
+    private final MerchantRepository merchantRepository;
 
     /**
      * Creates a branch under the caller's merchant.
@@ -45,7 +53,24 @@ public class BranchService {
         // The first branch a merchant creates has nothing to be secondary to,
         // so it becomes primary automatically. See setPrimaryBranch for how a
         // merchant reassigns it later.
-        boolean isFirstBranch = branchRepository.findByMerchantId(request.getMerchantId()).isEmpty();
+        List<BranchEntity> existingBranches = branchRepository.findByMerchantId(request.getMerchantId());
+        boolean isFirstBranch = existingBranches.isEmpty();
+
+        // Checked against the SAME list rather than a separate count query.
+        // A merchant's very first branch always passes regardless of tier —
+        // including the one SuperAppProvisioningService creates automatically
+        // on Super App sign-up, since that also starts from zero branches.
+        if (!isFirstBranch) {
+            MerchantEntity merchant = merchantRepository.findById(request.getMerchantId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Merchant not found with ID: " + request.getMerchantId()));
+            if (merchant.getTier() == MerchantTier.FREE
+                    && existingBranches.size() >= FREE_TIER_MAX_BRANCHES) {
+                throw new TierLimitExceededException(
+                        "Free tier is limited to " + FREE_TIER_MAX_BRANCHES
+                                + " branch. Upgrade to Pro to add more branches.");
+            }
+        }
 
         BranchEntity branch = BranchEntity.builder()
                 .merchantId(request.getMerchantId())

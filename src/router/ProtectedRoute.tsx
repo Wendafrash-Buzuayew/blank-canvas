@@ -50,6 +50,15 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
     return <Navigate to="/login" state={{ phaseBlocked: true }} replace />;
   }
 
+  // A Super App auto-registration never collected a business profile (see
+  // SuperAppMerchantClaim) - every other route is hard-gated behind the
+  // onboarding form until the merchant submits it, the same way phaseBlocked
+  // gates a disallowed role. The guard on the destination path itself avoids
+  // an infinite redirect loop when this IS the onboarding route.
+  if (user && user.onboardingComplete === false && location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" replace />;
+  }
+
   if (requiresPhase2 && !isPhase2Enabled()) {
     return <Navigate to={user ? getRoleHomeRoute(user.role) : '/login'} replace />;
   }

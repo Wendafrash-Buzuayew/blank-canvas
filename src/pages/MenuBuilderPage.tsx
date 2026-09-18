@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Trash2, Edit3, Utensils, FolderPlus, Search, Loader2, Eye, Image as ImageIcon, Clock, AlertCircle, Store, Palette } from 'lucide-react';
+import { Plus, Trash2, Edit3, Utensils, FolderPlus, Search, Loader2, Eye, Image as ImageIcon, Clock, AlertCircle, Store, Palette, QrCode } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Spinner, ErrorState, EmptyState } from '../components/ui/States';
 import { Card } from '../components/ui/Card';
@@ -13,7 +13,9 @@ import { useBranchesLookup, useMerchantsLookup } from '../hooks/useLookups';
 import { friendlyError } from '../lib/errors';
 import { useNavigate } from 'react-router-dom';
 import { resolveMediaUrl, type MenuResponse } from '../lib/api';
-import { resolveTemplateClasses } from '../lib/menuTemplates';
+import { resolveTemplateClasses, type MenuTemplateDefinition } from '../lib/menuTemplates';
+import { TemplatePreviewDialog } from '../components/menu/TemplatePreviewDialog';
+import { StandeeStudio } from '../components/qr/StandeeStudio';
 
 const FOOD_IMAGE_PRESETS = [
   { label: 'Cappuccino', url: 'https://images.unsplash.com/photo-1534778101976-62847782c213?w=600&auto=format&fit=crop&q=80' },
@@ -57,6 +59,9 @@ export const MenuBuilderPage: React.FC = () => {
   const templatesQuery = useMenuTemplateDefinitions();
   const uploadProductImage = useUploadProductImage();
 
+  /** The template being inspected full-screen, or null. Not the applied one. */
+  const [previewTemplate, setPreviewTemplate] = useState<MenuTemplateDefinition | null>(null);
+  const [standeeOpen, setStandeeOpen] = useState(false);
   const [activeCategoryId, setActiveCategoryId] = useState<number | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [pageError, setPageError] = useState<string | null>(null);
@@ -258,21 +263,45 @@ export const MenuBuilderPage: React.FC = () => {
             <span className="flex shrink-0 items-center gap-1.5 text-label-s uppercase text-ink">
               <Palette className="h-4 w-4 text-brand-press" aria-hidden="true" /> Digital Menu Look
             </span>
-            <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setStandeeOpen(true)}
+              className="shrink-0 sm:order-last sm:ml-auto"
+            >
+              <QrCode className="h-4 w-4" aria-hidden="true" />
+              QR &amp; Standee
+            </Button>
+            {/* Each template is a pair: the label applies it, the eye previews
+                it. Previewing has to work on a template that is NOT applied -
+                that is the whole point of looking before switching - so the
+                preview affordance cannot live on the active chip alone. */}
+            <div className="flex flex-wrap items-center gap-2">
               {(templatesQuery.data ?? []).map((def) => {
                 const isActive = (menu?.templateStyle ?? 'CLASSIC') === def.key;
                 const swatch = resolveTemplateClasses(def).swatch;
                 return (
-                  <button
+                  <div
                     key={def.key}
-                    onClick={() => handleSelectTemplate(def.key)}
-                    disabled={setMenuTemplate.isPending}
-                    title={def.displayName}
-                    className={`flex items-center gap-1.5 rounded-control border-2 px-3 py-1.5 text-label-s transition-all disabled:opacity-50 ${isActive ? 'border-brand-dark bg-brand-soft text-brand-press' : 'border-transparent bg-surface-2 text-muted hover:bg-line'}`}
+                    className={`flex items-center rounded-control border-2 transition-all ${isActive ? 'border-brand-dark bg-brand-soft' : 'border-transparent bg-surface-2'}`}
                   >
-                    <span className={swatch} aria-hidden="true" />
-                    {def.displayName}
-                  </button>
+                    <button
+                      onClick={() => handleSelectTemplate(def.key)}
+                      disabled={setMenuTemplate.isPending}
+                      aria-pressed={isActive}
+                      className={`flex items-center gap-1.5 rounded-control px-3 py-1.5 text-label-s transition-colors disabled:opacity-50 ${isActive ? 'text-brand-press' : 'text-muted hover:text-ink'}`}
+                    >
+                      <span className={swatch} aria-hidden="true" />
+                      {def.displayName}
+                    </button>
+                    <button
+                      onClick={() => setPreviewTemplate(def)}
+                      aria-label={`Preview ${def.displayName}`}
+                      title={`Preview ${def.displayName}`}
+                      className="flex h-9 w-9 items-center justify-center rounded-control text-muted transition-colors hover:bg-line hover:text-ink"
+                    >
+                      <Eye className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -548,6 +577,35 @@ export const MenuBuilderPage: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      {/* Lets a merchant inspect any template - applied or not - against the
+          rich sample restaurant or their own branch's live menu, at phone and
+          desktop width, before switching. Same dialog the admin uses. */}
+      {previewTemplate && (
+        <TemplatePreviewDialog
+          open
+          onClose={() => setPreviewTemplate(null)}
+          definition={previewTemplate}
+        />
+      )}
+
+      {/* Mounted only while open so the studio's URL fetch and QR encode do not
+          run on every Menu Builder visit. */}
+      {standeeOpen && selectedBranch && (
+        <StandeeStudio
+          open
+          onClose={() => setStandeeOpen(false)}
+          merchantSlug={merchantSlug}
+          branchSlug={selectedBranch.slug}
+          branchName={selectedBranch.name}
+          branchId={selectedBranch.id}
+          restaurantName={merchant?.name ?? ''}
+          logoUrl={merchant?.logoUrl ? resolveMediaUrl(merchant.logoUrl) : null}
+          merchantAddress={merchant?.address ?? null}
+          merchantPhone={merchant?.phone ?? null}
+          merchantTier={merchant?.tier}
+        />
+      )}
     </DashboardLayout>
   );
 };

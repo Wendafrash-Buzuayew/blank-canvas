@@ -25,6 +25,8 @@ const KitchenLivePage = lazy(() => import('../pages/KitchenLivePage').then((m) =
 const MenuBuilderPage = lazy(() => import('../pages/MenuBuilderPage').then((m) => ({ default: m.MenuBuilderPage })));
 const ReviewsPage = lazy(() => import('../pages/ReviewsPage').then((m) => ({ default: m.ReviewsPage })));
 const WaiterDashboardPage = lazy(() => import('../pages/WaiterDashboardPage').then((m) => ({ default: m.WaiterDashboardPage })));
+const OnboardingPage = lazy(() => import('../pages/OnboardingPage').then((m) => ({ default: m.OnboardingPage })));
+const DevSuperAppLoginPage = lazy(() => import('../pages/DevSuperAppLoginPage').then((m) => ({ default: m.DevSuperAppLoginPage })));
 
 // Fallback shown while a lazy route chunk is loading.
 const RouteFallback: React.FC = () => (
@@ -69,6 +71,26 @@ export const AppRouter: React.FC = () => {
           />} />
 
           <Route path="/login" element={<LoginPage />} />
+
+          {/* Local-dev-only Super App handoff simulator — see
+              DevSuperAppLoginPage's header comment. import.meta.env.DEV is a
+              Vite compile-time constant, so this branch (and its lazy chunk)
+              is dead-code-eliminated from a production build entirely. */}
+          {import.meta.env.DEV && (
+            <Route path="/dev/superapp-login" element={<DevSuperAppLoginPage />} />
+          )}
+
+          {/* Post-Super-App-login business profile form - see ProtectedRoute's
+              onboardingComplete gate. Auth-only, not role-restricted: any
+              freshly auto-registered account lands here regardless of role. */}
+          <Route
+            path="/onboarding"
+            element={
+              <ProtectedRoute allowedRoles={['MERCHANT_OWNER', 'SUPER_ADMIN']}>
+                <OnboardingPage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Public QR Menu - /menu/{merchantSlug}/{tableNumber} */}
           <Route path="/menu/:merchantSlug/:branchSlug/:tableNumber" element={<CustomerMenuPage />} />

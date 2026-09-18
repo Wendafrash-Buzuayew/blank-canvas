@@ -239,6 +239,20 @@
   --font-display: "Proxima Nova", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Proxima Nova", ui-sans-serif, system-ui, sans-serif;
 
+  /*
+   * Digital-menu template faces. NOT brand faces and not for use anywhere in
+   * the product chrome - these exist only so a curated customer menu template
+   * can offer a serif or monospace look (MenuTemplateEntity.FontFamily).
+   *
+   * DESIGN.md §4.1 makes Proxima Nova the product's only family; §1 rule 3
+   * makes the customer surface the single context allowed to be expressive,
+   * and that is the whole of the exemption. Both are SYSTEM stacks - no
+   * additional webfont is downloaded, so a template switching to serif costs
+   * the guest nothing on a restaurant's cellular connection.
+   */
+  --font-template-serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+  --font-template-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
   /* ----------------------------------------------------------------
      Type scale (DESIGN.md §4.2). Each role carries size, line-height,
      weight and tracking in one utility, so a call site states a role
@@ -468,6 +482,125 @@
       scroll-behavior: auto;
     }
   }
+}
+
+/* ------------------------------------------------------------------
+   PRINT: table standees (src/components/qr/StandeeStudio.tsx)
+
+   `.standee-print-root` is rendered via a React portal straight onto
+   `document.body` (not left in place inside the modal), specifically so
+   `body > *:not(.standee-print-root)` below can actually reach it. Earlier
+   this class sat deep inside the modal's own DOM subtree instead — several
+   levels below `body`'s direct children — so that selector matched `#root`
+   itself (the app's real mount point, which does NOT carry the class),
+   hid the entire app including the standee nested inside it, and printed a
+   blank page. Hiding a `#root`-level ancestor always wins over any `display`
+   this class sets on itself, no matter what `@media print` says below — so
+   the fix has to change WHERE this node lives, not the CSS.
+
+   The on-screen preview (StandeeStudio.tsx's right pane) is a SEPARATE,
+   non-portaled render of the same StandeeSheet, scaled to fit the panel —
+   deliberately so a merchant is not resizing/scrolling a document glued to
+   `document.body` while they edit. It plays no part in print; the portaled
+   copy is print-only and stays display:none on screen (below) until
+   `@media print` reveals it.
+
+   Page size comes from --standee-page-size, set inline by the studio from
+   pageSizeCss() in src/lib/standee.ts. @page cannot be targeted by a utility
+   class and the value is a pair of unbounded millimetre lengths, so a custom
+   property is the only way to reach it.
+   ------------------------------------------------------------------ */
+
+@page {
+  size: var(--standee-page-size, A5 portrait);
+  /* Zero, because the standee sets its own padding inside the trim box. A UA
+     default margin here would shrink the artwork and break the trim size. */
+  margin: 0;
+}
+
+.standee-print-root {
+  display: none;
+}
+
+@media print {
+  /* Only the standee sheet prints. Everything else in the tree is collapsed
+     rather than hidden with visibility, so it contributes no blank pages. */
+  body > *:not(.standee-print-root),
+  .standee-no-print {
+    display: none !important;
+  }
+
+  html, body {
+    background: #fff;
+    /* The preview is scaled down to fit a panel; print must be 1:1. */
+    zoom: 1;
+  }
+
+  .standee-print-root {
+    display: block !important;
+  }
+
+  /* The preview shrinks both the wrapper and the sheet's transform to fit a
+     phone-width panel (see StandeeSheet.tsx); paper output must always be
+     life size regardless of what scale the merchant was previewing at. */
+  .standee-scale-wrap {
+    width: auto !important;
+    height: auto !important;
+    /* One sheet per physical page. Deliberately keyed off THIS wrapper, not
+       .standee-sheet: .standee-sheet sits one level deeper, as the sole
+       child of its own .standee-scale-wrap, which makes it :last-child of
+       ITS OWN PARENT for every single sheet — front and back alike, not
+       just the truly final one. A rule reading `.standee-sheet:last-child`
+       therefore matched (and silently defeated) every forced break in the
+       job, not only the last. .standee-scale-wrap is the actual
+       sibling-level node directly under .standee-print-root, so :last-child
+       here correctly means "the last sheet in the whole print job." */
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .standee-scale-wrap:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .standee-sheet {
+    transform: none !important;
+    box-shadow: none !important;
+    /* Screen preview rounds the corners to look like a card; paper has none. */
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Backgrounds and brand colour must survive the print pipeline — browsers
+     drop them by default to save ink, which would print a white card with an
+     invisible accent band. */
+  .standee-sheet, .standee-sheet * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+/* The trim box. Width/height are set inline in mm by the studio. */
+@utility standee-sheet {
+  position: relative;
+  overflow: hidden;
+  background-color: #ffffff;
+  color: #222222;
+  /* Not a token: a printed card has no relationship to the app's page ground,
+     and --color-canvas would put a grey wash on paper. */
+}
+
+/* The QR is injected as a raw <svg> string (qrSvgString(), dangerouslySetInnerHTML
+   in StandeeSheet.tsx) with only a `viewBox` — no width/height attribute, so it
+   keeps looking crisp if a merchant later requests a bigger card. Without an
+   explicit size here an embedded SVG root falls back to the UA default object
+   size instead of its container's, so the code can render tiny/cropped inside
+   its box both on screen and in the printed PDF. */
+.standee-sheet svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 @utility no-scrollbar {

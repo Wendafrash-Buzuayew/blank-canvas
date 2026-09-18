@@ -19,4 +19,6 @@ public class UserInfoResponse {
     private UserRole role;
     private UUID merchantId;
     private boolean enabled;
+    /** See UserEntity#onboardingComplete. Frontend redirects to /onboarding while false. */
+    private boolean onboardingComplete;
 }

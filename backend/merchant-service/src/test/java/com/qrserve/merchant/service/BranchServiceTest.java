@@ -3,8 +3,12 @@ package com.qrserve.merchant.service;
 import com.qrserve.merchant.dto.CreateBranchRequest;
 import com.qrserve.merchant.dto.UpdateBranchRequest;
 import com.qrserve.merchant.entity.BranchEntity;
+import com.qrserve.merchant.entity.MerchantEntity;
+import com.qrserve.merchant.entity.MerchantTier;
 import com.qrserve.merchant.repository.BranchRepository;
+import com.qrserve.merchant.repository.MerchantRepository;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
+import com.qrserve.shared.exceptions.TierLimitExceededException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -19,13 +23,15 @@ import static org.mockito.Mockito.*;
 class BranchServiceTest {
 
     private BranchRepository repository;
+    private MerchantRepository merchantRepository;
     private BranchService service;
     private static final UUID MERCHANT = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
         repository = mock(BranchRepository.class);
-        service = new BranchService(repository);
+        merchantRepository = mock(MerchantRepository.class);
+        service = new BranchService(repository, merchantRepository);
     }
 
     @Test
@@ -39,13 +45,32 @@ class BranchServiceTest {
                 .phone("0700000000").address("Addis Ababa").build());
 
         assertTrue(created.isPrimary(), "the merchant's first branch has nothing to be secondary to");
+        verifyNoInteractions(merchantRepository);
     }
 
     @Test
-    void secondBranchIsNotAutoPrimary() {
+    void firstBranchSucceedsEvenOnFreeTierWithNoMerchantLookup() {
+        // The property SuperAppProvisioningService's auto-provisioning depends
+        // on: a brand new merchant's first branch is never blocked by the tier
+        // check, and the check does not even need to look the merchant up to
+        // know that (see the isFirstBranch guard in createBranch).
+        when(repository.findByMerchantIdAndSlug(MERCHANT, "main")).thenReturn(Optional.empty());
+        when(repository.findByMerchantId(MERCHANT)).thenReturn(List.of());
+        when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        assertDoesNotThrow(() -> service.createBranch(CreateBranchRequest.builder()
+                .merchantId(MERCHANT).name("Main").slug("main")
+                .phone("0700000000").address("Addis Ababa").build()));
+        verifyNoInteractions(merchantRepository);
+    }
+
+    @Test
+    void secondBranchIsNotAutoPrimaryOnProTier() {
         when(repository.findByMerchantIdAndSlug(MERCHANT, "annex")).thenReturn(Optional.empty());
         when(repository.findByMerchantId(MERCHANT)).thenReturn(
                 List.of(BranchEntity.builder().id(1L).merchantId(MERCHANT).isPrimary(true).build()));
+        when(merchantRepository.findById(MERCHANT)).thenReturn(
+                Optional.of(MerchantEntity.builder().id(MERCHANT).tier(MerchantTier.PRO).build()));
         when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         BranchEntity created = service.createBranch(CreateBranchRequest.builder()
@@ -53,6 +78,20 @@ class BranchServiceTest {
                 .phone("0700000001").address("Bole").build());
 
         assertFalse(created.isPrimary());
+    }
+
+    @Test
+    void secondBranchOnFreeTierIsBlockedWithATierLimitError() {
+        when(repository.findByMerchantIdAndSlug(MERCHANT, "annex")).thenReturn(Optional.empty());
+        when(repository.findByMerchantId(MERCHANT)).thenReturn(
+                List.of(BranchEntity.builder().id(1L).merchantId(MERCHANT).isPrimary(true).build()));
+        when(merchantRepository.findById(MERCHANT)).thenReturn(
+                Optional.of(MerchantEntity.builder().id(MERCHANT).tier(MerchantTier.FREE).build()));
+
+        assertThrows(TierLimitExceededException.class, () -> service.createBranch(CreateBranchRequest.builder()
+                .merchantId(MERCHANT).name("Annex").slug("annex")
+                .phone("0700000001").address("Bole").build()));
+        verify(repository, never()).save(any());
     }
 
     @Test

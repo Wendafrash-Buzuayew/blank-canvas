@@ -28,6 +28,12 @@ spring:
     show-sql: ${SHOW_SQL:false}
   flyway:
     enabled: false
+  # KafkaProducerConfig reads this same property key with the same
+  # "localhost:9092" fallback — that default only works when the broker and
+  # this service share a network namespace, which is never true in Docker.
+  # Overridden via KAFKA_BOOTSTRAP_SERVERS in docker-compose.yml.
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
 jwt:
   secret: ${JWT_SECRET}

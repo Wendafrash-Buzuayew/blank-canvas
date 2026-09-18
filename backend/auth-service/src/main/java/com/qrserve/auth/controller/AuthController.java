@@ -4,6 +4,8 @@ import com.qrserve.auth.dto.LoginRequest;
 import com.qrserve.auth.dto.LoginResponse;
 import com.qrserve.auth.dto.RefreshRequest;
 import com.qrserve.auth.dto.SuperAppExchangeRequest;
+import com.qrserve.auth.dto.SuperAppLoginRequest;
+import com.qrserve.auth.dto.UpdateCredentialsRequest;
 import com.qrserve.auth.superapp.SuperAppProvisioningService;
 import com.qrserve.auth.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -45,6 +47,20 @@ public class AuthController {
     @Operation(summary = "Exchange an M-PESA Super App token for a QRServe session, auto-registering the merchant on first entry")
     public ResponseEntity<LoginResponse> exchangeSuperAppToken(@Valid @RequestBody SuperAppExchangeRequest request) {
         return ResponseEntity.ok(superAppProvisioningService.exchangeAndLogin(request.getToken()));
+    }
+
+    /**
+     * Newer Super App contract: msisdn/shortCode as discrete fields plus an
+     * as-yet-unverified signature/superAppToken pair — see
+     * SuperAppLoginRequest's and SuperAppProvisioningService's own Javadoc
+     * for exactly what is (and, importantly, is not yet) verified here.
+     * Functionally equivalent to /superapp/exchange above otherwise — same
+     * auto-registration, same fail-closed SUPERAPP_DEV_FAKE_ENABLED gate.
+     */
+    @PostMapping("/superapp-login")
+    @Operation(summary = "Super App seamless login (msisdn+shortCode), auto-registering the merchant on first entry")
+    public ResponseEntity<LoginResponse> superAppLogin(@Valid @RequestBody SuperAppLoginRequest request) {
+        return ResponseEntity.ok(superAppProvisioningService.exchangeAndLoginFromSuperApp(request));
     }
 
     @PostMapping("/refresh")
@@ -106,5 +122,20 @@ public class AuthController {
             @AuthenticationPrincipal UserPrincipal principal) {
         UserInfoResponse response = authService.getUserInfo(principal);
         return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/me/onboarding")
+    @Operation(summary = "Mark the current user's onboarding as complete, after they submit the business-profile form")
+    public ResponseEntity<UserInfoResponse> completeOnboarding(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(authService.completeOnboarding(principal));
+    }
+
+    @PatchMapping("/me/credentials")
+    @Operation(summary = "Optionally set a real email/password as a fallback login alongside Super App token exchange")
+    public ResponseEntity<UserInfoResponse> updateOwnCredentials(
+            @RequestBody UpdateCredentialsRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(authService.updateOwnCredentials(principal, request));
     }
 }

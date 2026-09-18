@@ -30,4 +30,11 @@ public class CreateMerchantRequest {
 
     @NotBlank
     private String category;
+
+    /**
+     * Optional. Set by SuperAppProvisioningService from the Super App
+     * handshake's merchantShortCode on first entry; absent for a merchant
+     * created the ordinary way. See MerchantEntity#shortCode.
+     */
+    private String shortCode;
 }

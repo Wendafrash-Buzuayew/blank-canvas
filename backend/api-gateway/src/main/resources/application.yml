@@ -118,7 +118,7 @@ spring:
             - id: menu-service
               uri: lb://menu-service
               predicates:
-                - Path=/api/categories/**, /api/products/**, /api/menu/**
+                - Path=/api/categories/**, /api/products/**, /api/menu/**, /api/payment/**
               filters:
                 - name: CircuitBreaker
                   args:
@@ -277,6 +277,16 @@ management:
   endpoint:
     health:
       show-details: when_authorized
+      # /actuator/health/site — the multi-DC/GSLB health signal. See
+      # SiteReadinessHealthIndicator and
+      # docs/superpowers/specs/2026-09-16-multi-dc-production-deployment-design.md §5.
+      # Deliberately separate from the readiness/liveness groups Spring Boot
+      # creates automatically on Kubernetes: this answers "is the SITE fit
+      # for traffic," not "is this one pod up."
+      group:
+        site:
+          include: siteReadiness, diskSpace, ping
+          show-details: always
   tracing:
     sampling:
       probability: ${TRACE_SAMPLE_RATE:0.1}

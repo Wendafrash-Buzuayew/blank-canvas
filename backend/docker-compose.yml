@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # S3-compatible object storage for uploaded product/branding images
   # (app.media.backend=s3). Not needed when MEDIA_BACKEND is left at its
@@ -8,7 +6,7 @@ services:
   # S3-compatible provider in a cloud deployment — only endpoint/credentials
   # change.
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     container_name: qrserve-minio
     ports:
       - "9000:9000"
@@ -63,6 +61,14 @@ services:
       - PUBLIC_BASE_DOMAIN=${PUBLIC_BASE_DOMAIN:?PUBLIC_BASE_DOMAIN must be set}
       - PUBLIC_MENU_DOMAIN=${PUBLIC_MENU_DOMAIN:?PUBLIC_MENU_DOMAIN must be set}
       - PUBLIC_URL_SCHEME=${PUBLIC_URL_SCHEME:-https}
+      - MERCHANT_SERVICE_URL=http://merchant-service:8085
+      # TEMPORARY, defaults ON: no real Safaricom Super App adapter exists yet
+      # (see SuperAppAuthPort), so this fake is the only way to exercise the
+      # Mini App login end to end in this compose stack. It accepts ANY caller
+      # who supplies a merchantShortCode as proof of identity - remove this
+      # line (or set it to "false") the moment a real environment could see
+      # untrusted traffic, and definitely before the real adapter ships.
+      - SUPERAPP_DEV_FAKE_ENABLED=${SUPERAPP_DEV_FAKE_ENABLED:-true}
       - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -91,6 +97,15 @@ services:
       - PUBLIC_URL_SCHEME=${PUBLIC_URL_SCHEME:-https}
       - BACK_OFFICE_SERVICE_URL=http://back-office-service:8090
       - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
+      # The standalone `kafka` container isn't declared in this compose file
+      # (started separately, alongside postgres/redis) — see this repo's
+      # notes on that split. It must be on the same Docker network as this
+      # service for the container-name form below to resolve; if Kafka
+      # itself advertises "localhost:9092" back to clients post-bootstrap
+      # rather than a name reachable from other containers, table creation
+      # (MerchantEventPublisher) will still fail even with this set correctly
+      # — that half is Kafka's own listener config, not this service's.
+      - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
       # Defaults to the filesystem backend (no MinIO dependency); flip
       # MEDIA_BACKEND=s3 to use the minio service defined above instead —
       # same wiring as menu-service's own block below.
@@ -142,6 +157,14 @@ services:
       # One-off, opt-in migration (see BranchMenuBackfillRunner) — leave
       # false; flip to true in .env for exactly one restart, then back off.
       - BACKFILL_BRANCH_MENUS_ENABLED=${BACKFILL_BRANCH_MENUS_ENABLED:-false}
+      # Safaricom ETHQR payment-QR proxy (SafaricomEthQrService) — a Pro-tier
+      # standee feature, not core to the app, so this is left empty rather
+      # than `:?required` like the secrets above. Optional, not just
+      # unconfigured-but-tolerated: a real call to the endpoint with no key
+      # at all was confirmed to succeed, so GET /api/payment/ethqr works fine
+      # with this unset — see SafaricomEthQrService's own header comment.
+      - SAFARICOM_QR_BASE_URL=${SAFARICOM_QR_BASE_URL:-https://qr.safaricom.et/api/qr/generate}
+      - SAFARICOM_QR_API_KEY=${SAFARICOM_QR_API_KEY:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped

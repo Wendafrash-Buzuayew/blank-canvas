@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Every real backend service + shared infra, for one site. A site is stood
+# up with `kubectl apply -k overlays/site-<name>`, never by hand-copying
+# these files — see docs/superpowers/plans/2026-09-16-multi-dc-phase0-bp-rollout.md.
+#
+# Deliberately NOT listed here:
+#   - secrets.example.yaml — a template, never applied directly (see its own
+#     header comment for the `kubectl create secret` command instead).
+#   - ../postgres-deployment.yaml / ../redis-deployment.yaml — the
+#     local/dev-only in-cluster Postgres/Redis path, mutually exclusive with
+#     data-tier-external.yaml's ExternalName Services used here.
+resources:
+  - config.yaml
+  - data-tier-external.yaml
+  - ingress.yaml
+  - kafka.yaml
+  - discovery-service.yaml
+  - auth-service.yaml
+  - merchant-service.yaml
+  - menu-service.yaml
+  - order-service.yaml
+  - qr-service.yaml
+  - notification-service.yaml
+  - analytics-service.yaml
+  - back-office-service.yaml
+  - api-gateway.yaml

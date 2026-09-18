@@ -9,6 +9,14 @@ export type AuthUser = {
   role: string;
   merchantId?: string;
   branchId?: number | null;
+  /**
+   * False right after a Super App auto-registration; ProtectedRoute redirects
+   * to /onboarding while false. Optional (not just possibly-false) because a
+   * session persisted before this field existed has no value here at all -
+   * treated the same as true, i.e. no gate, which is correct: every account
+   * that predates this feature was already fully set up.
+   */
+  onboardingComplete?: boolean;
 };
 
 interface AuthContextType {
@@ -33,6 +41,7 @@ function mapUserInfoToAuthUser(info: UserInfoResponse): AuthUser {
     role: info.role,
     merchantId: info.merchantId ?? undefined,
     branchId: info.branchId ?? null,
+    onboardingComplete: info.onboardingComplete ?? true,
   };
 }
 
@@ -100,6 +109,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           name: payload.name || payload.sub || email.split('@')[0],
           role: payload.role || payload.authorities?.[0]?.replace('ROLE_', '') || 'MERCHANT_OWNER',
           merchantId: payload.merchantId,
+          // Every email/password account is onboarded at creation time; the
+          // JWT carries no onboarding claim, so this path never needs one.
+          onboardingComplete: true,
         };
       }
 
@@ -132,6 +144,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           name: payload.name || payload.sub || 'Merchant',
           role: payload.role || 'MERCHANT_OWNER',
           merchantId: payload.merchantId,
+          // Unknown without /me - a Super App account may or may not have
+          // onboarded yet. Assume it hasn't: the onboarding form is a one-time,
+          // idempotent gate, so this errs toward showing it once more rather
+          // than risking a never-onboarded merchant skipping it entirely.
+          onboardingComplete: false,
         };
       }
 

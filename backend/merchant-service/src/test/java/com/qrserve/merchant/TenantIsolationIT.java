@@ -6,6 +6,7 @@ import com.qrserve.merchant.dto.CreateMerchantRequest;
 import com.qrserve.merchant.dto.CreateTableRequest;
 import com.qrserve.merchant.entity.BranchEntity;
 import com.qrserve.merchant.entity.MerchantEntity;
+import com.qrserve.merchant.entity.MerchantTier;
 import com.qrserve.merchant.entity.TableEntity;
 import com.qrserve.merchant.repository.BranchRepository;
 import com.qrserve.merchant.repository.MerchantRepository;
@@ -131,6 +132,13 @@ class TenantIsolationIT {
         return MerchantEntity.builder()
                 .name(name).slug(slug).phone("+251900000000")
                 .city("Addis Ababa").address("Bole").category("CAFE")
+                // PRO, not the FREE default: this suite is about tenant
+                // isolation and routinely gives each test merchant several
+                // branches to exercise slug scoping — that is a different
+                // concern from the Free-tier branch cap BranchServiceTest
+                // covers, and letting it default to FREE here would fail
+                // these tests on the cap instead of on what they actually test.
+                .tier(MerchantTier.PRO)
                 .build();
     }
 
@@ -296,6 +304,48 @@ class TenantIsolationIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(branchJson(merchantA.getId(), "Main Again", "main")))
                 .andExpect(status().isBadRequest());
+    }
+
+    // ---- Free-tier branch cap, over HTTP ----
+
+    /**
+     * BranchServiceTest already covers the cap at the service layer, but only
+     * as far as the exception thrown. What a Free-tier owner's client actually
+     * receives depends on GlobalExceptionHandler mapping
+     * TierLimitExceededException to 403 — and on that advice being visible to
+     * merchant-service's web stack at all. Asserting the status over the real
+     * filter chain is the only thing that ties those two halves together: a
+     * 400 or 500 here would leave the frontend unable to tell "upgrade to
+     * Pro" apart from an ordinary validation failure.
+     *
+     * <p>Uses its own FREE merchant rather than merchantA/B, which are
+     * deliberately PRO for the rest of this suite (see {@link #merchant}).
+     */
+    @Test
+    @DisplayName("a Free-tier merchant's second branch is a 403, and the first is still allowed")
+    void freeTierSecondBranchIsForbiddenOverHttp() throws Exception {
+        MerchantEntity free = merchantRepository.save(MerchantEntity.builder()
+                .name("Tin Cup Cafe").slug("tin-cup").phone("+251900000001")
+                .city("Addis Ababa").address("Bole").category("CAFE")
+                .tier(MerchantTier.FREE)
+                .build());
+        String owner = tokenFor(free.getId(), UserRole.MERCHANT_OWNER);
+
+        // Starting from zero branches, so this one is inside the cap.
+        mockMvc.perform(post("/api/branches")
+                        .header(HttpHeaders.AUTHORIZATION, owner)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(branchJson(free.getId(), "Bole Branch", "bole")))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/branches")
+                        .header(HttpHeaders.AUTHORIZATION, owner)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(branchJson(free.getId(), "Piassa Branch", "piassa")))
+                .andExpect(status().isForbidden())
+                // The real message, not Spring Security's blank AccessDenied
+                // body — the frontend surfaces this text in the upgrade prompt.
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Upgrade to Pro")));
     }
 
     @Test

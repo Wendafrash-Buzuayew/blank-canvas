@@ -10,6 +10,12 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * The structural fields are deliberately NOT {@code @NotNull}: they were added
+ * after this endpoint shipped, and a client that predates them must still be
+ * able to create a working template. MenuTemplateService fills any omitted
+ * field with the entity default rather than persisting null.
+ */
 @Data
 @Builder
 @NoArgsConstructor
@@ -29,4 +35,22 @@ public class CreateMenuTemplateRequest {
 
     @NotNull
     private MenuTemplateEntity.AccentToken accentToken;
+
+    // ---- Structure (optional; defaulted by the service when omitted) ----
+
+    private MenuTemplateEntity.LayoutStructure layoutStructure;
+
+    private MenuTemplateEntity.ItemCardStyle itemCardStyle;
+
+    private Boolean showImages;
+
+    private MenuTemplateEntity.ImagePosition imagePosition;
+
+    private MenuTemplateEntity.ImageAspectRatio imageAspectRatio;
+
+    private MenuTemplateEntity.FontFamily fontFamily;
+
+    private MenuTemplateEntity.HeaderAlignment headerAlignment;
+
+    private Boolean showCoverImage;
 }

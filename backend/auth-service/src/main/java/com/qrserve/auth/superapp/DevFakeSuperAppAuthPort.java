@@ -13,12 +13,13 @@ import org.springframework.stereotype.Component;
  *
  * <p>Fails closed by default (`superapp.auth.dev-fake-enabled`, defaulting to
  * false via SUPERAPP_DEV_FAKE_ENABLED). This fake accepts ANY token carrying a
- * non-blank merchantExternalRef as proof of identity - if it were reachable
- * unconditionally, anyone who knew or guessed an existing merchant's
- * merchantExternalRef could obtain a valid MERCHANT_OWNER session for that
- * merchant with no password, and any unrecognized ref would trigger full
- * unauthenticated provisioning across merchant-service. This must only be
- * enabled in environments where that is the intended behavior (local/dev).
+ * non-blank merchantShortCode as proof of identity - if it were reachable
+ * unconditionally, anyone who knew or guessed an existing merchant's short
+ * code could obtain a valid MERCHANT_OWNER session for that merchant with no
+ * password, and any unrecognized short code would trigger full unauthenticated
+ * provisioning across merchant-service. This must only be enabled in
+ * environments where that is the intended behavior (local/dev/staging, ahead
+ * of the real Safaricom adapter).
  */
 @Component
 public class DevFakeSuperAppAuthPort implements SuperAppAuthPort {
@@ -47,12 +48,8 @@ public class DevFakeSuperAppAuthPort implements SuperAppAuthPort {
         } catch (Exception e) {
             throw new UnauthorizedException("Super App token could not be parsed");
         }
-        requireField(claim.merchantExternalRef(), "merchantExternalRef");
-        requireField(claim.businessName(), "businessName");
-        requireField(claim.phone(), "phone");
-        requireField(claim.city(), "city");
-        requireField(claim.address(), "address");
-        requireField(claim.category(), "category");
+        requireField(claim.merchantShortCode(), "merchantShortCode");
+        requireField(claim.msisdn(), "msisdn");
         return claim;
     }
 

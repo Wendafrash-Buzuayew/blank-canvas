@@ -48,6 +48,12 @@ public class PublicDigitalMenuResolutionService {
                 .branchId(branch.getId())
                 .branchSlug(branch.getSlug())
                 .branchName(branch.getName())
+                // Brand artwork for the menu header. Deliberately only these
+                // three merchant fields - this response is unauthenticated, so
+                // it must not become a general merchant projection.
+                .logoUrl(merchant.getLogoUrl())
+                .coverImageUrl(merchant.getCoverImageUrl())
+                .tagline(merchant.getTagline())
                 .build();
     }
 }

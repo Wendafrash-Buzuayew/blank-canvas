@@ -39,8 +39,8 @@ public class UserEntity {
     private UserRole role;
 
     /**
-     * The M-PESA Super App's own merchant/business reference, so a repeat entry
-     * from the Super App finds the existing account instead of re-provisioning.
+     * The M-PESA Super App's merchant till/short code, so a repeat entry from
+     * the Super App finds the existing account instead of re-provisioning.
      * Null for every user created through the ordinary email/password path.
      */
     @Column(name = "super_app_merchant_ref", unique = true)
@@ -48,6 +48,19 @@ public class UserEntity {
 
     @Column(nullable = false)
     private boolean enabled;
+
+    /**
+     * Whether this merchant has filled in the business profile (name, city,
+     * address, category) that a Super App claim never carries - it only ever
+     * hands over a merchant short code and an MSISDN. True for every account
+     * created through the ordinary email/password path, which collects that
+     * profile up front. False the moment a Super App login auto-provisions a
+     * new merchant; the frontend gates every other route behind an onboarding
+     * form until {@code AuthController#completeOnboarding} flips it.
+     */
+    @Column(name = "onboarding_complete", nullable = false)
+    @Builder.Default
+    private boolean onboardingComplete = true;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

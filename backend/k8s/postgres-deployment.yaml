@@ -1,3 +1,10 @@
+# LOCAL/DEV ONLY. Not part of the BP (or any real site's) production path —
+# every service's DATABASE_URL there is postgres-db, which base/data-tier-
+# external.yaml points at the real Postgres VM via ExternalName. This file's
+# own Service (postgres-service, below) has a different name for exactly
+# that reason: applying both never conflicts, but applying this one in a
+# real environment just runs an extra, unused, single-replica Postgres pod
+# with no backups. Use it only if you have no VM Postgres to point at yet.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -22,8 +29,12 @@ spec:
           env:
             - name: POSTGRES_DB
               value: "qrserve_auth"
+            # Every service's DATABASE_USERNAME is "postgres" (see
+            # backend/k8s/base/*.yaml) — this must match, not "qrserve_user"
+            # as it previously did, or every service using this pod fails to
+            # authenticate at startup.
             - name: POSTGRES_USER
-              value: "qrserve_user"
+              value: "postgres"
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -57,6 +68,7 @@ data:
     CREATE DATABASE qrserve_qr;
     CREATE DATABASE qrserve_notification;
     CREATE DATABASE qrserve_analytics;
+    CREATE DATABASE qrserve_backoffice;
 ---
 apiVersion: v1
 kind: Service

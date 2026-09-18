@@ -8,35 +8,25 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
- * No real Super App token contract exists yet - this fake treats the raw
- * token as a JSON object carrying the claim fields directly, so local dev
- * and this test can exercise the whole exchange path without a real
- * container. See docs/superpowers/specs/2026-08-27-mini-app-phase1-decoupling-design.md §5.
+ * The real Super App handshake only ever carries a merchant short code and
+ * an MSISDN - this fake treats the raw token as a JSON object carrying those
+ * two claim fields directly, so local dev and this test can exercise the
+ * whole exchange path without a real container. See
+ * docs/superpowers/specs/2026-08-27-mini-app-phase1-decoupling-design.md §5.
  */
 class DevFakeSuperAppAuthPortTest {
 
     private final DevFakeSuperAppAuthPort port = new DevFakeSuperAppAuthPort(true);
 
     @Test
-    @DisplayName("a well-formed token JSON becomes a claim with every field")
+    @DisplayName("a well-formed token JSON becomes a claim with both fields")
     void parsesAWellFormedToken() {
-        String token = "{"
-                + "\"merchantExternalRef\":\"MPESA-BIZ-001\","
-                + "\"businessName\":\"Sunrise Cafe\","
-                + "\"phone\":\"+254700000000\","
-                + "\"city\":\"Nairobi\","
-                + "\"address\":\"123 Moi Ave\","
-                + "\"category\":\"Restaurant\""
-                + "}";
+        String token = "{\"merchantShortCode\":\"174379\",\"msisdn\":\"+254700000000\"}";
 
         SuperAppMerchantClaim claim = port.exchangeToken(token);
 
-        assertEquals("MPESA-BIZ-001", claim.merchantExternalRef());
-        assertEquals("Sunrise Cafe", claim.businessName());
-        assertEquals("+254700000000", claim.phone());
-        assertEquals("Nairobi", claim.city());
-        assertEquals("123 Moi Ave", claim.address());
-        assertEquals("Restaurant", claim.category());
+        assertEquals("174379", claim.merchantShortCode());
+        assertEquals("+254700000000", claim.msisdn());
     }
 
     @Test
@@ -46,10 +36,16 @@ class DevFakeSuperAppAuthPortTest {
     }
 
     @Test
-    @DisplayName("a token missing the merchant reference is rejected")
-    void rejectsMissingMerchantRef() {
-        String token = "{\"businessName\":\"Sunrise Cafe\",\"phone\":\"+254700000000\","
-                + "\"city\":\"Nairobi\",\"address\":\"123 Moi Ave\",\"category\":\"Restaurant\"}";
+    @DisplayName("a token missing the merchant short code is rejected")
+    void rejectsMissingShortCode() {
+        String token = "{\"msisdn\":\"+254700000000\"}";
+        assertThrows(UnauthorizedException.class, () -> port.exchangeToken(token));
+    }
+
+    @Test
+    @DisplayName("a token missing the MSISDN is rejected")
+    void rejectsMissingMsisdn() {
+        String token = "{\"merchantShortCode\":\"174379\"}";
         assertThrows(UnauthorizedException.class, () -> port.exchangeToken(token));
     }
 
@@ -64,22 +60,7 @@ class DevFakeSuperAppAuthPortTest {
     @DisplayName("the dev fake refuses to run at all when disabled, even for a well-formed token")
     void refusesWhenDisabled() {
         DevFakeSuperAppAuthPort disabledPort = new DevFakeSuperAppAuthPort(false);
-        String token = "{"
-                + "\"merchantExternalRef\":\"MPESA-BIZ-001\","
-                + "\"businessName\":\"Sunrise Cafe\","
-                + "\"phone\":\"+254700000000\","
-                + "\"city\":\"Nairobi\","
-                + "\"address\":\"123 Moi Ave\","
-                + "\"category\":\"Restaurant\""
-                + "}";
+        String token = "{\"merchantShortCode\":\"174379\",\"msisdn\":\"+254700000000\"}";
         assertThrows(UnauthorizedException.class, () -> disabledPort.exchangeToken(token));
-    }
-
-    @Test
-    @DisplayName("a token missing any required field other than merchantExternalRef is rejected")
-    void rejectsMissingOtherFields() {
-        String missingCity = "{\"merchantExternalRef\":\"MPESA-BIZ-001\",\"businessName\":\"Sunrise Cafe\","
-                + "\"phone\":\"+254700000000\",\"address\":\"123 Moi Ave\",\"category\":\"Restaurant\"}";
-        assertThrows(UnauthorizedException.class, () -> port.exchangeToken(missingCity));
     }
 }

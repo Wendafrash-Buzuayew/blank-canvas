@@ -23,6 +23,21 @@ export interface DigitalMenuResolution {
   branchId: number;
   branchSlug: string;
   branchName: string;
+
+  /**
+   * Merchant brand artwork for the menu header. All three are optional and
+   * currently unset for every merchant — the header is built to work without
+   * them (a missing cover falls back to the branch's first dish photo; a
+   * missing logo or tagline is simply not rendered), so treat them as a
+   * progressive enhancement rather than required data.
+   *
+   * Optional in the type as well as nullable because a menu-service or
+   * merchant-service that predates these fields omits them from the JSON
+   * entirely.
+   */
+  logoUrl?: string | null;
+  coverImageUrl?: string | null;
+  tagline?: string | null;
 }
 
 export interface DigitalMenuProduct {

@@ -47,6 +47,7 @@ public class MerchantService {
                 .city(request.getCity())
                 .address(request.getAddress())
                 .category(request.getCategory())
+                .shortCode(request.getShortCode())
                 .build();
 
         MerchantEntity saved = merchantRepository.save(merchant);

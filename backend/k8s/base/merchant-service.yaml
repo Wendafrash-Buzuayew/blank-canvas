@@ -1,0 +1,113 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: merchant-service
+  namespace: default
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: merchant-service
+  template:
+    metadata:
+      labels:
+        app: merchant-service
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values: ["merchant-service"]
+              topologyKey: topology.kubernetes.io/zone
+      containers:
+      - name: merchant-service
+        image: qrserve-merchant-service:latest
+        ports:
+        - containerPort: 8085
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
+        - name: DATABASE_URL
+          value: "jdbc:postgresql://postgres-db:5432/qrserve_merchant"
+        - name: DATABASE_USERNAME
+          value: "postgres"
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef: { name: qrserve-secrets, key: db-password }
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef: { name: qrserve-secrets, key: jwt-secret }
+        - name: QR_SIGNATURE_SECRET
+          valueFrom:
+            secretKeyRef: { name: qrserve-secrets, key: qr-signature-secret }
+        - name: PUBLIC_BASE_DOMAIN
+          valueFrom:
+            configMapKeyRef: { name: qrserve-config, key: public-base-domain }
+        - name: PUBLIC_MENU_DOMAIN
+          valueFrom:
+            configMapKeyRef: { name: qrserve-config, key: public-menu-domain }
+        # Was previously unset: merchant-service publishes MerchantEvent/
+        # TableQrEvent to Kafka (see MerchantEventPublisher, TableQrEventPublisher)
+        # and silently defaulted to localhost:9092, which doesn't exist in this
+        # pod. Events were never actually reaching Kafka in this deployment.
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: "kafka-service:9092"
+        - name: EUREKA_SERVER_URL
+          value: "http://discovery-service:8761/eureka"
+        resources:
+          requests: { cpu: "250m", memory: "512Mi" }
+          limits: { cpu: "750m", memory: "1Gi" }
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8085
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8085
+          initialDelaySeconds: 15
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: merchant-service
+  namespace: default
+  annotations:
+    service.kubernetes.io/topology-mode: Auto
+spec:
+  ports:
+    - port: 8085
+      targetPort: 8085
+  selector:
+    app: merchant-service
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: merchant-service-hpa
+  namespace: default
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: merchant-service }
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+  - type: Resource
+    resource: { name: cpu, target: { type: Utilization, averageUtilization: 75 } }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: merchant-service-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: merchant-service

@@ -53,9 +53,10 @@ backend/
 ├── postman_collection.json
 ├── README.md
 ├── k8s/
-│   ├── postgres-deployment.yaml
-│   ├── redis-deployment.yaml
-│   └── qrserve-backend-app.yaml
+│   ├── base/                   # Every real service, one site's worth — see k8s/base/kustomization.yaml
+│   ├── overlays/site-bp/       # `kubectl apply -k` this, not the files under base/ directly
+│   ├── postgres-deployment.yaml  # local/dev only — see its own header comment
+│   └── redis-deployment.yaml     # local/dev only — see its own header comment
 ├── shared/
 │   ├── common/                # Base entities, TenantContext ThreadLocal, Flyway migrations
 │   ├── security/              # JWT TokenProvider, Security Filters & Principal
@@ -155,12 +156,23 @@ curl http://localhost:8080/api/merchants/a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11
 
 ## ☸️ Kubernetes Deployment
 
+All ten services, via Kustomize — see
+`docs/superpowers/plans/2026-09-16-multi-dc-phase0-bp-rollout.md` for the full,
+ordered rollout runbook (secrets, DB prerequisites, verification per step).
+Short version:
+
 ```bash
-# Apply production cluster manifests
-kubectl apply -f backend/k8s/postgres-deployment.yaml
-kubectl apply -f backend/k8s/redis-deployment.yaml
-kubectl apply -f backend/k8s/qrserve-backend-app.yaml
+kubectl create secret generic qrserve-secrets \
+  --from-literal=jwt-secret="$(openssl rand -base64 48)" \
+  --from-literal=qr-signature-secret="$(openssl rand -base64 32)" \
+  --from-literal=db-password="<the real Postgres VM password>"
+
+kubectl apply -k backend/k8s/overlays/site-bp   # includes the ingress — wildcard host + TLS
 ```
+
+Never `kubectl apply -f` an individual file under `backend/k8s/base/` — always
+go through the `overlays/site-<name>` layer above it, even today with BP as
+the only site, so a second site is never hand-copied from scratch.
 
 ---
 
@@ -244,10 +256,10 @@ platform's.
 
 ### Kubernetes
 
-```bash
-kubectl apply -f backend/k8s/config.yml          # PUBLIC_BASE_DOMAIN
-kubectl apply -f backend/k8s/proxy-ingress.yml   # wildcard host + TLS
-```
+`PUBLIC_BASE_DOMAIN`/`PUBLIC_MENU_DOMAIN` (the `qrserve-config` ConfigMap) and
+the ingress are both part of `backend/k8s/base/`, applied via
+`kubectl apply -k backend/k8s/overlays/site-bp` — see the Kubernetes
+Deployment section above.
 
 The ingress needs wildcard DNS for `*.qrserve.safaricom.et` and a wildcard
 certificate in the `qrserve-wildcard-tls` secret. The wildcard is **single-label**:
@@ -255,10 +267,13 @@ a certificate for `*.qrserve.safaricom.et` does not cover
 `a.b.qrserve.safaricom.et`, which is why branches are path segments rather than
 second-level subdomains.
 
-> **Caveat:** `backend/k8s/deployment.yml` describes only four of the nine
-> services. The ingress above is correct but cannot be exercised until the
-> manifests deploy the services they claim to. A green `kubectl apply` on the
-> ingress is not evidence that routing works.
+All ten services now have real manifests under `backend/k8s/base/` (as of the
+Phase 0 hardening pass — see
+`docs/superpowers/specs/2026-09-16-multi-dc-production-deployment-design.md`),
+so the ingress can actually be exercised end to end; this previously wasn't
+true (only four of ten services had manifests, `discovery-service` had none
+at all, and neither the gateway nor auth/merchant/order ever had
+`EUREKA_SERVER_URL` set — `lb://` routing had no real instance to resolve).
 
 ### Tenant isolation is a CI gate
 

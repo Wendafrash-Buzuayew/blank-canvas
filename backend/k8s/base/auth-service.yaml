@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: default
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values: ["auth-service"]
+              topologyKey: topology.kubernetes.io/zone
+      containers:
+      - name: auth-service
+        image: qrserve-auth-service:latest
+        ports:
+        - containerPort: 8087
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
+        - name: DATABASE_URL
+          value: "jdbc:postgresql://postgres-db:5432/qrserve_auth"
+        - name: DATABASE_USERNAME
+          value: "postgres"
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef: { name: qrserve-secrets, key: db-password }
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef: { name: qrserve-secrets, key: jwt-secret }
+        - name: QR_SIGNATURE_SECRET
+          valueFrom:
+            secretKeyRef: { name: qrserve-secrets, key: qr-signature-secret }
+        - name: PUBLIC_BASE_DOMAIN
+          valueFrom:
+            configMapKeyRef: { name: qrserve-config, key: public-base-domain }
+        - name: PUBLIC_MENU_DOMAIN
+          valueFrom:
+            configMapKeyRef: { name: qrserve-config, key: public-menu-domain }
+        - name: MERCHANT_SERVICE_URL
+          value: "http://merchant-service:8085"
+        # EUREKA_SERVER_URL was previously unset here, so this pod's Eureka
+        # client silently defaulted to http://localhost:8761/eureka (itself)
+        # and never registered anywhere real. It never broke THIS service's
+        # own direct REST calls (those all use plain configured URLs, by
+        # design — see this service's application.yml), but it meant
+        # api-gateway's `lb://auth-service` route had no real instance to
+        # resolve. See the Phase 0 rollout runbook.
+        - name: EUREKA_SERVER_URL
+          value: "http://discovery-service:8761/eureka"
+        # TEMPORARY, defaults ON: no real Safaricom Super App adapter exists
+        # yet (see SuperAppAuthPort), so this fake is the only way to
+        # exercise the Mini App login end to end against this deployment. It
+        # accepts ANY caller who supplies a merchantShortCode as proof of
+        # identity - remove this env var (or set it to "false") the moment
+        # this environment could see untrusted traffic, and definitely before
+        # the real adapter ships.
+        - name: SUPERAPP_DEV_FAKE_ENABLED
+          value: "true"
+        resources:
+          requests: { cpu: "250m", memory: "512Mi" }
+          limits: { cpu: "750m", memory: "1Gi" }
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8087
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8087
+          initialDelaySeconds: 15
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: default
+  annotations:
+    service.kubernetes.io/topology-mode: Auto
+spec:
+  ports:
+    - port: 8087
+      targetPort: 8087
+  selector:
+    app: auth-service
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: auth-service-hpa
+  namespace: default
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: auth-service }
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+  - type: Resource
+    resource: { name: cpu, target: { type: Utilization, averageUtilization: 75 } }
+  - type: Resource
+    resource: { name: memory, target: { type: Utilization, averageUtilization: 80 } }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: auth-service-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: auth-service

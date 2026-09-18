@@ -522,6 +522,22 @@ export const useTableQr = (tableId: number | undefined) => {
   });
 };
 
+/**
+ * The signed digital-menu URL for a branch — the string the standee's QR
+ * encodes. Cached for an hour: branch slugs are permanent and the signature is
+ * derived from ids, so this is stable, and the Standee Studio re-renders on
+ * every keystroke of the promo text.
+ */
+export const useBranchMenuUrl = (merchantSlug?: string | null, branchSlug?: string | null) => {
+  const { isAuthenticated: isAuth } = useAuth();
+  return useQuery({
+    queryKey: ['qr', 'branch-menu-url', merchantSlug, branchSlug],
+    queryFn: () => qrApi.getBranchMenuUrl(merchantSlug!, branchSlug!),
+    enabled: !!merchantSlug && !!branchSlug && isAuth,
+    staleTime: 60 * 60_000,
+  });
+};
+
 // ============ Analytics Queries ============
 
 export const useTodayAnalytics = (merchantId?: string) => {

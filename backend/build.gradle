@@ -229,6 +229,13 @@ project(':discovery-service') {
     springBoot { mainClass = 'com.qrserve.discovery.DiscoveryServiceApplication' }
     dependencies {
         implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-server'
+        // Was missing entirely: this module's own application.yml already
+        // configures management.endpoints/health, and its k8s Deployment
+        // probes /actuator/health/liveness+readiness, but neither did
+        // anything without this on the classpath — the endpoints did not
+        // exist, so the liveness probe 404'd. See the Phase 0 rollout
+        // runbook (docs/superpowers/plans/2026-09-16-multi-dc-phase0-bp-rollout.md).
+        implementation 'org.springframework.boot:spring-boot-starter-actuator'
     }
 }
 
@@ -260,6 +267,17 @@ project(':api-gateway') {
         implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
         implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
         implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-reactor-resilience4j'
+        // Was missing entirely: this module's own application.yml already
+        // configures management.endpoints/health (and, as of this Phase 0
+        // pass, a custom "site" health group), and its k8s Deployment probes
+        // /actuator/health/liveness+readiness, but neither did anything
+        // without this on the classpath — the endpoints did not exist, so
+        // the liveness probe 404'd, which means this gateway has likely been
+        // failing its liveness check and cycling continuously in every real
+        // deployment. Works the same under WebFlux as under MVC — no
+        // separate reactive actuator starter exists or is needed. See the
+        // Phase 0 rollout runbook.
+        implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
         // The tenant filter tests use MockServerWebExchange and MockServerHttpRequest.
         // Those live in spring-test, which spring-boot-starter-test already provides

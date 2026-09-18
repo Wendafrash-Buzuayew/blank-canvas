@@ -11,3 +11,5 @@ coverage/
 !.env.production
 !.env.local.example
 .worktrees/
+*.png
+*.jpeg

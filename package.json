@@ -10,7 +10,7 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "build:dev": "vite build --mode development",
-    "test:unit": "tsx src/lib/tenant.test.ts && tsx src/lib/orderSession.test.ts && tsx src/lib/qrDisplay.test.ts && tsx src/lib/phase.test.ts && tsx src/lib/navigation.test.ts && tsx src/lib/superApp.test.ts && tsx src/lib/digitalMenu.test.ts"
+    "test:unit": "tsx src/lib/tenant.test.ts && tsx src/lib/orderSession.test.ts && tsx src/lib/qrDisplay.test.ts && tsx src/lib/phase.test.ts && tsx src/lib/navigation.test.ts && tsx src/lib/superApp.test.ts && tsx src/lib/digitalMenu.test.ts && tsx src/lib/menuTemplates.test.ts && tsx src/lib/standee.test.ts && tsx src/lib/ethQr.test.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",
@@ -24,6 +24,8 @@
     "@types/qrcode": "^1.5.6",
     "@vitejs/plugin-react": "^5.0.4",
     "canvas-confetti": "^1.9.4",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "qrcode": "^1.5.4",

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Building2, Plus, Edit2, Trash2, Star } from 'lucide-react';
+import { Building2, Plus, Edit2, Trash2, Star, Lock } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Spinner, ErrorState, EmptyState } from '../components/ui/States';
 import { EntitySelect } from '../components/ui/EntitySelect';
@@ -9,9 +9,10 @@ import { Modal } from '../components/ui/Modal';
 import { FormField } from '../components/ui/FormField';
 import { useCreateBranch, useUpdateBranch, useDeleteBranch, useSetPrimaryBranch } from '../hooks/useApiData';
 import { useBranchesLookup, useMerchantsLookup, useTablesLookup } from '../hooks/useLookups';
+import { useAuth } from '../context/AuthContext';
 import { friendlyError } from '../lib/errors';
 import { isPhase2Enabled } from '../lib/phase';
-import { BranchEntity } from '../lib/api';
+import { BranchEntity, FREE_TIER_MAX_BRANCHES } from '../lib/api';
 
 /**
  * Client-side preview only - the backend (Slugs.toPathSlug) is the real
@@ -27,6 +28,8 @@ function slugify(name: string): string {
 
 export const BranchManagement: React.FC = () => {
   const phase2 = isPhase2Enabled();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const merchantsQuery = useMerchantsLookup();
   const branchesQuery = useBranchesLookup();
   // Table counts are a Phase 2 (ordering) concept - skip the lookup entirely
@@ -58,6 +61,18 @@ export const BranchManagement: React.FC = () => {
     tables.forEach((t) => counts.set(t.branchId, (counts.get(t.branchId) ?? 0) + 1));
     return counts;
   }, [tables]);
+
+  // SUPER_ADMIN manages every merchant's branches from this one page, so "the"
+  // add-branch limit has no single answer there — the backend still enforces
+  // it per merchant regardless, surfaced as formError below. A MERCHANT_OWNER
+  // has exactly one merchant (useMerchantsLookup scopes it that way), so the
+  // limit is unambiguous and worth disabling the button for up front.
+  const ownMerchant = !isSuperAdmin ? merchants[0] : undefined;
+  const ownBranchCount = ownMerchant
+    ? branches.filter((b) => b.merchantId === ownMerchant.id).length
+    : 0;
+  const tierLimitReached =
+    !!ownMerchant && ownMerchant.tier === 'FREE' && ownBranchCount >= FREE_TIER_MAX_BRANCHES;
 
   const openCreate = () => {
     setEditingBranch(null);
@@ -160,10 +175,18 @@ export const BranchManagement: React.FC = () => {
             </h2>
             <p className="mt-1 text-body-m text-muted">Create and manage restaurant branches</p>
           </div>
-          <Button onClick={openCreate} disabled={merchants.length === 0}>
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            Add Branch
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {tierLimitReached && (
+              <span className="inline-flex items-center gap-1 rounded-pill bg-warn-soft px-2.5 py-1 text-label-s text-ink">
+                <Lock className="h-3 w-3" aria-hidden="true" />
+                Upgrade to Pro for more branches
+              </span>
+            )}
+            <Button onClick={openCreate} disabled={merchants.length === 0 || tierLimitReached}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Add Branch
+            </Button>
+          </div>
         </div>
 
         {pageError && (

@@ -1,3 +1,6 @@
+# LOCAL/DEV ONLY — see the matching header comment in postgres-deployment.yaml.
+# Not part of the BP (or any real site's) production path; base/data-tier-
+# external.yaml's redis-cache ExternalName is what real services use.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

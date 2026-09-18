@@ -4,6 +4,17 @@
 **Status:** Approved design. Not yet planned or implemented.
 **Scope:** Frontend, API Gateway, and deployment changes to expose a lean, mobile-first Phase 1 Merchant Mini App inside the M-PESA Super App, while preserving all Phase 2 code, controllers, microservices, and database tables untouched for later reactivation.
 
+**2026-09-16 update:** Open item 1 below is resolved. The real Super App
+handshake only ever carries a merchant short code and the caller's MSISDN -
+no business name, phone, city, address or category. `SuperAppMerchantClaim`,
+`DevFakeSuperAppAuthPort`, and `SuperAppProvisioningService` (§5) now reflect
+this. The business-profile gap is filled by a new one-time onboarding form
+(`UserEntity.onboardingComplete`, `OnboardingPage.tsx`, gated in
+`ProtectedRoute`) shown immediately after first Super App login, which also
+lets the merchant optionally set a real email/password as a browser-login
+fallback (`PATCH /api/auth/me/credentials`) - email/password is otherwise
+entirely optional, matching how mini apps are conventionally integrated.
+
 ---
 
 ## 1. Context

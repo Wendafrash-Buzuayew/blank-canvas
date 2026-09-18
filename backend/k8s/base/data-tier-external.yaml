@@ -1,0 +1,32 @@
+# Points every service's DATABASE_URL=postgres-db / REDIS_HOST=redis-cache
+# at the real VM-hosted Postgres/Redis (see the multi-DC design doc,
+# docs/superpowers/specs/2026-09-16-multi-dc-production-deployment-design.md
+# §4 — this stays a single primary Postgres VM even once a second site
+# exists; a secondary site's overlay just points this at the SAME primary
+# hostname, not a different one, until §9.4's read-routing work lands).
+#
+# REPLACE the externalName values below with your actual VM hostnames/IPs
+# before applying. This file intentionally does NOT include the in-cluster
+# postgres-deployment.yaml/redis-deployment.yaml pods one level up — those
+# are a separate, local-only path for developers without their own Postgres/
+# Redis VM, and must never be applied alongside this file (both define a
+# ClusterIP Service, but under different names, so applying both won't
+# conflict — it'll just leave the unused pods running and consuming
+# resources for nothing).
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-db
+  namespace: default
+spec:
+  type: ExternalName
+  externalName: postgres-vm-cluster.yourdomain.local # REPLACE
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cache
+  namespace: default
+spec:
+  type: ExternalName
+  externalName: redis-vm-cluster.yourdomain.local # REPLACE

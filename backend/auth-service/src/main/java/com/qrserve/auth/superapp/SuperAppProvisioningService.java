@@ -1,9 +1,11 @@
 package com.qrserve.auth.superapp;
 
 import com.qrserve.auth.dto.LoginResponse;
+import com.qrserve.auth.dto.SuperAppLoginRequest;
 import com.qrserve.auth.entity.UserEntity;
 import com.qrserve.auth.repository.UserRepository;
 import com.qrserve.shared.exceptions.ServiceUnavailableException;
+import com.qrserve.shared.exceptions.UnauthorizedException;
 import com.qrserve.shared.security.JwtTokenProvider;
 import com.qrserve.shared.security.UserPrincipal;
 import com.qrserve.shared.security.UserRole;
@@ -57,10 +59,68 @@ public class SuperAppProvisioningService {
     @Value("${services.merchant-service-url:http://localhost:8085}")
     private String merchantServiceUrl;
 
+    /**
+     * Same fail-closed flag DevFakeSuperAppAuthPort guards its own token
+     * exchange with — see exchangeAndLoginFromSuperApp below for why this
+     * newer entry point needs the identical gate even though it never goes
+     * through that port at all.
+     */
+    @Value("${superapp.auth.dev-fake-enabled:false}")
+    private boolean devFakeEnabled;
+
+    /**
+     * Placeholder business-profile fields the Super App claim never carries
+     * (it only ever hands over a short code and an MSISDN). Merchant-service
+     * requires all four non-blank; the onboarding form overwrites them via
+     * PUT /api/merchants/{id} before the merchant reaches any other screen -
+     * see {@code onboardingComplete} on UserEntity and completeOnboarding()
+     * below.
+     */
+    private static final String PENDING_PROFILE_FIELD = "Pending onboarding";
+
     public LoginResponse exchangeAndLogin(String rawToken) {
         SuperAppMerchantClaim claim = superAppAuthPort.exchangeToken(rawToken);
+        return exchangeAndLogin(claim);
+    }
 
-        UserEntity user = userRepository.findBySuperAppMerchantRef(claim.merchantExternalRef())
+    /**
+     * Newer Super App contract (POST /api/auth/superapp-login): msisdn and
+     * shortCode arrive as discrete request fields, alongside a
+     * signature/superAppToken pair meant to let the caller be
+     * cryptographically verified rather than merely trusted.
+     *
+     * <p><b>signature/superAppToken are NOT verified.</b> No real Super App
+     * signing key or algorithm has been supplied yet — the identical
+     * situation SuperAppAuthPort's own Javadoc already documents for the
+     * token-exchange path. Skipping verification here would be one thing if
+     * this endpoint were otherwise locked down, but by itself it is exactly
+     * as exploitable as DevFakeSuperAppAuthPort with dev-fake mode on: any
+     * caller who supplies a real shortCode gets a MERCHANT_OWNER session for
+     * that merchant, no proof required. It is therefore gated behind the
+     * SAME devFakeEnabled flag as that port, fully independent of whether
+     * that port happens to be wired in — this method never calls it at all,
+     * since it already has structured fields with no JSON to parse.
+     */
+    public LoginResponse exchangeAndLoginFromSuperApp(SuperAppLoginRequest request) {
+        if (!devFakeEnabled) {
+            throw new UnauthorizedException(
+                    "Super App login is not enabled on this server. Set SUPERAPP_DEV_FAKE_ENABLED=true "
+                            + "for local/dev/staging use only, until real signature verification is implemented.");
+        }
+        if (request.getSignature() == null || request.getSignature().isBlank()) {
+            log.warn("Super App login for shortCode {} carried no signature - verification is not implemented "
+                    + "yet (no real Super App signing contract exists); accepting on trust, same as the "
+                    + "existing dev-fake token-exchange path.", request.getShortCode());
+        } else {
+            log.warn("Super App login for shortCode {} carried a signature, but it is NOT verified - no real "
+                    + "signing key/algorithm has been supplied yet. This login is no more trustworthy than the "
+                    + "dev-fake exchange until that changes.", request.getShortCode());
+        }
+        return exchangeAndLogin(new SuperAppMerchantClaim(request.getShortCode(), request.getMsisdn()));
+    }
+
+    private LoginResponse exchangeAndLogin(SuperAppMerchantClaim claim) {
+        UserEntity user = userRepository.findBySuperAppMerchantRef(claim.merchantShortCode())
                 .orElseGet(() -> provisionMerchantOwner(claim));
 
         return issueTokens(user);
@@ -75,17 +135,19 @@ public class SuperAppProvisioningService {
 
         UserEntity user = UserEntity.builder()
                 .merchantId(merchant.id())
-                .name(claim.businessName())
-                .email(claim.merchantExternalRef().toLowerCase() + "@" + PLACEHOLDER_EMAIL_DOMAIN)
+                .name("Merchant " + claim.merchantShortCode())
+                .email(claim.merchantShortCode().toLowerCase() + "@" + PLACEHOLDER_EMAIL_DOMAIN)
                 // Never surfaced or logged in - this account only ever authenticates
                 // via Super App token exchange, so the password only needs to exist
-                // to satisfy the NOT NULL column.
+                // to satisfy the NOT NULL column. Onboarding may let the merchant set
+                // a real email/password later as an optional browser-login fallback.
                 .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString()))
                 .role(UserRole.MERCHANT_OWNER)
                 .enabled(true)
-                .superAppMerchantRef(claim.merchantExternalRef())
+                .superAppMerchantRef(claim.merchantShortCode())
+                .onboardingComplete(false)
                 .build();
-        log.info("Provisioned new merchant {} (branch {}) for Super App ref {}", merchant.id(), branch.id(), claim.merchantExternalRef());
+        log.info("Provisioned new merchant {} (branch {}) for Super App short code {}", merchant.id(), branch.id(), claim.merchantShortCode());
         return userRepository.save(user);
     }
 
@@ -104,13 +166,20 @@ public class SuperAppProvisioningService {
     }
 
     private MerchantProvisionResponse createMerchant(SuperAppMerchantClaim claim, String systemToken) {
+        // name/slug come from the short code (merchant-service dedupes the slug
+        // itself, see MerchantService.firstAvailableSlug); city/address/category
+        // have no Super App source yet and are filled in at onboarding.
+        // shortCode IS a real Super App field, unlike those three — it's
+        // persisted as-is so menu-service's ETHQR proxy has it later without
+        // asking the merchant to type their own till number back in.
         Map<String, String> body = Map.of(
-                "name", claim.businessName(),
-                "slug", claim.businessName(),
-                "phone", claim.phone(),
-                "city", claim.city(),
-                "address", claim.address(),
-                "category", claim.category());
+                "name", "Merchant " + claim.merchantShortCode(),
+                "slug", claim.merchantShortCode(),
+                "phone", claim.msisdn(),
+                "city", PENDING_PROFILE_FIELD,
+                "address", PENDING_PROFILE_FIELD,
+                "category", PENDING_PROFILE_FIELD,
+                "shortCode", claim.merchantShortCode());
         try {
             ResponseEntity<MerchantProvisionResponse> response = restTemplate.exchange(
                     merchantServiceUrl + "/api/merchants",
@@ -119,7 +188,7 @@ public class SuperAppProvisioningService {
                     MerchantProvisionResponse.class);
             return requireBody(response, "merchant provisioning");
         } catch (RestClientException e) {
-            log.warn("Merchant provisioning failed for Super App ref {}", claim.merchantExternalRef(), e);
+            log.warn("Merchant provisioning failed for Super App short code {}", claim.merchantShortCode(), e);
             throw new ServiceUnavailableException("merchant-service is unavailable during merchant provisioning", e);
         }
     }
@@ -129,8 +198,8 @@ public class SuperAppProvisioningService {
                 "merchantId", merchantId.toString(),
                 "name", "Main",
                 "slug", "main",
-                "phone", claim.phone(),
-                "address", claim.address());
+                "phone", claim.msisdn(),
+                "address", PENDING_PROFILE_FIELD);
         try {
             ResponseEntity<BranchProvisionResponse> response = restTemplate.exchange(
                     merchantServiceUrl + "/api/branches",
@@ -139,7 +208,7 @@ public class SuperAppProvisioningService {
                     BranchProvisionResponse.class);
             return requireBody(response, "branch provisioning");
         } catch (RestClientException e) {
-            log.warn("Branch provisioning failed for Super App ref {}", claim.merchantExternalRef(), e);
+            log.warn("Branch provisioning failed for Super App short code {}", claim.merchantShortCode(), e);
             throw new ServiceUnavailableException("merchant-service is unavailable during branch provisioning", e);
         }
     }

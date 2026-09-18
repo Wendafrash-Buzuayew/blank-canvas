@@ -40,8 +40,26 @@ public class QrController {
                 .body(data);
     }
 
+    /**
+     * @deprecated DO NOT USE — this endpoint returns bytes that are not a valid
+     *     PDF. {@link QrGeneratorService#exportPdf} hand-assembles the file as a
+     *     string and gets three things wrong that each independently make it
+     *     unparseable: it declares {@code /Filter /DCTDecode} (JPEG) while
+     *     embedding PNG bytes, hardcodes {@code /Length 44} for a content stream
+     *     that is not 44 bytes, and emits no {@code xref} table or
+     *     {@code startxref} — both mandatory in PDF 1.4. No conforming reader
+     *     can open the result.
+     *
+     *     <p>The merchant-facing standee is now produced in the browser instead
+     *     (src/components/qr/StandeeStudio.tsx), which gives real vector text, a
+     *     vector SVG QR and exact millimetre page sizing via {@code @page} — all
+     *     of which a hand-rolled PDF writer here would have to reimplement.
+     *     Delete this endpoint and {@code exportPdf} once nothing calls them; it
+     *     is left in place only so removing it is a separate, reviewable change.
+     */
+    @Deprecated
     @PostMapping("/export/pdf")
-    @Operation(summary = "Export printable PDF table stand with logo branding")
+    @Operation(summary = "DEPRECATED — emits an invalid PDF; use the browser standee studio")
     public ResponseEntity<byte[]> exportPdf(@Valid @RequestBody QrExportRequest request) {
         byte[] data = qrGeneratorService.exportPdf(request);
         return ResponseEntity.ok()
@@ -49,6 +67,27 @@ public class QrController {
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(data);
     }
+
+    /**
+     * The canonical string a branch's digital-menu QR must encode.
+     *
+     * <p>Staff-only by inheriting the class-level gate: SecurityConfig's public
+     * rule covers {@code GET /api/qr/digital-menu/*&#47;*} exactly, and this path
+     * has one more segment, so it does not match and is not public. That is the
+     * right outcome — the standee studio is a merchant tool — but it is a
+     * consequence of the path shape rather than an explicit rule, so it is
+     * written down here.
+     */
+    @GetMapping("/digital-menu/{merchantSlug}/{branchSlug}/url")
+    @Operation(summary = "The signed digital-menu URL for a branch — the exact string a QR should encode")
+    public ResponseEntity<BranchMenuUrlResponse> getDigitalMenuUrl(
+            @PathVariable String merchantSlug, @PathVariable String branchSlug) {
+        return ResponseEntity.ok(new BranchMenuUrlResponse(
+                qrGeneratorService.branchMenuUrl(merchantSlug, branchSlug), merchantSlug, branchSlug));
+    }
+
+    /** Deliberately a record: this is a value, and it must not grow fields. */
+    public record BranchMenuUrlResponse(String url, String merchantSlug, String branchSlug) {}
 
     // Overrides the class-level @PreAuthorize: this is the one endpoint on this
     // controller SecurityConfig makes public (GET /api/qr/digital-menu/*/*), so
