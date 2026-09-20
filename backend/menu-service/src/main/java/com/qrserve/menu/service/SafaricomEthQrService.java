@@ -137,15 +137,15 @@ public class SafaricomEthQrService {
                     new ParameterizedTypeReference<Map<String, Object>>() {});
             body = response.getBody();
         } catch (HttpStatusCodeException e) {
-            // Safaricom answered, and refused. Its status and body are the
-            // single most useful fact for diagnosing a rejected payload, so
-            // the status is surfaced to the caller and the body is logged —
-            // previously both were flattened into "unavailable, please retry".
-            log.error("Safaricom ETHQR rejected the request for merchant {} with {} — target {}, body: {}",
-                    merchantId, e.getStatusCode(), ethQrBaseUrl, e.getResponseBodyAsString(), e);
+            // Something answered with an error status. WHAT answered decides
+            // what to tell the merchant — see describeUpstreamFailure. The
+            // body is logged in full because it is the only thing that
+            // distinguishes the three cases.
+            String responseBody = e.getResponseBodyAsString();
+            log.error("Safaricom ETHQR call for merchant {} failed with {} — target {}, body: {}",
+                    merchantId, e.getStatusCode(), ethQrBaseUrl, responseBody, e);
             throw new UpstreamServiceException(UPSTREAM_ETHQR,
-                    "Safaricom rejected the payment QR request (HTTP " + e.getStatusCode().value()
-                            + "). The short code may not be registered for ETHQR.", e);
+                    describeUpstreamFailure(e.getStatusCode().value(), responseBody), e);
         } catch (RestClientException e) {
             // Never reached Safaricom at all: DNS, TCP, TLS or timeout —
             // which is also what a MISCONFIGURED endpoint looks like, hence
@@ -180,6 +180,68 @@ public class SafaricomEthQrService {
                 .mobileNumber(str(body, "mobileNumber"))
                 .city(str(body, "city"))
                 .build();
+    }
+
+    /**
+     * Turns an error status plus response body into something a merchant can
+     * act on. Three genuinely different failures reach here, and conflating
+     * them costs real debugging time:
+     *
+     * <ol>
+     *   <li><b>A network security appliance blocked the request.</b> Safaricom
+     *       never saw it. The appliance returns its own interstitial —
+     *       {@code {"page_title":"Web Page Blocked!", ..., "attack_ID":...}}
+     *       — under whatever status it likes, in practice 500. Nothing about
+     *       the merchant, the short code or Safaricom is wrong; the egress
+     *       path from THIS deployment is being filtered.</li>
+     *   <li><b>Safaricom refused the request (4xx).</b> Here an unregistered
+     *       or mistyped short code really is the likely cause.</li>
+     *   <li><b>Safaricom's own service failed (5xx).</b> Their side, and
+     *       retryable. This is NOT evidence of anything about the short
+     *       code.</li>
+     * </ol>
+     *
+     * <p>This method exists because all three used to produce "Safaricom
+     * rejected the payment QR request. The short code may not be registered
+     * for ETHQR." A blocked-egress 500 therefore sent an operator hunting
+     * through merchant records for a short-code fault while the short code
+     * was valid the whole time — the request had not reached Safaricom at
+     * all. A 500 is a server error by definition and can never imply the
+     * client's short code is unregistered.
+     */
+    static String describeUpstreamFailure(int status, String responseBody) {
+        if (looksLikeSecurityApplianceBlock(responseBody)) {
+            return "The payment QR request was blocked by a network security appliance before it reached "
+                    + "Safaricom, so this is not a problem with the merchant's short code. Allow outbound "
+                    + "HTTPS to qr.safaricom.et from this deployment's egress address, then retry.";
+        }
+        if (status >= 400 && status < 500) {
+            return "Safaricom rejected the payment QR request (HTTP " + status
+                    + "). The short code may not be registered for ETHQR.";
+        }
+        return "Safaricom's QR service failed to generate a code (HTTP " + status
+                + "). This is an error on their side, not a problem with the short code — please retry.";
+    }
+
+    /**
+     * Recognises a blocking proxy/WAF interstitial rather than a real API
+     * response.
+     *
+     * <p>Matched on the two fields such pages carry that a JSON payment API
+     * has no reason to emit — a {@code page_title} announcing a block, and an
+     * {@code attack_ID}. Deliberately not matched on the vendor name or the
+     * exact wording: the appliance in front of a given deployment is not
+     * something this service can know, and every one of them phrases its page
+     * differently.
+     */
+    private static boolean looksLikeSecurityApplianceBlock(String responseBody) {
+        if (responseBody == null || responseBody.isBlank()) {
+            return false;
+        }
+        String lower = responseBody.toLowerCase();
+        return lower.contains("page blocked")
+                || lower.contains("attack_id")
+                || (lower.contains("access denied") && lower.contains("firewall"));
     }
 
     private static String str(Map<String, Object> body, String key) {

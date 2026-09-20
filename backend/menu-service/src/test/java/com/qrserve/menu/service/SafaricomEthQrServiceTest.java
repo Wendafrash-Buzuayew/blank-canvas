@@ -347,6 +347,71 @@ class SafaricomEthQrServiceTest {
                 () -> service.generate(BRANCH, principal(MERCHANT, UserRole.MERCHANT_OWNER)));
         assertEquals("safaricom-ethqr", ex.getUpstream());
         assertTrue(ex.getMessage().contains("400"), ex.getMessage());
+        // A 4xx IS the case where an unregistered short code is a fair guess.
+        assertTrue(ex.getMessage().contains("short code"), ex.getMessage());
+    }
+
+    // ---- telling the three upstream error causes apart --------------------
+    //
+    // All three used to produce the same "the short code may not be
+    // registered" message. A real incident (a security appliance returning a
+    // block page under HTTP 500) therefore sent an operator hunting through
+    // merchant records while the short code was valid and the request had
+    // never reached Safaricom.
+
+    /** The verbatim interstitial observed in production, attack_ID and all. */
+    private static final String BLOCK_PAGE = "{\"page_title\":\"Web Page Blocked!\","
+            + "\"display_message\":\"The page cannot be displayed. Please contact the administrator "
+            + "for additional information.\",\"client_IP\":\"102.218.51.152\","
+            + "\"URL\":\"qr.safaricom.et/api/qr/generate\",\"attack_ID\":\"20000050\","
+            + "\"message_ID\":\"000143309854\",}";
+
+    @Test
+    @DisplayName("a security appliance block is reported as a block, not as a bad short code")
+    void aBlockedRequestIsNotBlamedOnTheShortCode() {
+        String message = SafaricomEthQrService.describeUpstreamFailure(500, BLOCK_PAGE);
+
+        // The whole point: the short code is not implicated, because the
+        // request never reached Safaricom to have it checked.
+        assertFalse(message.contains("short code may not be registered"), message);
+        assertTrue(message.contains("blocked"), message);
+        // Names the thing an operator actually has to change.
+        assertTrue(message.contains("qr.safaricom.et"), message);
+    }
+
+    @Test
+    @DisplayName("a block page is recognised whatever status the appliance stamps on it")
+    void aBlockPageIsRecognisedUnderAnyStatus() {
+        // Appliances are not consistent about this — 403 and 200 are both
+        // seen in the wild alongside the 500 observed here.
+        for (int status : new int[] {200, 403, 500, 502}) {
+            assertTrue(SafaricomEthQrService.describeUpstreamFailure(status, BLOCK_PAGE).contains("blocked"),
+                    "status " + status);
+        }
+    }
+
+    @Test
+    @DisplayName("a genuine provider 5xx blames neither the short code nor the network")
+    void aProviderOutageIsNotBlamedOnTheShortCode() {
+        String message = SafaricomEthQrService.describeUpstreamFailure(
+                500, "{\"error\":\"internal error\"}");
+
+        // A 500 is a server error by definition; it can never be evidence
+        // that the CLIENT's short code is unregistered.
+        assertFalse(message.contains("short code may not be registered"), message);
+        assertTrue(message.contains("500"), message);
+        assertTrue(message.contains("their side"), message);
+    }
+
+    @Test
+    @DisplayName("a 4xx still points at the short code, and an empty body does not crash")
+    void aClientErrorStillPointsAtTheShortCode() {
+        assertTrue(SafaricomEthQrService.describeUpstreamFailure(404, "{\"error\":\"not found\"}")
+                .contains("short code"));
+        // A body-less error response is common; it must fall through to the
+        // status-based branches rather than NPE on the block-page check.
+        assertTrue(SafaricomEthQrService.describeUpstreamFailure(400, null).contains("short code"));
+        assertTrue(SafaricomEthQrService.describeUpstreamFailure(503, "").contains("their side"));
     }
 
     // ---- merchant-service failures are not "not found" -------------------

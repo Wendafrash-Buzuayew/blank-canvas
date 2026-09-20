@@ -1,5 +1,5 @@
 import React from 'react';
-import { ETH_QR_TITLES, toLocalPhoneDigits, toCodeDigits, type EthQrLanguage } from '../../lib/ethQr';
+import { ETH_QR_TITLES, toLocalPhoneDigits, toCodeDigits, resolveLocation, type EthQrLanguage } from '../../lib/ethQr';
 
 /**
  * The locally-composed ETHQR standee card.
@@ -33,6 +33,15 @@ export { ETH_QR_LANGUAGE_OPTIONS } from '../../lib/ethQr';
 const BRAND_BRONZE = '#8C6339';
 const BRAND_RED = '#D9383A';
 
+/**
+ * The digit strip's width and inter-box gap, in the same 1440-wide reference
+ * units as every other measurement below (see `k`). Named because the digit
+ * box side is DERIVED from them rather than being a third independent
+ * number — see digitBoxSide.
+ */
+const STRIP_WIDTH = 1240;
+const DIGIT_GAP = 6;
+
 export interface EthQrCardProps {
   /** Safaricom's bare QR module image (data: URL) — see the header comment above. */
   qrImageSrc: string;
@@ -41,11 +50,17 @@ export interface EthQrCardProps {
   accountNumber: string;
   /** Safaricom's own `mobileNumber` field, e.g. "+251718788479". Renders nothing if absent. */
   phone?: string | null;
+  /**
+   * Safaricom's own `city` field — the acquiring location printed bottom
+   * left. Null/blank in most real responses, which is why this falls back
+   * rather than rendering an empty slot; see resolveLocation.
+   */
+  city?: string | null;
   language: EthQrLanguage;
   widthMm: number;
 }
 
-export function EthQrCard({ qrImageSrc, merchantName, accountNumber, phone, language, widthMm }: EthQrCardProps) {
+export function EthQrCard({ qrImageSrc, merchantName, accountNumber, phone, city, language, widthMm }: EthQrCardProps) {
   // The real card (per the brand guideline PDF referenced in git history) is
   // ~1440x1708px — kept here only to size the elements below proportionately
   // to whatever widthMm the caller (StandeeBackSheet) hands this, not to
@@ -53,6 +68,15 @@ export function EthQrCard({ qrImageSrc, merchantName, accountNumber, phone, lang
   const k = widthMm / 1440;
   const phoneDigits = toLocalPhoneDigits(phone);
   const codeDigits = toCodeDigits(accountNumber);
+  const location = resolveLocation(city);
+  // What `flex: 1` used to work out to, stated directly so the box can be
+  // square by construction. Derived from the actual digit count rather than
+  // assuming 10: a provider record carrying a short landline still gets a
+  // strip that spans the same width, just with fewer, wider boxes.
+  const digitBoxSide =
+    phoneDigits.length > 0
+      ? (STRIP_WIDTH - DIGIT_GAP * (phoneDigits.length - 1)) / phoneDigits.length
+      : 0;
 
   return (
     <div
@@ -149,40 +173,37 @@ export function EthQrCard({ qrImageSrc, merchantName, accountNumber, phone, lang
       </div>
 
       {phoneDigits.length > 0 && (
-        <div style={{ display: 'flex', gap: `${6 * k}mm`, marginTop: `${40 * k}mm`, width: `${1240 * k}mm`, justifyContent: 'center' }}>
+        <div style={{ display: 'flex', gap: `${DIGIT_GAP * k}mm`, marginTop: `${40 * k}mm`, width: `${STRIP_WIDTH * k}mm`, justifyContent: 'center' }}>
           {phoneDigits.map((digit, i) => (
             <div
               key={i}
               style={{
-                position: 'relative',
-                flex: 1,
-                aspectRatio: '1 / 1.15',
+                // Square, per the brand standard's digit grid — sized
+                // explicitly rather than with `flex: 1` + `aspect-ratio`.
+                // The strip is also rasterised by html2canvas for the mobile
+                // PDF export, which does not reliably resolve aspect-ratio;
+                // a box whose height came out as 0 there would drop the
+                // whole number off the printed card while the on-screen
+                // preview still looked right. Width is deterministic, so the
+                // height is just stated. (It was 1 / 1.15 — a flip-clock
+                // tile with a split rule across the middle — which is a
+                // second departure from the standard's plain white squares.)
+                width: `${digitBoxSide * k}mm`,
+                height: `${digitBoxSide * k}mm`,
+                flexShrink: 0,
+                boxSizing: 'border-box',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: '#f2f2f2',
+                backgroundColor: '#ffffff',
                 border: `${1.5 * k}mm solid #1a1a1a`,
-                borderRadius: `${4 * k}mm`,
+                borderRadius: `${8 * k}mm`,
                 fontWeight: 800,
-                fontSize: `${70 * k}mm`,
+                fontSize: `${64 * k}mm`,
                 color: '#1a1a1a',
               }}
             >
               {digit}
-              {/* Flip-clock/odometer split line, matching the official
-                  template's digit strip. */}
-              <span
-                aria-hidden="true"
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  top: '50%',
-                  height: `${1 * k}mm`,
-                  backgroundColor: '#1a1a1a',
-                  opacity: 0.5,
-                }}
-              />
             </div>
           ))}
         </div>
@@ -224,9 +245,22 @@ export function EthQrCard({ qrImageSrc, merchantName, accountNumber, phone, lang
         </span>
       </div>
 
+      {/* Footer lockup — the "Acquired by" tab floats ON the red band's top
+          edge rather than sitting above it as a separate pill, which is what
+          makes it read as a tab attached to the band.
+          `marginBottom: -half its height` pulls the band up under it; the
+          band then reserves that much extra top padding so the three marks
+          below still clear it. Done with margins and static positioning
+          rather than `position: absolute` + `translateX(-50%)` because this
+          subtree is also rasterised by html2canvas for the mobile PDF path,
+          where transforms on absolutely-positioned children are the least
+          reliable thing to hand it. */}
       <div
         style={{
           marginTop: `${30 * k}mm`,
+          marginBottom: `${-19 * k}mm`,
+          position: 'relative',
+          zIndex: 1,
           backgroundColor: BRAND_BRONZE,
           color: '#ffffff',
           fontWeight: 800,
@@ -238,55 +272,70 @@ export function EthQrCard({ qrImageSrc, merchantName, accountNumber, phone, lang
         Acquired by
       </div>
 
-      {/* Footer band — the three acquirer/scheme marks the official template
-          carries, left to right: the acquiring wallet (m-pesa), the acquiring
-          bank (ADDIS), and the national switch that clears the payment
-          (EthSwitch). Styled text rather than image logos, see header
-          comment. Laid out as one row separated by hairline rules, which is
-          how the reference card groups them — stacking them instead made the
-          band tall enough to push the red footer off a 105mm-wide A6 trim. */}
+      {/* Footer band — the three marks the brand standard fixes to three
+          positions: the acquiring location bottom LEFT, the acquiring wallet
+          (m-pesa) CENTRED, and the national switch that clears the payment
+          (EthSwitch) bottom RIGHT. Styled text rather than image logos, see
+          the header comment.
+          The two outer slots are `flex: 1 1 0` so they take equal width and
+          the m-pesa mark is centred against the BAND, not against whatever
+          the side text happens to measure — a long city name ("DIRE DAWA")
+          would otherwise shove the wallet mark off centre. `minWidth: 0`
+          lets those slots shrink below their text width on a 105mm A6 trim
+          instead of forcing the band wider than the card. */}
       <div
         style={{
-          marginTop: `${12 * k}mm`,
           width: '100%',
           backgroundColor: BRAND_RED,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
-          gap: `${24 * k}mm`,
           boxSizing: 'border-box',
-          padding: `${22 * k}mm ${32 * k}mm`,
+          padding: `${30 * k}mm ${32 * k}mm ${22 * k}mm`,
         }}
       >
-        <span style={{ color: '#ffffff', fontWeight: 900, fontStyle: 'italic', fontSize: `${44 * k}mm`, whiteSpace: 'nowrap' }}>
-          m-pesa
-        </span>
-        <span aria-hidden="true" style={{ width: `${2 * k}mm`, alignSelf: 'stretch', backgroundColor: '#ffffff', opacity: 0.5 }} />
         <span
           style={{
+            flex: '1 1 0',
+            minWidth: 0,
+            textAlign: 'left',
             color: '#ffffff',
             fontWeight: 900,
-            fontSize: `${40 * k}mm`,
-            letterSpacing: `${3 * k}mm`,
-            whiteSpace: 'nowrap',
+            fontSize: `${34 * k}mm`,
+            letterSpacing: `${2 * k}mm`,
+            textTransform: 'uppercase',
+            lineHeight: 1.1,
           }}
         >
-          ADDIS
+          {location}
         </span>
-        <span aria-hidden="true" style={{ width: `${2 * k}mm`, alignSelf: 'stretch', backgroundColor: '#ffffff', opacity: 0.5 }} />
         <span
           style={{
+            flexShrink: 0,
+            color: '#ffffff',
+            fontWeight: 900,
+            fontStyle: 'italic',
+            fontSize: `${44 * k}mm`,
+            whiteSpace: 'nowrap',
+            padding: `0 ${16 * k}mm`,
+          }}
+        >
+          m-pesa
+        </span>
+        <span
+          style={{
+            flex: '1 1 0',
+            minWidth: 0,
+            textAlign: 'right',
             color: '#ffffff',
             fontWeight: 700,
-            fontSize: `${26 * k}mm`,
+            fontSize: `${24 * k}mm`,
             letterSpacing: `${1 * k}mm`,
-            textAlign: 'center',
             lineHeight: 1.2,
           }}
         >
           Powered by
           <br />
-          ETHSWITCH
+          <strong style={{ fontWeight: 900, letterSpacing: `${2 * k}mm` }}>ETHSWITCH</strong>
         </span>
       </div>
     </div>

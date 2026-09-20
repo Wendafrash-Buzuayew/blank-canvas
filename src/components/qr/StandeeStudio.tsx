@@ -130,7 +130,12 @@ export function StandeeStudio({
   // sourced from Safaricom's own response fields rather than the studio's
   // locally-edited merchant profile, so the card can never show something
   // the provider didn't itself confirm for this generation.
-  const [paymentQrMeta, setPaymentQrMeta] = useState<{ merchantName: string; accountNumber: string; phone: string | null } | null>(null);
+  const [paymentQrMeta, setPaymentQrMeta] = useState<{
+    merchantName: string;
+    accountNumber: string;
+    phone: string | null;
+    city: string | null;
+  } | null>(null);
   const [paymentQrLoading, setPaymentQrLoading] = useState(false);
   const [paymentQrError, setPaymentQrError] = useState<string | null>(null);
   const [bulk, setBulk] = useState(false);
@@ -268,6 +273,10 @@ export function StandeeStudio({
         merchantName: response.merchantName,
         accountNumber: response.accountNumber,
         phone: response.mobileNumber,
+        // Carried through unresolved — EthQrCard applies the "ADDIS"
+        // fallback, so the raw provider value stays visible to anything
+        // else reading this state rather than being flattened here.
+        city: response.city,
       });
     } catch (err) {
       setPaymentQrError(friendlyError(err, 'Could not generate the payment QR.'));
@@ -392,6 +401,7 @@ export function StandeeStudio({
       merchantName={paymentQrMeta!.merchantName}
       accountNumber={paymentQrMeta!.accountNumber}
       phone={paymentQrMeta!.phone}
+      city={paymentQrMeta!.city}
       language={paymentLanguage}
       widthMm={STANDEE_SIZES[size].widthMm}
     />
