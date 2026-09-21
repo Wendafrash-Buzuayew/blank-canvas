@@ -1,0 +1,31 @@
+# Keeps the frontend build context small and, more importantly, reproducible.
+#
+# node_modules and dist are the two that matter: without them the local host's
+# node_modules (possibly a different platform's native binaries) would be
+# copied over the one `npm ci` just installed, and a stale local dist/ would be
+# copied in and then overwritten — or, if the build failed, served.
+node_modules
+dist
+build
+
+.git
+.github
+.gitignore
+.worktrees
+
+# The Spring Boot services build from the backend/ context with their own
+# Dockerfiles; none of it belongs in the frontend image.
+backend
+
+# Docs, specs and plans — none of it is shipped.
+docs
+
+# Local env files. The image's VITE_* values come from build args (see
+# Dockerfile); copying these in would let a local .env silently win.
+.env
+.env.*
+!.env.example
+
+*.md
+.vscode
+.idea

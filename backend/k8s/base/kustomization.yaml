@@ -26,3 +26,52 @@ resources:
   - analytics-service.yaml
   - back-office-service.yaml
   - api-gateway.yaml
+  - frontend.yaml
+
+# Surge-only rollouts for every Deployment in the base.
+#
+# Expressed as one patch against `kind: Deployment` rather than repeated in
+# each of the twelve manifests: the policy is identical everywhere, and the
+# failure mode of copying it by hand is that one service silently keeps the
+# default `maxUnavailable: 25%` and is the only thing that sheds capacity
+# mid-deploy.
+#
+# maxUnavailable MUST stay 0 while the PodDisruptionBudgets in these files
+# use `minAvailable: 1` against `replicas: 2` — the default 25% would allow
+# the rollout itself to take a service down to one pod, leaving no headroom
+# for a concurrent node drain.
+patches:
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/strategy
+        value:
+          type: RollingUpdate
+          rollingUpdate:
+            maxUnavailable: 0
+            maxSurge: 1
+
+  # Kafka is the one exception, and must stay one. It is a single-node KRaft
+  # broker (replicas: 1, a fixed KAFKA_NODE_ID, and itself as the sole
+  # controller-quorum voter). Surging would start a SECOND broker claiming
+  # the same node ID and advertising through the same Service before the
+  # first exits — producers would be handed a broker that is about to
+  # terminate, and the new node can fail to take over the quorum.
+  #
+  # Recreate accepts a short outage instead, which is the correct trade for a
+  # single-replica stateful component. Applied after the blanket patch above,
+  # so it wins; `op: add` on an existing path replaces the whole value, which
+  # also drops the inherited rollingUpdate block (Kubernetes rejects a
+  # Recreate strategy that still carries one).
+  #
+  # Revisit only when Kafka becomes a multi-broker StatefulSet, at which
+  # point it leaves this file's remit anyway.
+  - target:
+      kind: Deployment
+      name: kafka-deployment
+    patch: |-
+      - op: add
+        path: /spec/strategy
+        value:
+          type: Recreate

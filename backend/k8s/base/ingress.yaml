@@ -4,6 +4,12 @@ metadata:
   name: qrserve-ingress
   namespace: default
   annotations:
+    # cert-manager issues and renews the wildcard certificate into the
+    # `secretName` named under tls: below. A wildcard can only be validated by
+    # DNS-01, so this ClusterIssuer must be configured with a DNS solver for
+    # the qrserve.safaricom.et zone — an HTTP-01 issuer will simply never
+    # complete the order and the Ingress will keep serving its default cert.
+    cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "15"
     # Long read timeout for the STOMP WebSocket on /ws/**; the default would cut an
@@ -23,27 +29,70 @@ spec:
         - "*.qrserve.safaricom.et"
         - "qrserve.safaricom.et"
       secretName: qrserve-wildcard-tls
+  # PATH SPLIT, applied identically to both hosts below.
+  #
+  # /api and /ws go to the Spring Cloud Gateway; everything else is the SPA.
+  # Those two prefixes are exhaustive — every route predicate in the gateway's
+  # application.yml is `Path=/api/**` or `Path=/ws/**` — so nothing that the
+  # gateway serves falls through to the frontend, and every client-routed page
+  # (/merchant/**, /m/{merchant}/{branch}, ...) reaches nginx's history
+  # fallback instead of a gateway 404.
+  #
+  # MORE SPECIFIC PATHS MUST COME FIRST. The ingress-nginx controller matches
+  # Prefix rules longest-first within a host, but writing them in this order
+  # keeps the intent readable and survives a controller that does not.
+  #
+  # Tenant resolution is unaffected: the gateway derives the tenant from the
+  # Host header, and the browser sends the same Host on the SPA's /api calls
+  # as it did for the page itself.
   rules:
-    # Every tenant subdomain, plus the reserved admin. host. All of them route to
-    # the same gateway; the gateway decides which tenant the request belongs to.
+    # Every tenant subdomain, plus the reserved admin. host.
     - host: "*.qrserve.safaricom.et"
       http:
         paths:
-          - path: /
+          - path: /api
             pathType: Prefix
             backend:
               service:
                 name: api-gateway-service
                 port:
                   number: 8081
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: api-gateway-service
+                port:
+                  number: 8081
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend-service
+                port:
+                  number: 80
     # The apex, for the landing page and the path-based demo route.
     - host: "qrserve.safaricom.et"
       http:
         paths:
-          - path: /
+          - path: /api
             pathType: Prefix
             backend:
               service:
                 name: api-gateway-service
                 port:
                   number: 8081
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: api-gateway-service
+                port:
+                  number: 8081
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend-service
+                port:
+                  number: 80

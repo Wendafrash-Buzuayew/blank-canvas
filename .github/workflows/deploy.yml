@@ -1,0 +1,213 @@
+name: Build and deploy
+
+# Builds the ten Spring Boot service images plus the frontend image, pushes
+# them, and rolls the site out with kustomize.
+#
+# There is deliberately NO database-migration job. This stack has neither
+# Liquibase nor Flyway: schema comes from Hibernate `ddl-auto: ${DDL_AUTO:update}`
+# plus SQL under each service's src/main/resources/db/manual/ that is applied
+# by hand. A migration step here would have no tool to invoke. See
+# backend/k8s/README.md for what that means in practice and what adopting a
+# real migration tool would take.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target site overlay
+        required: true
+        default: site-bp
+        type: choice
+        options: [site-bp]
+
+env:
+  REGISTRY: ghcr.io
+  # Lowercased below: GHCR rejects uppercase repository paths, and GitHub
+  # org/user names are frequently mixed case.
+  IMAGE_PREFIX: ${{ github.repository_owner }}
+  OVERLAY: backend/k8s/overlays/${{ inputs.environment || 'site-bp' }}
+
+# One deploy at a time. Two concurrent rollouts of the same site race each
+# other's `kubectl apply`, and the loser's rollout status can pass against the
+# winner's pods.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: meta
+        name: Derive image tag
+        run: |
+          # The commit SHA, never `latest`: a tag that moves makes a rollout
+          # unreproducible and defeats `kubectl rollout undo`.
+          echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+          echo "prefix=$(echo '${{ env.IMAGE_PREFIX }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      # ---- backend ------------------------------------------------------
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: gradle
+
+      - name: Build service jars
+        working-directory: backend
+        # Every service Dockerfile COPYs a prebuilt
+        # <service>/build/libs/<service>-1.0.0-SNAPSHOT-boot.jar, so the jars
+        # must exist before any image is built.
+        run: |
+          chmod +x ./gradlew
+          ./gradlew bootJar --no-daemon
+
+      - name: Run backend tests
+        working-directory: backend
+        run: ./gradlew test --no-daemon
+
+      # ---- frontend -----------------------------------------------------
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Frontend typecheck and unit tests
+        # The sed is the same workaround the frontend Dockerfile carries, and
+        # is needed for the same reason: 222 of package-lock.json's `resolved`
+        # URLs point at http://registry.safaricomet.net/, Safaricom's internal
+        # mirror. A GitHub-hosted runner cannot resolve that host, so `npm ci`
+        # — which fetches from the lockfile's URLs and ignores the configured
+        # registry — dies with npm's opaque "Exit handler never called!".
+        # Versions and integrity hashes are untouched; only the host changes.
+        # Remove once the lockfile is regenerated against the public registry.
+        run: |
+          sed -i 's#http://registry\.safaricomet\.net/#https://registry.npmjs.org/#g' package-lock.json
+          npm ci --no-audit --no-fund
+          npm run lint
+          npm run test:unit
+
+      # ---- images -------------------------------------------------------
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend images
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+          PREFIX: ${{ steps.meta.outputs.prefix }}
+        # Build context is backend/ for all ten, because each Dockerfile's
+        # COPY path is relative to it.
+        run: |
+          set -euo pipefail
+          for svc in discovery-service auth-service merchant-service menu-service \
+                     order-service qr-service notification-service analytics-service \
+                     back-office-service api-gateway; do
+            image="${REGISTRY}/${PREFIX}/qrserve-${svc}"
+            echo "::group::${svc}"
+            docker build -f "backend/${svc}/Dockerfile" -t "${image}:${TAG}" backend
+            docker push "${image}:${TAG}"
+            echo "::endgroup::"
+          done
+
+      - name: Build and push frontend image
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+          PREFIX: ${{ steps.meta.outputs.prefix }}
+        # No --build-arg overrides: the image keeps the same-origin "/api" and
+        # "/ws" defaults, which the Ingress routes to the gateway. Those values
+        # are compiled INTO the bundle by Vite, so overriding them here would
+        # make the image environment-specific — see the repo-root Dockerfile.
+        run: |
+          set -euo pipefail
+          image="${REGISTRY}/${PREFIX}/qrserve-frontend"
+          docker build -t "${image}:${TAG}" .
+          docker push "${image}:${TAG}"
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-kubectl@v4
+        with:
+          version: v1.31.0
+
+      - name: Install kustomize
+        run: |
+          curl -sS "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Configure cluster access
+        # A base64 kubeconfig scoped to a deploy ServiceAccount — not an admin
+        # credential. See backend/k8s/README.md.
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+
+      - name: Pin images to this build
+        env:
+          TAG: ${{ needs.build.outputs.tag }}
+          PREFIX: ${{ github.repository_owner }}
+        # The manifests carry bare `qrserve-<svc>:latest` names so they stay
+        # registry-agnostic; the registry and the immutable tag are supplied
+        # here rather than committed.
+        run: |
+          set -euo pipefail
+          prefix=$(echo "$PREFIX" | tr '[:upper:]' '[:lower:]')
+          cd "${{ env.OVERLAY }}"
+          for svc in discovery-service auth-service merchant-service menu-service \
+                     order-service qr-service notification-service analytics-service \
+                     back-office-service api-gateway frontend; do
+            kustomize edit set image "qrserve-${svc}=ghcr.io/${prefix}/qrserve-${svc}:${TAG}"
+          done
+
+      - name: Diff against the live cluster
+        # Server-side, so it catches what a client-side dry run cannot:
+        # admission webhooks, CRDs and defaulting. Informational only — a
+        # first-time apply legitimately reports everything as new.
+        continue-on-error: true
+        run: kubectl diff -k "${{ env.OVERLAY }}" || true
+
+      - name: Apply manifests
+        run: kubectl apply -k "${{ env.OVERLAY }}"
+
+      - name: Wait for rollouts
+        # Fails the job if any Deployment does not converge, which is what
+        # makes this a gate rather than a fire-and-forget apply.
+        run: |
+          set -euo pipefail
+          for dep in discovery-service auth-service merchant-service menu-service \
+                     order-service qr-service notification-service analytics-service \
+                     back-office-service api-gateway-deployment frontend-deployment; do
+            echo "::group::rollout ${dep}"
+            kubectl rollout status "deployment/${dep}" --timeout=5m
+            echo "::endgroup::"
+          done
+
+      - name: Report failure detail
+        if: failure()
+        # Without this the only artefact of a failed deploy is "timed out
+        # waiting", which says nothing about why the pods did not become
+        # ready.
+        run: |
+          kubectl get pods -o wide
+          kubectl get events --sort-by=.lastTimestamp | tail -40
