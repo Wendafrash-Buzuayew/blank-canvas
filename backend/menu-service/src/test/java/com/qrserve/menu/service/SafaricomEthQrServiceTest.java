@@ -27,6 +27,7 @@ import java.net.ConnectException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -157,6 +158,28 @@ class SafaricomEthQrServiceTest {
         HttpHeaders headers = captor.getValue().getHeaders();
         assertEquals(MediaType.APPLICATION_JSON, headers.getContentType());
         assertNull(headers.getFirst(HttpHeaders.AUTHORIZATION));
+    }
+
+    @Test
+    @DisplayName("Accept never contains application/*+json, which the provider's WAF blocks")
+    void acceptIsPinnedToPlainJson() {
+        // Not cosmetic. Leaving Accept unset lets RestTemplate derive
+        // "application/json, application/*+json" from the Jackson converter,
+        // and the appliance in front of qr.safaricom.et treats the literal
+        // "application/*+json" as attack signature 20000050 and returns its
+        // block page instead of forwarding the request. Every ETHQR call
+        // fails, while curl against the same endpoint succeeds — see the
+        // comment on the header in SafaricomEthQrService#generate.
+        stubBranch(MERCHANT);
+        stubMerchant("Sunrise Cafe", "8319389");
+        ArgumentCaptor<HttpEntity<?>> captor = stubProvider(providerBody());
+
+        service.generate(BRANCH, principal(MERCHANT, UserRole.MERCHANT_OWNER));
+
+        HttpHeaders headers = captor.getValue().getHeaders();
+        assertEquals(List.of(MediaType.APPLICATION_JSON), headers.getAccept());
+        assertFalse(String.valueOf(headers.getFirst(HttpHeaders.ACCEPT)).contains("application/*+json"),
+                "Accept must not carry application/*+json — the provider's WAF blocks it");
     }
 
     @Test

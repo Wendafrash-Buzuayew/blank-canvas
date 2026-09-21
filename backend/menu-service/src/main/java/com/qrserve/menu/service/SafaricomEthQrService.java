@@ -26,6 +26,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -56,11 +57,15 @@ import java.util.UUID;
  * artefact that wanted an amount baked in.
  *
  * <p>SAFARICOM_QR_API_KEY remains optional and is UNSET in every environment
- * today, so the request carries exactly the Content-Type header above. A
- * real call with no Authorization header was confirmed to succeed. The
- * header is only added when a key IS configured, rather than refusing the
- * call without one — kept solely so an account that later requires a key
- * needs a config change and not a code change.
+ * today, so the request carries only Content-Type and Accept. A real call
+ * with no Authorization header was confirmed to succeed. The header is only
+ * added when a key IS configured, rather than refusing the call without one
+ * — kept solely so an account that later requires a key needs a config
+ * change and not a code change.
+ *
+ * <p>Accept is set explicitly, and generate() explains why at the line that
+ * sets it: Spring's default Accept for a JSON response body is blocked
+ * outright by the security appliance in front of the provider.
  */
 @Service
 @RequiredArgsConstructor
@@ -126,6 +131,21 @@ public class SafaricomEthQrService {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        // Accept is pinned to the one type this endpoint actually returns,
+        // and MUST stay pinned. Left unset, RestTemplate derives it from the
+        // Jackson converter's supported types and sends
+        // "application/json, application/*+json" — and the security appliance
+        // in front of qr.safaricom.et matches the literal token
+        // "application/*+json" as an attack signature (attack_ID 20000050)
+        // and blocks the request before Safaricom sees it. Verified by
+        // sending the same body with one header varied: "application/json",
+        // "*/*", "application/hal+json" and the bare token "*+json" all
+        // return 200, while anything containing "application/*+json" returns
+        // the appliance's block page under HTTP 500. That is what made this
+        // fail from the service while curl — which sends "Accept: */*" —
+        // succeeded from the same machine, which is a confusing enough
+        // signal to be worth these lines.
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
         if (apiKey != null && !apiKey.isBlank()) {
             headers.setBearerAuth(apiKey);
         }
