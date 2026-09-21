@@ -2,10 +2,8 @@
 import {
   ETH_QR_TITLES,
   ETH_QR_LANGUAGE_OPTIONS,
-  DEFAULT_ETH_QR_LOCATION,
   toLocalPhoneDigits,
   toCodeDigits,
-  resolveLocation,
   type EthQrLanguage,
 } from './ethQr';
 
@@ -75,28 +73,9 @@ ok('non-digits are stripped from the code', toCodeDigits('83-19 389').join('') =
 ok('a missing code yields nothing rather than throwing', toCodeDigits(null).length === 0 && toCodeDigits('').length === 0);
 ok('a digitless code yields nothing', toCodeDigits('----').length === 0);
 
-// ---- footer location ------------------------------------------------------
-// The band's bottom-left slot is one of three fixed positions in the brand
-// footer lockup, so it must never render empty — every "no city" shape the
-// provider actually sends has to land on the default.
-
-ok('the documented default is ADDIS', DEFAULT_ETH_QR_LOCATION === 'ADDIS');
-ok('a null city falls back to ADDIS', resolveLocation(null) === 'ADDIS');
-ok('an undefined city falls back to ADDIS', resolveLocation(undefined) === 'ADDIS');
-ok('a missing argument falls back to ADDIS', resolveLocation() === 'ADDIS');
-ok('an empty string falls back to ADDIS', resolveLocation('') === 'ADDIS');
-// Observed in real responses — a blank-but-present field is "no city on
-// file" just as much as a null one, and trimming to "" then uppercasing
-// would otherwise print an empty slot.
-ok('a whitespace-only city falls back to ADDIS', resolveLocation('   ') === 'ADDIS');
-ok('a tab/newline-only city falls back to ADDIS', resolveLocation('\t\n') === 'ADDIS');
-
-ok('a real city is used instead of the default', resolveLocation('Dire Dawa') === 'DIRE DAWA');
-ok('the location is uppercased for the band', resolveLocation('addis ababa') === 'ADDIS ABABA');
-ok('surrounding whitespace is trimmed', resolveLocation('  Bahir Dar  ') === 'BAHIR DAR');
-ok('an already-uppercase city is unchanged', resolveLocation('HAWASSA') === 'HAWASSA');
-// Ethiopic has no case distinction, so uppercasing must leave it untouched
-// rather than mangling it — a provider may well return the local spelling.
-ok('an Ethiopic city name survives intact', resolveLocation('አዲስ አበባ') === 'አዲስ አበባ');
+// The footer band used to print the provider's city at bottom left, with an
+// "ADDIS" fallback, and this file pinned that behaviour. The location is not
+// part of the ETHQR footer lockup and no longer renders, so those assertions
+// went with it rather than being left to test a helper nothing calls.
 
 console.log('all ethQr tests passed');

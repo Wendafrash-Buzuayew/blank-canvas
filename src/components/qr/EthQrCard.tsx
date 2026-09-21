@@ -1,5 +1,6 @@
 import React from 'react';
-import { ETH_QR_TITLES, toLocalPhoneDigits, toCodeDigits, resolveLocation, type EthQrLanguage } from '../../lib/ethQr';
+import { ETH_QR_TITLES, toLocalPhoneDigits, toCodeDigits, type EthQrLanguage } from '../../lib/ethQr';
+import { ETHQR_LOGO_SRC, ETHSWITCH_POWERED_BY_SRC, MPESA_BADGE_SRC } from '../../assets/ethqrBrandMarks';
 
 /**
  * The locally-composed ETHQR standee card.
@@ -16,11 +17,27 @@ import { ETH_QR_TITLES, toLocalPhoneDigits, toCodeDigits, resolveLocation, type 
  * this one's QR slot, which is exactly the bug an earlier version of this
  * feature shipped (see git history).
  *
- * Brand marks (the ETHQR wordmark, M-PESA, EthSwitch) are rendered as styled
- * text, not image logos — no real logo asset files exist in this repo, and
- * fabricating or hotlinking one would not be an authentic brand mark. Swap
- * these `<span>`s for real `<img>`s the moment approved logo assets exist;
- * nothing else about this layout needs to change.
+ * Brand marks (the ETHQR wordmark, M-PESA, EthSwitch) are real artwork, from
+ * src/assets/ethqrBrandMarks.ts — they were type styled to imitate the marks
+ * until approved assets existed. The ETHQR and EthSwitch marks come from the
+ * guideline's own merchant-card template and are print quality. The M-PESA
+ * mark is a low-resolution PLACEHOLDER cropped from a sample card: the
+ * guideline does not contain it, because the acquirer supplies their own.
+ * The M-PESA mark is the official green wordmark on a transparent ground,
+ * which is why the footer needs no coloured field behind it. See that file
+ * for each mark's provenance.
+ *
+ * The layout below follows that same template: white throughout, an
+ * "Acquired by" bronze bar, the acquirer's mark, then the "Powered by |
+ * ETHSWITCH" lockup last. Earlier revisions put the two footer marks on a
+ * full-bleed red band, which the standard has no equivalent of and which
+ * would require recolouring EthSwitch's mark (published dark-on-light) to
+ * keep it legible.
+ *
+ * The card runs to roughly 190mm of content at A5's 148mm trim width, so it
+ * clears all three trim sizes (A5/A6/4x6 tent) with room to spare — worth
+ * re-checking against StandeeBackSheet's centred, `overflow: hidden` trim
+ * box if anything here grows, since overflow there CLIPS in silence.
  */
 
 // The language set, the approved titles and the two digit splits live in
@@ -32,6 +49,32 @@ export { ETH_QR_LANGUAGE_OPTIONS } from '../../lib/ethQr';
 
 const BRAND_BRONZE = '#8C6339';
 const BRAND_RED = '#D9383A';
+
+/**
+ * The ETHQR wordmark's printed width, in the same 1440-wide reference units
+ * as every other measurement here (see `k`). The mark's own aspect ratio
+ * supplies the height.
+ *
+ * This replaced a text imitation of the wordmark — "ETH" in Safaricom Dark
+ * Green (#00833E, not an ETHQR colour at all) next to "QR" in a made-up
+ * bordered box. Brand colours are no longer declared in this file because
+ * nothing here paints them any more: the artwork carries them.
+ */
+const ETHQR_LOGO_WIDTH = 560;
+
+/**
+ * Printed widths of the two footer marks, same reference units as above.
+ *
+ * Set as a FRACTION OF CARD WIDTH measured off the guideline's own template
+ * rather than by eye: there the ETHQR mark occupies ~39% of the card and the
+ * EthSwitch lockup ~45%, hence 560/1440 and 620/1440. The acquirer's mark
+ * sits between them at ~30% — the template only carries a "BANK/PSP LOGO"
+ * text placeholder in that slot, so its size is a judgement call, but it
+ * should out-weigh the EthSwitch credit line (the acquirer is the headline
+ * of the "Acquired by" block) while not competing with the ETHQR mark.
+ */
+const MPESA_BADGE_WIDTH = 430;
+const ETHSWITCH_LOCKUP_WIDTH = 620;
 
 /**
  * The digit strip's width and inter-box gap, in the same 1440-wide reference
@@ -50,17 +93,11 @@ export interface EthQrCardProps {
   accountNumber: string;
   /** Safaricom's own `mobileNumber` field, e.g. "+251718788479". Renders nothing if absent. */
   phone?: string | null;
-  /**
-   * Safaricom's own `city` field — the acquiring location printed bottom
-   * left. Null/blank in most real responses, which is why this falls back
-   * rather than rendering an empty slot; see resolveLocation.
-   */
-  city?: string | null;
   language: EthQrLanguage;
   widthMm: number;
 }
 
-export function EthQrCard({ qrImageSrc, merchantName, accountNumber, phone, city, language, widthMm }: EthQrCardProps) {
+export function EthQrCard({ qrImageSrc, merchantName, accountNumber, phone, language, widthMm }: EthQrCardProps) {
   // The real card (per the brand guideline PDF referenced in git history) is
   // ~1440x1708px — kept here only to size the elements below proportionately
   // to whatever widthMm the caller (StandeeBackSheet) hands this, not to
@@ -68,7 +105,6 @@ export function EthQrCard({ qrImageSrc, merchantName, accountNumber, phone, city
   const k = widthMm / 1440;
   const phoneDigits = toLocalPhoneDigits(phone);
   const codeDigits = toCodeDigits(accountNumber);
-  const location = resolveLocation(city);
   // What `flex: 1` used to work out to, stated directly so the box can be
   // square by construction. Derived from the actual digit count rather than
   // assuming 10: a provider record carrying a short landline still gets a
@@ -108,34 +144,22 @@ export function EthQrCard({ qrImageSrc, merchantName, accountNumber, phone, city
         {ETH_QR_TITLES[language]}
       </div>
 
-      {/* ETHQR wordmark badge — styled text, see header comment. */}
-      <div
-        aria-hidden="true"
+      {/* The ETHQR wordmark — the real mark (see ethqrBrandMarks.ts), not
+          type styled to look like it. The tagline "ETHIOPIAN INTEROPERABLE
+          PAYMENT QR CODE" is part of the artwork, so it is no longer set as
+          a separate line underneath.
+          Width-driven with `height: auto` so the mark keeps its own aspect
+          ratio; the flag swoosh through "ETH" makes any stretch obvious. */}
+      <img
+        src={ETHQR_LOGO_SRC}
+        alt="ETHQR — Ethiopian Interoperable Payment QR Code"
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: `${4 * k}mm`,
+          width: `${ETHQR_LOGO_WIDTH * k}mm`,
+          height: 'auto',
           marginTop: `${20 * k}mm`,
-          fontWeight: 900,
-          fontSize: `${56 * k}mm`,
-          letterSpacing: `${1 * k}mm`,
+          display: 'block',
         }}
-      >
-        <span style={{ color: '#00833E' }}>ETH</span>
-        <span
-          style={{
-            color: '#1a1a1a',
-            border: `${3 * k}mm solid #1a1a1a`,
-            borderRadius: `${6 * k}mm`,
-            padding: `0 ${6 * k}mm`,
-          }}
-        >
-          QR
-        </span>
-      </div>
-      <div style={{ fontSize: `${16 * k}mm`, color: '#5F6368', letterSpacing: `${0.5 * k}mm`, textTransform: 'uppercase' }}>
-        Ethiopian Interoperable Payment QR Code
-      </div>
+      />
 
       {/* QR holder — square, bronze frame, tight padding so the code fills the
           box (see StandeeBackSheet's header comment for why this must never
@@ -245,99 +269,57 @@ export function EthQrCard({ qrImageSrc, merchantName, accountNumber, phone, city
         </span>
       </div>
 
-      {/* Footer lockup — the "Acquired by" tab floats ON the red band's top
-          edge rather than sitting above it as a separate pill, which is what
-          makes it read as a tab attached to the band.
-          `marginBottom: -half its height` pulls the band up under it; the
-          band then reserves that much extra top padding so the three marks
-          below still clear it. Done with margins and static positioning
-          rather than `position: absolute` + `translateX(-50%)` because this
-          subtree is also rasterised by html2canvas for the mobile PDF path,
-          where transforms on absolutely-positioned children are the least
-          reliable thing to hand it. */}
+      {/* "Acquired by" bar — a plain bronze rectangle spanning the middle of
+          the card, as the guideline's own merchant-card template sets it.
+          It was a rounded pill floating on the top edge of a red footer
+          band; that band is gone (see below), so there is nothing left to
+          float on and nothing that needed the pill shape. */}
       <div
         style={{
           marginTop: `${30 * k}mm`,
-          marginBottom: `${-19 * k}mm`,
-          position: 'relative',
-          zIndex: 1,
+          width: `${620 * k}mm`,
+          textAlign: 'center',
           backgroundColor: BRAND_BRONZE,
           color: '#ffffff',
           fontWeight: 800,
           fontSize: `${38 * k}mm`,
           padding: `${10 * k}mm ${40 * k}mm`,
-          borderRadius: `${18 * k}mm`,
+          boxSizing: 'border-box',
         }}
       >
         Acquired by
       </div>
 
-      {/* Footer band — the three marks the brand standard fixes to three
-          positions: the acquiring location bottom LEFT, the acquiring wallet
-          (m-pesa) CENTRED, and the national switch that clears the payment
-          (EthSwitch) bottom RIGHT. Styled text rather than image logos, see
-          the header comment.
-          The two outer slots are `flex: 1 1 0` so they take equal width and
-          the m-pesa mark is centred against the BAND, not against whatever
-          the side text happens to measure — a long city name ("DIRE DAWA")
-          would otherwise shove the wallet mark off centre. `minWidth: 0`
-          lets those slots shrink below their text width on a 105mm A6 trim
-          instead of forcing the band wider than the card. */}
-      <div
+      {/* Footer — white, exactly as the guideline's merchant-card template
+          sets it: the acquirer's mark under the "Acquired by" bar, then the
+          "Powered by | ETHSWITCH" lockup last.
+          A full-bleed RED band used to sit here with both marks set as
+          styled text. It went for two reasons: the standard's own template
+          has no such band, and the published EthSwitch lockup is drawn dark
+          on a light ground, so putting it on red would have meant
+          recolouring another organisation's mark to keep it legible.
+          There is also no location line. A bottom-left city (falling back to
+          "ADDIS") was carried for a while and is not part of this lockup. */}
+      <img
+        src={MPESA_BADGE_SRC}
+        alt="Acquired by M-PESA"
         style={{
-          width: '100%',
-          backgroundColor: BRAND_RED,
-          display: 'flex',
-          alignItems: 'center',
-          boxSizing: 'border-box',
-          padding: `${30 * k}mm ${32 * k}mm ${22 * k}mm`,
+          width: `${MPESA_BADGE_WIDTH * k}mm`,
+          height: 'auto',
+          marginTop: `${26 * k}mm`,
+          display: 'block',
         }}
-      >
-        <span
-          style={{
-            flex: '1 1 0',
-            minWidth: 0,
-            textAlign: 'left',
-            color: '#ffffff',
-            fontWeight: 900,
-            fontSize: `${34 * k}mm`,
-            letterSpacing: `${2 * k}mm`,
-            textTransform: 'uppercase',
-            lineHeight: 1.1,
-          }}
-        >
-          {location}
-        </span>
-        <span
-          style={{
-            flexShrink: 0,
-            color: '#ffffff',
-            fontWeight: 900,
-            fontStyle: 'italic',
-            fontSize: `${44 * k}mm`,
-            whiteSpace: 'nowrap',
-            padding: `0 ${16 * k}mm`,
-          }}
-        >
-          m-pesa
-        </span>
-        <span
-          style={{
-            flex: '1 1 0',
-            minWidth: 0,
-            textAlign: 'right',
-            color: '#ffffff',
-            fontWeight: 700,
-            fontSize: `${24 * k}mm`,
-            letterSpacing: `${1 * k}mm`,
-            lineHeight: 1.2,
-          }}
-        >
-          Powered by
-          <br />
-          <strong style={{ fontWeight: 900, letterSpacing: `${2 * k}mm` }}>ETHSWITCH</strong>
-        </span>
-      </div>
+      />
+      <img
+        src={ETHSWITCH_POWERED_BY_SRC}
+        alt="Powered by EthSwitch"
+        style={{
+          width: `${ETHSWITCH_LOCKUP_WIDTH * k}mm`,
+          height: 'auto',
+          margin: `${26 * k}mm 0 ${30 * k}mm`,
+          display: 'block',
+        }}
+      />
     </div>
   );
 }

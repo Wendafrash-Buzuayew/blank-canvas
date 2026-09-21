@@ -55,27 +55,12 @@ export function toLocalPhoneDigits(phone?: string | null): string[] {
   return local.split('');
 }
 
-/**
- * What the footer band prints when the provider has no city for the short
- * code. Addis Ababa is where the overwhelming majority of ETHQR merchants
- * actually are, and the band's bottom-left slot cannot simply be left empty:
- * the slot is one of three fixed positions in the brand footer lockup, so a
- * blank there reads as a printing fault rather than as missing data.
- */
-export const DEFAULT_ETH_QR_LOCATION = 'ADDIS';
-
-/**
- * The acquiring location printed at the bottom left of the footer band.
- *
- * `city` is null far more often than not in real provider responses (see
- * EthQrResponse's Javadoc), and an all-whitespace string has been observed
- * too — both mean "no city on file", so both fall back rather than only the
- * null case. Uppercased because the band sets every mark in caps.
- */
-export function resolveLocation(city?: string | null): string {
-  const trimmed = city?.trim();
-  return trimmed ? trimmed.toUpperCase() : DEFAULT_ETH_QR_LOCATION;
-}
+// A resolveLocation() helper lived here, resolving the provider's `city`
+// (falling back to "ADDIS") for a bottom-left slot in the footer band. The
+// location is not part of the ETHQR footer lockup and no longer prints, so
+// the helper went with it. EthQrResponse still carries `city` — that is the
+// provider's field, and dropping it from the contract would be unrelated
+// churn — it simply is not rendered.
 
 /**
  * The short code's digits, for the spaced "CODE: 8 3 1 9 3 8 9" row.
