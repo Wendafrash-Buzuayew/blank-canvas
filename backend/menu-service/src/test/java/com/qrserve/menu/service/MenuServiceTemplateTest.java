@@ -77,6 +77,7 @@ class MenuServiceTemplateTest {
     @Test
     void createsAMenuWhenNoneExistsYet() {
         when(menuRepository.findByBranchId(BRANCH)).thenReturn(Optional.empty());
+        when(menuRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
         when(menuRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         stubBranchOwner(MERCHANT);
 
@@ -98,6 +99,7 @@ class MenuServiceTemplateTest {
     @Test
     void superAdminSucceedsRegardlessOfMerchant() {
         when(menuRepository.findByBranchId(BRANCH)).thenReturn(Optional.empty());
+        when(menuRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
         when(menuRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         stubBranchOwner(MERCHANT);
 

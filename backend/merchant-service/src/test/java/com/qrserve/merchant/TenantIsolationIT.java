@@ -83,6 +83,8 @@ class TenantIsolationIT {
     BranchRepository branchRepository;
     @Autowired
     TableRepository tableRepository;
+    @Autowired
+    com.qrserve.shared.common.QrSignatureService qrSignatureService;
 
     /**
      * Kafka is not running under test and {@code KafkaTemplate.send} would block
@@ -432,9 +434,24 @@ class TenantIsolationIT {
 
         mockMvc.perform(post("/api/v1/tables/" + tableA.getId() + "/requests")
                         .header("X-Tenant-Id", merchantA.getId().toString())
+                        .param("signature", qrSignatureService.generateSignature(
+                                merchantA.getId(), branchA.getId(), tableA.getId()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("a guest service call without the table's QR signature is refused")
+    void unsignedCallWaiterIsRefused() throws Exception {
+        String body = objectMapper.writeValueAsString(
+                java.util.Map.of("requestType", "CALL_WAITER", "note", "test"));
+
+        mockMvc.perform(post("/api/v1/tables/" + tableA.getId() + "/requests")
+                        .header("X-Tenant-Id", merchantA.getId().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden());
     }
 
     // ---- GET /api/v1/public/tenants/by-slug/{slug} — the gateway's lookup ----

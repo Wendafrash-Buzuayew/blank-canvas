@@ -41,25 +41,16 @@ public class QrController {
     }
 
     /**
-     * @deprecated DO NOT USE — this endpoint returns bytes that are not a valid
-     *     PDF. {@link QrGeneratorService#exportPdf} hand-assembles the file as a
-     *     string and gets three things wrong that each independently make it
-     *     unparseable: it declares {@code /Filter /DCTDecode} (JPEG) while
-     *     embedding PNG bytes, hardcodes {@code /Length 44} for a content stream
-     *     that is not 44 bytes, and emits no {@code xref} table or
-     *     {@code startxref} — both mandatory in PDF 1.4. No conforming reader
-     *     can open the result.
-     *
-     *     <p>The merchant-facing standee is now produced in the browser instead
+     * @deprecated Superseded by the browser standee
      *     (src/components/qr/StandeeStudio.tsx), which gives real vector text, a
-     *     vector SVG QR and exact millimetre page sizing via {@code @page} — all
-     *     of which a hand-rolled PDF writer here would have to reimplement.
-     *     Delete this endpoint and {@code exportPdf} once nothing calls them; it
-     *     is left in place only so removing it is a separate, reviewable change.
+     *     vector SVG QR and exact millimetre page sizing. This endpoint now emits
+     *     a valid, minimal one-page PDF holding only the raster QR (see
+     *     {@link QrGeneratorService#pdfFromImage}); it previously produced bytes
+     *     no reader could open. Delete it once nothing calls it.
      */
     @Deprecated
     @PostMapping("/export/pdf")
-    @Operation(summary = "DEPRECATED — emits an invalid PDF; use the browser standee studio")
+    @Operation(summary = "DEPRECATED — bare raster QR as PDF; use the browser standee studio")
     public ResponseEntity<byte[]> exportPdf(@Valid @RequestBody QrExportRequest request) {
         byte[] data = qrGeneratorService.exportPdf(request);
         return ResponseEntity.ok()
@@ -89,12 +80,13 @@ public class QrController {
     /** Deliberately a record: this is a value, and it must not grow fields. */
     public record BranchMenuUrlResponse(String url, String merchantSlug, String branchSlug) {}
 
-    // Overrides the class-level @PreAuthorize: this is the one endpoint on this
-    // controller SecurityConfig makes public (GET /api/qr/digital-menu/*/*), so
-    // it must not inherit the staff-only role gate above, or that permitAll rule
-    // would be silently defeated by method security 403ing every anonymous call.
+    // Staff-only via the class-level gate, deliberately. SecurityConfig still
+    // permits GET /api/qr/digital-menu/*/* anonymously, but this PNG encodes a
+    // valid branch signature for any slug pair, so serving it publicly hands out
+    // signatures. No public page calls it (the customer menu resolves via
+    // /api/v1/public/digital-menu/** on merchant-service), so method security now
+    // 403s anonymous callers; the SecurityConfig permitAll rule should be removed.
     @GetMapping("/digital-menu/{merchantSlug}/{branchSlug}")
-    @PreAuthorize("permitAll")
     @Operation(summary = "Render a QR PNG for a branch's phase-1 digital menu URL")
     public ResponseEntity<byte[]> getDigitalMenuQr(
             @PathVariable String merchantSlug, @PathVariable String branchSlug) {

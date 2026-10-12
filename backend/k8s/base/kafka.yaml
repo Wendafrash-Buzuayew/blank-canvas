@@ -15,9 +15,16 @@ spec:
     spec:
       containers:
       - name: kafka
-        image: ubuntu/kafka:3.7-22.04_beta
+        # The official Apache image at an exact release, replacing the
+        # floating ubuntu/kafka *_beta tag. Out of scope here and still open:
+        # no PersistentVolume (log dir is /tmp, lost on restart) and
+        # PLAINTEXT with no SASL.
+        image: apache/kafka:3.7.1
         ports:
         - containerPort: 9092
+        # apache/kafka ignores its bundled server.properties once any KAFKA_*
+        # variable is set, so the single-node essentials (protocol map and
+        # replication factor 1 for the internal topics) must be spelled out.
         env:
         - name: KAFKA_NODE_ID
           value: "1"
@@ -31,11 +38,30 @@ spec:
           value: "1@127.0.0.1:9093"
         - name: KAFKA_CONTROLLER_LISTENER_NAMES
           value: "CONTROLLER"
+        - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+          value: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
         - name: KAFKA_LOG_DIRS
           value: "/tmp/kraft-combined-logs"
+        - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+          value: "1"
+        - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+          value: "1"
+        - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+          value: "1"
         resources:
           requests: { cpu: "500m", memory: "1Gi" }
           limits: { cpu: "1", memory: "2Gi" }
+        readinessProbe:
+          tcpSocket:
+            port: 9092
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 9092
+          initialDelaySeconds: 60
+          periodSeconds: 20
+          failureThreshold: 6
 ---
 apiVersion: v1
 kind: Service

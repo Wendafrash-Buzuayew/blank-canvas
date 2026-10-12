@@ -28,7 +28,9 @@ public class MenuController {
     @GetMapping("/{merchantId}")
     @Operation(summary = "Get full published digital menu with categories & products")
     public ResponseEntity<MenuResponse> getMenu(@PathVariable UUID merchantId) {
-        return ResponseEntity.ok(menuService.getFullMenu(merchantId));
+        // getFullMenu is cached; effectivePrice is recomputed per read so a
+        // discount window opening/closing isn't masked for up to 10 minutes.
+        return ResponseEntity.ok(menuService.withCurrentPrices(menuService.getFullMenu(merchantId)));
     }
 
     @GetMapping("/branch/{branchId}")

@@ -4,6 +4,8 @@ import com.qrserve.backoffice.dto.CreateAuditLogRequest;
 import com.qrserve.backoffice.entity.AuditLogEntity;
 import com.qrserve.backoffice.repository.AuditLogRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,15 +32,23 @@ public class AuditLogService {
         return auditLogRepository.save(entity);
     }
 
+    static final int MAX_PAGE_SIZE = 500;
+
+    /** Newest first; both filters apply together when both are given. Size is clamped to 1..500. */
     @Transactional(readOnly = true)
-    public List<AuditLogEntity> getLogs(UUID merchantId, String action) {
+    public List<AuditLogEntity> getLogs(UUID merchantId, String action, int page, int size) {
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE));
+        boolean hasAction = action != null && !action.isBlank();
+        if (merchantId != null && hasAction) {
+            return auditLogRepository.findByMerchantIdAndActionOrderByCreatedAtDesc(merchantId, action, pageable);
+        }
         if (merchantId != null) {
-            return auditLogRepository.findByMerchantIdOrderByCreatedAtDesc(merchantId);
+            return auditLogRepository.findByMerchantIdOrderByCreatedAtDesc(merchantId, pageable);
         }
-        if (action != null && !action.isBlank()) {
-            return auditLogRepository.findByActionOrderByCreatedAtDesc(action);
+        if (hasAction) {
+            return auditLogRepository.findByActionOrderByCreatedAtDesc(action, pageable);
         }
-        return auditLogRepository.findAllByOrderByCreatedAtDesc();
+        return auditLogRepository.findAllByOrderByCreatedAtDesc(pageable);
     }
 
     @Transactional(readOnly = true)

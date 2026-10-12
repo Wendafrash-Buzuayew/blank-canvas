@@ -36,6 +36,10 @@ concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: false
 
+# Least privilege by default; each job widens only what it needs.
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -151,16 +155,33 @@ jobs:
           version: v1.31.0
 
       - name: Install kustomize
+        # A pinned release verified against a committed SHA-256, not a script
+        # piped from `master` into bash in the job that holds the kubeconfig.
+        # To upgrade: bump the version and take the new hash from that
+        # release's checksums.txt.
+        env:
+          KUSTOMIZE_VERSION: v5.4.3
+          KUSTOMIZE_SHA256: 3669470b454d865c8184d6bce78df05e977c9aea31c30df3c669317d43bcc7a7
         run: |
-          curl -sS "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
-          sudo mv kustomize /usr/local/bin/
+          set -euo pipefail
+          tarball="kustomize_${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
+          curl -fsSLo "$tarball" \
+            "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/${tarball}"
+          echo "${KUSTOMIZE_SHA256}  ${tarball}" | sha256sum -c -
+          tar -xzf "$tarball" kustomize
+          sudo install -m 0755 kustomize /usr/local/bin/kustomize
+          rm -f "$tarball" kustomize
 
       - name: Configure cluster access
         # A base64 kubeconfig scoped to a deploy ServiceAccount — not an admin
-        # credential. See backend/k8s/README.md.
+        # credential. See backend/k8s/README.md. Passed through env rather
+        # than interpolated into the script, so its contents are never
+        # spliced into shell source.
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
         run: |
           mkdir -p "$HOME/.kube"
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > "$HOME/.kube/config"
+          printf '%s' "$KUBE_CONFIG" | base64 -d > "$HOME/.kube/config"
           chmod 600 "$HOME/.kube/config"
 
       - name: Pin images to this build

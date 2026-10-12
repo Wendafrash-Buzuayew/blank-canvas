@@ -21,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import com.qrserve.shared.exceptions.UnauthorizedException;
 import com.qrserve.shared.security.UserPrincipal;
 import com.qrserve.shared.security.UserRole;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -115,13 +116,20 @@ public class WaiterTaskV1Controller {
     public ResponseEntity<CustomerRequestEntity> resolveRequest(
             @PathVariable Long requestId,
             @Valid @RequestBody ResolveRequestDto body,
-            @RequestParam(required = false) UUID merchantId) {
+            @RequestParam(required = false) UUID merchantId,
+            @AuthenticationPrincipal UserPrincipal principal) {
 
         String status = body.getStatus() != null ? body.getStatus().toUpperCase() : "COMPLETED";
         if (!List.of("ACKNOWLEDGED", "COMPLETED", "CANCELLED").contains(status)) {
             throw new IllegalArgumentException("Invalid resolution status: " + status);
         }
-        return ResponseEntity.ok(requestService.updateRequestStatus(requestId, status, merchantId));
+        // Tenant from the token, as in CustomerRequestController.updateStatus. The
+        // query param previously WAS the tenant, so any permitted role could resolve
+        // another merchant's requests by passing that merchant's id.
+        UUID scope = principal.getRole() == UserRole.SUPER_ADMIN && merchantId != null
+                ? merchantId
+                : principal.getMerchantId();
+        return ResponseEntity.ok(requestService.updateRequestStatus(requestId, status, scope));
     }
 
     /**
@@ -139,7 +147,7 @@ public class WaiterTaskV1Controller {
             return;
         }
         if (!merchantId.equals(principal.getMerchantId())) {
-            throw new UnauthorizedException("Not authorized for merchant " + merchantId);
+            throw new AccessDeniedException("Not authorized for merchant " + merchantId);
         }
     }
 

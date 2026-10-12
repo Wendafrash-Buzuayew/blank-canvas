@@ -21,7 +21,12 @@ import org.springframework.web.context.request.ServletRequestAttributes; // Web 
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -42,7 +47,7 @@ public class AnalyticsService {
     public TodayAnalyticsResponse getTodayMetrics(UUID merchantId) {
         // merchantId is now actually used: it is forwarded to both downstream
         // services so each merchant sees only their own revenue and occupancy.
-        List<Map<String, Object>> orders = fetchOrders(merchantId);
+        List<Map<String, Object>> orders = todaysOrders(fetchOrders(merchantId), Instant.now());
 
         BigDecimal todayRev = orders.stream()
                 .map(o -> new BigDecimal(o.getOrDefault("totalAmount", "0").toString()))
@@ -126,6 +131,47 @@ public class AnalyticsService {
                         .revenue(new BigDecimal("2280.00"))
                         .build()
         );
+    }
+
+    /** "Today" is the merchant's business day, not the server's. */
+    static final ZoneId BUSINESS_ZONE = ZoneId.of("Africa/Addis_Ababa");
+
+    /**
+     * order-service stamps {@code createdAt} with {@code LocalDateTime.now()} in its
+     * JVM default zone, which is UTC in the containers (no TZ is set anywhere).
+     */
+    static final ZoneId ORDER_CLOCK_ZONE = ZoneOffset.UTC;
+
+    /**
+     * Keeps orders created during today's business day (Addis Ababa) that were not
+     * cancelled.
+     *
+     * <p>shortcut: order-service's {@code GET /api/orders} has no date filter, so this
+     * fetches the merchant's full order history and filters here. Move the range into
+     * order-service (createdAt between from/to) once the order count makes this costly.
+     */
+    static List<Map<String, Object>> todaysOrders(List<Map<String, Object>> orders, Instant now) {
+        LocalDate today = now.atZone(BUSINESS_ZONE).toLocalDate();
+        LocalDateTime from = today.atStartOfDay(BUSINESS_ZONE)
+                .withZoneSameInstant(ORDER_CLOCK_ZONE).toLocalDateTime();
+        LocalDateTime to = today.plusDays(1).atStartOfDay(BUSINESS_ZONE)
+                .withZoneSameInstant(ORDER_CLOCK_ZONE).toLocalDateTime();
+        return orders.stream()
+                .filter(o -> !"CANCELLED".equalsIgnoreCase(String.valueOf(o.get("status"))))
+                .filter(o -> {
+                    Object created = o.get("createdAt");
+                    if (created == null) {
+                        return false;
+                    }
+                    try {
+                        LocalDateTime at = LocalDateTime.parse(created.toString());
+                        return !at.isBefore(from) && at.isBefore(to);
+                    } catch (DateTimeParseException e) {
+                        log.warn("Skipping order with unparseable createdAt {}", created);
+                        return false;
+                    }
+                })
+                .toList();
     }
 
     /**

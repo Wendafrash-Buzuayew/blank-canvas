@@ -71,15 +71,28 @@ public class CategoryController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
     @Operation(summary = "Update menu category")
     public ResponseEntity<CategoryEntity> updateCategory(@PathVariable Long id,
-                                                          @Valid @RequestBody UpdateCategoryRequest request) {
+                                                          @Valid @RequestBody UpdateCategoryRequest request,
+                                                          @AuthenticationPrincipal UserPrincipal principal) {
+        requireTenantAccess(menuService.getCategory(id).getMerchantId(), principal);
         return ResponseEntity.ok(menuService.updateCategory(id, request));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
     @Operation(summary = "Delete menu category (cascades products)")
-    public ResponseEntity<Void> deleteCategory(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteCategory(@PathVariable Long id,
+                                               @AuthenticationPrincipal UserPrincipal principal) {
+        requireTenantAccess(menuService.getCategory(id).getMerchantId(), principal);
         menuService.deleteCategory(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /** Same rule as ProductController's: ids are sequential, so ownership is checked, not assumed. */
+    private void requireTenantAccess(UUID merchantId, UserPrincipal principal) {
+        boolean superAdmin = principal != null && principal.getRole() == UserRole.SUPER_ADMIN;
+        boolean sameTenant = principal != null && merchantId.equals(principal.getMerchantId());
+        if (!superAdmin && !sameTenant) {
+            throw new UnauthorizedException("Caller has no access to merchant " + merchantId);
+        }
     }
 }

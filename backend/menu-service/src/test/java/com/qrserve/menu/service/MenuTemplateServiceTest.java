@@ -10,6 +10,7 @@ import com.qrserve.shared.exceptions.ResourceNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.List;
 import java.util.Optional;
@@ -54,6 +55,14 @@ class MenuTemplateServiceTest {
         service.seedDefaults();
 
         verify(repository, never()).saveAll(any());
+    }
+
+    @Test
+    void seedDefaultsToleratesAnotherReplicaSeedingFirst() {
+        when(repository.count()).thenReturn(0L);
+        when(repository.saveAll(any())).thenThrow(new DataIntegrityViolationException("duplicate key"));
+
+        assertDoesNotThrow(() -> service.seedDefaults());
     }
 
     @Test

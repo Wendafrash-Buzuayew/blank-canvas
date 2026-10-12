@@ -4,6 +4,8 @@ import com.qrserve.backoffice.dto.CreateAuditLogRequest;
 import com.qrserve.backoffice.entity.AuditLogEntity;
 import com.qrserve.backoffice.repository.AuditLogRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -49,50 +51,65 @@ class AuditLogServiceTest {
         assertEquals("created via onboarding flow", saved.getDetails());
     }
 
+    private static final Pageable FIRST_100 = PageRequest.of(0, 100);
+
     @Test
     void getLogsFiltersByMerchantIdWhenProvided() {
         List<AuditLogEntity> expected = List.of(AuditLogEntity.builder().merchantId(MERCHANT).build());
-        when(auditLogRepository.findByMerchantIdOrderByCreatedAtDesc(MERCHANT)).thenReturn(expected);
+        when(auditLogRepository.findByMerchantIdOrderByCreatedAtDesc(MERCHANT, FIRST_100)).thenReturn(expected);
 
-        List<AuditLogEntity> result = service.getLogs(MERCHANT, null);
-
-        assertEquals(expected, result);
-        verify(auditLogRepository, never()).findAllByOrderByCreatedAtDesc();
-        verify(auditLogRepository, never()).findByActionOrderByCreatedAtDesc(any());
+        assertEquals(expected, service.getLogs(MERCHANT, null, 0, 100));
+        verify(auditLogRepository, never()).findAllByOrderByCreatedAtDesc(any());
+        verify(auditLogRepository, never()).findByActionOrderByCreatedAtDesc(any(), any());
     }
 
     @Test
     void getLogsFiltersByActionWhenMerchantIdIsAbsent() {
         List<AuditLogEntity> expected = List.of(AuditLogEntity.builder().action("MERCHANT_CREATED").build());
-        when(auditLogRepository.findByActionOrderByCreatedAtDesc("MERCHANT_CREATED")).thenReturn(expected);
+        when(auditLogRepository.findByActionOrderByCreatedAtDesc("MERCHANT_CREATED", FIRST_100)).thenReturn(expected);
 
-        List<AuditLogEntity> result = service.getLogs(null, "MERCHANT_CREATED");
+        assertEquals(expected, service.getLogs(null, "MERCHANT_CREATED", 0, 100));
+        verify(auditLogRepository, never()).findAllByOrderByCreatedAtDesc(any());
+    }
 
-        assertEquals(expected, result);
-        verify(auditLogRepository, never()).findAllByOrderByCreatedAtDesc();
+    @Test
+    void getLogsAppliesBothFiltersTogether() {
+        List<AuditLogEntity> expected = List.of(AuditLogEntity.builder().merchantId(MERCHANT).action("MERCHANT_CREATED").build());
+        when(auditLogRepository.findByMerchantIdAndActionOrderByCreatedAtDesc(MERCHANT, "MERCHANT_CREATED", FIRST_100))
+                .thenReturn(expected);
+
+        assertEquals(expected, service.getLogs(MERCHANT, "MERCHANT_CREATED", 0, 100));
+        verify(auditLogRepository, never()).findByMerchantIdOrderByCreatedAtDesc(any(), any());
+        verify(auditLogRepository, never()).findByActionOrderByCreatedAtDesc(any(), any());
     }
 
     @Test
     void getLogsReturnsEverythingWhenNoFilterIsGiven() {
         List<AuditLogEntity> expected = List.of(AuditLogEntity.builder().build());
-        when(auditLogRepository.findAllByOrderByCreatedAtDesc()).thenReturn(expected);
+        when(auditLogRepository.findAllByOrderByCreatedAtDesc(FIRST_100)).thenReturn(expected);
 
-        List<AuditLogEntity> result = service.getLogs(null, null);
-
-        assertEquals(expected, result);
+        assertEquals(expected, service.getLogs(null, null, 0, 100));
     }
 
     @Test
     void getLogsTreatsABlankActionAsNoFilter() {
         List<AuditLogEntity> expected = List.of(AuditLogEntity.builder().build());
-        when(auditLogRepository.findAllByOrderByCreatedAtDesc()).thenReturn(expected);
+        when(auditLogRepository.findAllByOrderByCreatedAtDesc(FIRST_100)).thenReturn(expected);
 
-        List<AuditLogEntity> result = service.getLogs(null, "  ");
-
-        assertEquals(expected, result);
-        verify(auditLogRepository, never()).findByActionOrderByCreatedAtDesc(any());
+        assertEquals(expected, service.getLogs(null, "  ", 0, 100));
+        verify(auditLogRepository, never()).findByActionOrderByCreatedAtDesc(any(), any());
     }
 
+    @Test
+    void getLogsClampsPageAndSize() {
+        when(auditLogRepository.findAllByOrderByCreatedAtDesc(any())).thenReturn(List.of());
+
+        service.getLogs(null, null, -3, 10_000);
+        verify(auditLogRepository).findAllByOrderByCreatedAtDesc(PageRequest.of(0, AuditLogService.MAX_PAGE_SIZE));
+
+        service.getLogs(null, null, 2, 0);
+        verify(auditLogRepository).findAllByOrderByCreatedAtDesc(PageRequest.of(2, 1));
+    }
     @Test
     void countDelegatesToTheRepository() {
         when(auditLogRepository.count()).thenReturn(7L);

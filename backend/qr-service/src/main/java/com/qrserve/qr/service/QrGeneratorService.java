@@ -12,6 +12,7 @@ import com.qrserve.shared.common.PublicMenuUrl;
 import com.qrserve.shared.common.QrSignatureService;
 import com.qrserve.shared.common.emvco.EmvcoPayload;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
+import com.qrserve.shared.exceptions.UpstreamServiceException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -30,9 +33,13 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
+import java.util.zip.DeflaterOutputStream;
 
 @Service
 @RequiredArgsConstructor
@@ -43,6 +50,9 @@ public class QrGeneratorService {
 
     /** The one profile whose payload is a URL rather than an EMVCo TLV string. */
     private static final String PROFILE_MENU_URL = "MENU_URL";
+
+    /** Stable upstream label for 502 responses; never a host or URL. */
+    static final String UPSTREAM_MERCHANT_SERVICE = "merchant-service";
 
     private final RestTemplate restTemplate;
     private final PublicMenuUrl publicMenuUrl;
@@ -111,24 +121,44 @@ public class QrGeneratorService {
     }
 
     private DigitalMenuResolution fetchDigitalMenuResolution(String merchantSlug, String branchSlug) {
+        Map<String, Object> body = getFromMerchantService(
+                merchantServiceUrl + "/api/v1/public/digital-menu/" + merchantSlug + "/" + branchSlug,
+                "No branch " + branchSlug + " for merchant " + merchantSlug);
+        return new DigitalMenuResolution(
+                UUID.fromString((String) body.get("merchantId")),
+                (String) body.get("merchantSlug"),
+                ((Number) body.get("branchId")).longValue(),
+                (String) body.get("branchSlug"));
+    }
+
+    /**
+     * GETs a JSON object from merchant-service. Only a real 404 (or an empty body)
+     * becomes {@link ResourceNotFoundException}; any other failure — timeout,
+     * connection refused, 5xx, auth errors — is an upstream failure (502), so an
+     * outage is not misreported to the merchant as "your table does not exist".
+     */
+    private Map<String, Object> getFromMerchantService(String url, String notFoundMessage) {
+        ResponseEntity<Map<String, Object>> response;
         try {
-            String url = merchantServiceUrl + "/api/v1/public/digital-menu/" + merchantSlug + "/" + branchSlug;
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    url, HttpMethod.GET, new HttpEntity<>(getAuthHeaders()),
+            response = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(getAuthHeaders()),
                     new ParameterizedTypeReference<Map<String, Object>>() {});
-            Map<String, Object> body = response.getBody();
-            if (body == null) {
-                throw new ResourceNotFoundException("No branch " + branchSlug + " for merchant " + merchantSlug);
-            }
-            return new DigitalMenuResolution(
-                    UUID.fromString((String) body.get("merchantId")),
-                    (String) body.get("merchantSlug"),
-                    ((Number) body.get("branchId")).longValue(),
-                    (String) body.get("branchSlug"));
-        } catch (Exception e) {
-            log.error("Failed to resolve digital menu branch {}/{}", merchantSlug, branchSlug, e);
-            throw new ResourceNotFoundException("No branch " + branchSlug + " for merchant " + merchantSlug);
+        } catch (RestClientException e) {
+            throw translateMerchantServiceFailure(e, url, notFoundMessage);
         }
+        Map<String, Object> body = response.getBody();
+        if (body == null) {
+            throw new ResourceNotFoundException(notFoundMessage);
+        }
+        return body;
+    }
+
+    /** Package-private and static so the 404-vs-502 split is unit-testable without HTTP. */
+    static RuntimeException translateMerchantServiceFailure(RestClientException e, String url, String notFoundMessage) {
+        if (e instanceof HttpClientErrorException.NotFound) {
+            return new ResourceNotFoundException(notFoundMessage);
+        }
+        log.error("merchant-service call failed: {}", url, e);
+        return new UpstreamServiceException(UPSTREAM_MERCHANT_SERVICE, "merchant-service request failed", e);
     }
 
     private record DigitalMenuResolution(UUID merchantId, String merchantSlug, Long branchId, String branchSlug) {}
@@ -171,15 +201,22 @@ public class QrGeneratorService {
      */
     static byte[] renderPng(String payload, int size) {
         try {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            ImageIO.write(renderImage(payload, size), "PNG", out);
+            return out.toByteArray();
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to render QR payload", e);
+        }
+    }
+
+    static BufferedImage renderImage(String payload, int size) {
+        try {
             BitMatrix matrix = new MultiFormatWriter().encode(
                     payload, BarcodeFormat.QR_CODE, size, size,
                     Map.of(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.H,
                             EncodeHintType.MARGIN, 2,
                             EncodeHintType.CHARACTER_SET, "UTF-8"));
-            BufferedImage image = MatrixToImageWriter.toBufferedImage(matrix);
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            ImageIO.write(image, "PNG", out);
-            return out.toByteArray();
+            return MatrixToImageWriter.toBufferedImage(matrix);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to render QR payload", e);
         }
@@ -201,70 +238,94 @@ public class QrGeneratorService {
     }
 
     public byte[] exportPdf(QrExportRequest request) {
-        // Generate QR PNG and wrap in a minimal PDF
-        byte[] qrPng = exportPng(request);
-        String base64Qr = Base64.getEncoder().encodeToString(qrPng);
+        TableQrInfo qr = fetchTableQr(request.getTableId());
+        return pdfFromImage(renderImage(payloadToRender(qr.getPayloadRaw(), qr.getProfile()), QR_SIZE));
+    }
 
-        // Simple PDF with embedded QR image
-        String pdfContent = "%PDF-1.4\n" +
-                "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n" +
-                "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n" +
-                "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 300] /Contents 4 0 R /Resources << /XObject << /Im1 5 0 R >> >> >>\nendobj\n" +
-                "4 0 obj\n<< /Length 44 >>\nstream\nq\n300 0 0 300 0 0 cm\n/Im1 Do\nQ\nendstream\nendobj\n" +
-                "5 0 obj\n<< /Type /XObject /Subtype /Image /Width 300 /Height 300 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " + qrPng.length + " >>\nstream\n" +
-                new String(qrPng, java.nio.charset.StandardCharsets.ISO_8859_1) +
-                "\nendstream\nendobj\n" +
-                "trailer\n<< /Root 1 0 R >>\n%%EOF";
+    /**
+     * A minimal, valid single-page PDF 1.4 showing {@code image} at 1pt per pixel.
+     *
+     * <p>No PDF library is on the classpath, so this is written by hand — but
+     * correctly: the image is raw 8-bit grayscale under {@code /FlateDecode}
+     * (a filter the JDK's Deflater produces), every {@code /Length} is the real
+     * byte count, and the file ends with an {@code xref} table and
+     * {@code startxref} pointing at the real byte offsets. The previous version
+     * declared PNG bytes as {@code /DCTDecode}, hardcoded a wrong content
+     * length and had no xref, so no reader could open it.
+     */
+    static byte[] pdfFromImage(BufferedImage image) {
+        int w = image.getWidth();
+        int h = image.getHeight();
+        byte[] gray = new byte[w * h];
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int rgb = image.getRGB(x, y);
+                int r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
+                gray[y * w + x] = (byte) ((r * 299 + g * 587 + b * 114) / 1000);
+            }
+        }
+        ByteArrayOutputStream deflated = new ByteArrayOutputStream();
+        try (DeflaterOutputStream z = new DeflaterOutputStream(deflated)) {
+            z.write(gray);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        byte[] imageData = deflated.toByteArray();
+        byte[] content = ("q\n" + w + " 0 0 " + h + " 0 0 cm\n/Im1 Do\nQ").getBytes(StandardCharsets.US_ASCII);
 
-        return pdfContent.getBytes(java.nio.charset.StandardCharsets.ISO_8859_1);
+        ByteArrayOutputStream pdf = new ByteArrayOutputStream();
+        int[] offsets = new int[6];
+        writeAscii(pdf, "%PDF-1.4\n");
+        offsets[1] = pdf.size();
+        writeAscii(pdf, "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+        offsets[2] = pdf.size();
+        writeAscii(pdf, "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n");
+        offsets[3] = pdf.size();
+        writeAscii(pdf, "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + w + " " + h + "]"
+                + " /Contents 4 0 R /Resources << /XObject << /Im1 5 0 R >> >> >>\nendobj\n");
+        offsets[4] = pdf.size();
+        writeAscii(pdf, "4 0 obj\n<< /Length " + content.length + " >>\nstream\n");
+        pdf.writeBytes(content);
+        writeAscii(pdf, "\nendstream\nendobj\n");
+        offsets[5] = pdf.size();
+        writeAscii(pdf, "5 0 obj\n<< /Type /XObject /Subtype /Image /Width " + w + " /Height " + h
+                + " /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length "
+                + imageData.length + " >>\nstream\n");
+        pdf.writeBytes(imageData);
+        writeAscii(pdf, "\nendstream\nendobj\n");
+
+        int xref = pdf.size();
+        StringBuilder table = new StringBuilder("xref\n0 6\n0000000000 65535 f \n");
+        for (int i = 1; i <= 5; i++) {
+            table.append(String.format("%010d 00000 n \n", offsets[i]));
+        }
+        table.append("trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n").append(xref).append("\n%%EOF\n");
+        writeAscii(pdf, table.toString());
+        return pdf.toByteArray();
+    }
+
+    private static void writeAscii(ByteArrayOutputStream out, String s) {
+        out.writeBytes(s.getBytes(StandardCharsets.US_ASCII));
     }
 
     private TableInfo fetchTable(Long tableId) {
-        try {
-            String url = merchantServiceUrl + "/api/tables/" + tableId;
-            // Build headers containing the security token
-            HttpEntity<Void> requestEntity = new HttpEntity<>(getAuthHeaders());
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    url, HttpMethod.GET, requestEntity, new ParameterizedTypeReference<Map<String, Object>>() {});
-            
-            Map<String, Object> body = response.getBody();
-            if (body == null) {
-                throw new ResourceNotFoundException("Table not found ID: " + tableId);
-            }
-            
-            return new TableInfo(
-                    ((Number) body.get("id")).longValue(),
-                    ((Number) body.get("branchId")).longValue(),
-                    UUID.fromString((String) body.get("merchantId")),
-                    (String) body.get("tableNumber")
-            );
-        } catch (Exception e) {
-            log.error("Failed to fetch table {} from merchant-service", tableId, e);
-            throw new ResourceNotFoundException("Table not found ID: " + tableId);
-        }
+        Map<String, Object> body = getFromMerchantService(
+                merchantServiceUrl + "/api/tables/" + tableId, "Table not found ID: " + tableId);
+        return new TableInfo(
+                ((Number) body.get("id")).longValue(),
+                ((Number) body.get("branchId")).longValue(),
+                UUID.fromString((String) body.get("merchantId")),
+                (String) body.get("tableNumber")
+        );
     }
 
     private MerchantInfo fetchMerchant(UUID merchantId) {
-        try {
-            String url = merchantServiceUrl + "/api/merchants/" + merchantId;
-             // Build headers containing the security token
-            HttpEntity<Void> requestEntity = new HttpEntity<>(getAuthHeaders());
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    url, HttpMethod.GET, requestEntity, new ParameterizedTypeReference<Map<String, Object>>() {});
-            
-            Map<String, Object> body = response.getBody();
-            if (body == null) {
-                throw new ResourceNotFoundException("Merchant not found ID: " + merchantId);
-            }
-            
-            return new MerchantInfo(
-                    UUID.fromString((String) body.get("id")),
-                    (String) body.get("slug")
-            );
-        } catch (Exception e) {
-            log.error("Failed to fetch merchant {} from merchant-service", merchantId, e);
-            throw new ResourceNotFoundException("Merchant not found ID: " + merchantId);
-        }
+        Map<String, Object> body = getFromMerchantService(
+                merchantServiceUrl + "/api/merchants/" + merchantId, "Merchant not found ID: " + merchantId);
+        return new MerchantInfo(
+                UUID.fromString((String) body.get("id")),
+                (String) body.get("slug")
+        );
     }
 
 
@@ -275,24 +336,12 @@ public class QrGeneratorService {
      * written.
      */
     private BranchInfo fetchBranch(Long branchId) {
-        try {
-            String url = merchantServiceUrl + "/api/branches/" + branchId;
-            HttpEntity<Void> requestEntity = new HttpEntity<>(getAuthHeaders());
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    url, HttpMethod.GET, requestEntity, new ParameterizedTypeReference<Map<String, Object>>() {});
-
-            Map<String, Object> body = response.getBody();
-            if (body == null) {
-                throw new ResourceNotFoundException("Branch not found ID: " + branchId);
-            }
-            return new BranchInfo(
-                    ((Number) body.get("id")).longValue(),
-                    (String) body.get("slug")
-            );
-        } catch (Exception e) {
-            log.error("Failed to fetch branch {} from merchant-service", branchId, e);
-            throw new ResourceNotFoundException("Branch not found ID: " + branchId);
-        }
+        Map<String, Object> body = getFromMerchantService(
+                merchantServiceUrl + "/api/branches/" + branchId, "Branch not found ID: " + branchId);
+        return new BranchInfo(
+                ((Number) body.get("id")).longValue(),
+                (String) body.get("slug")
+        );
     }
 
     /**
@@ -303,26 +352,13 @@ public class QrGeneratorService {
      * settlement account).
      */
     private TableQrInfo fetchTableQr(Long tableId) {
-        try {
-            String url = merchantServiceUrl + "/api/tables/" + tableId + "/qr";
-            HttpEntity<Void> requestEntity = new HttpEntity<>(getAuthHeaders());
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    url, HttpMethod.GET, requestEntity, new ParameterizedTypeReference<Map<String, Object>>() {});
-
-            Map<String, Object> body = response.getBody();
-            if (body == null) {
-                throw new ResourceNotFoundException("No provisioned QR for table ID: " + tableId);
-            }
-
-            return new TableQrInfo(
-                    (String) body.get("payloadRaw"),
-                    (String) body.get("terminalLabel"),
-                    (String) body.get("profile")
-            );
-        } catch (Exception e) {
-            log.error("Failed to fetch table QR {} from merchant-service", tableId, e);
-            throw new ResourceNotFoundException("No provisioned QR for table ID: " + tableId);
-        }
+        Map<String, Object> body = getFromMerchantService(
+                merchantServiceUrl + "/api/tables/" + tableId + "/qr", "No provisioned QR for table ID: " + tableId);
+        return new TableQrInfo(
+                (String) body.get("payloadRaw"),
+                (String) body.get("terminalLabel"),
+                (String) body.get("profile")
+        );
     }
 
     /**

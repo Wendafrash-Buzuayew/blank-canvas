@@ -61,21 +61,26 @@ class ReviewServiceTest {
     }
 
     @Test
-    void summaryAveragesTheRatingsForThatBranchOnly() {
-        when(reviewRepository.findByBranchIdOrderByCreatedAtDesc(BRANCH)).thenReturn(List.of(
-                ReviewEntity.builder().branchId(BRANCH).rating(5).build(),
-                ReviewEntity.builder().branchId(BRANCH).rating(3).build(),
-                ReviewEntity.builder().branchId(BRANCH).rating(4).build()));
+    void summaryUsesTheDatabaseAggregateForThatBranch() {
+        when(reviewRepository.summarizeByBranch(BRANCH)).thenReturn(summary(4.0, 3L));
 
         ReviewSummaryResponse summary = service.getSummaryForBranch(BRANCH);
 
         assertEquals(4.0, summary.getAverageRating(), 0.001);
         assertEquals(3, summary.getCount());
+        verify(reviewRepository, never()).findByBranchIdOrderByCreatedAtDesc(any());
+    }
+
+    private static ReviewRepository.RatingSummary summary(Double average, Long count) {
+        return new ReviewRepository.RatingSummary() {
+            public Double getAverage() { return average; }
+            public Long getCount() { return count; }
+        };
     }
 
     @Test
     void summaryIsZeroForABranchWithNoReviewsYet() {
-        when(reviewRepository.findByBranchIdOrderByCreatedAtDesc(BRANCH)).thenReturn(List.of());
+        when(reviewRepository.summarizeByBranch(BRANCH)).thenReturn(summary(null, 0L));
 
         ReviewSummaryResponse summary = service.getSummaryForBranch(BRANCH);
 

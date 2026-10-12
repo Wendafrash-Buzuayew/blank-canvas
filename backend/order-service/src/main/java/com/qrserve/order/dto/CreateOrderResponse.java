@@ -25,4 +25,9 @@ public class CreateOrderResponse {
      * Not an API credential — see JwtTokenProvider.TYPE_ORDER_STREAM.
      */
     private String streamToken;
+    /**
+     * Whether merchant-service accepted the table OCCUPIED update. The order is
+     * placed either way; false means table occupancy is stale and was logged.
+     */
+    private Boolean tableStatusUpdated;
 }

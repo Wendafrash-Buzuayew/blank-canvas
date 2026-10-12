@@ -12,8 +12,11 @@ export const LoginPage: React.FC = () => {
   const { login, loginWithSuperAppToken, isLoading, isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [email, setEmail] = useState(isPhase2Enabled() ? 'admin@hotel.com' : '');
-  const [password, setPassword] = useState(isPhase2Enabled() ? 'password' : '');
+  // Demo credentials are a local-development convenience only; production
+  // builds must never prefill or advertise them.
+  const showDemoAccounts = import.meta.env.DEV && isPhase2Enabled();
+  const [email, setEmail] = useState(showDemoAccounts ? 'admin@hotel.com' : '');
+  const [password, setPassword] = useState(showDemoAccounts ? 'password' : '');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [wasPhaseBlocked, setWasPhaseBlocked] = useState(false);
@@ -107,9 +110,14 @@ export const LoginPage: React.FC = () => {
     );
   }
 
-  // If already authenticated with an allowed role, redirect to role home
+  // If already authenticated with an allowed role, return to the deep link
+  // ProtectedRoute bounced us from, else the role home.
   if (isAuthenticated && user) {
-    return <Navigate to={getRoleHome(user.role)} replace />;
+    const from = (location.state as { from?: { pathname?: string; search?: string; hash?: string } } | null)?.from;
+    const target = from?.pathname && from.pathname !== '/login'
+      ? `${from.pathname}${from.search ?? ''}${from.hash ?? ''}`
+      : getRoleHome(user.role);
+    return <Navigate to={target} replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -211,7 +219,7 @@ export const LoginPage: React.FC = () => {
               {isLoading ? 'Signing in...' : 'Sign In'}
             </Button>
 
-            {isPhase2Enabled() && (
+            {showDemoAccounts && (
               <div className="border-t border-line pt-3">
                 <p className="mb-2 text-label-s uppercase text-muted">Demo Accounts</p>
                 <div className="space-y-1.5">

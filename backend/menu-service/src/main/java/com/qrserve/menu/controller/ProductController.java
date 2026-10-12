@@ -32,7 +32,9 @@ public class ProductController {
     @PostMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
     @Operation(summary = "Create product item")
-    public ResponseEntity<ProductEntity> createProduct(@Valid @RequestBody CreateProductRequest request) {
+    public ResponseEntity<ProductEntity> createProduct(@Valid @RequestBody CreateProductRequest request,
+                                                        @AuthenticationPrincipal UserPrincipal principal) {
+        requireTenantAccess(menuService.getCategory(request.getCategoryId()).getMerchantId(), principal);
         return ResponseEntity.ok(menuService.createProduct(request));
     }
 
@@ -102,14 +104,18 @@ public class ProductController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
     @Operation(summary = "Update product item")
     public ResponseEntity<ProductEntity> updateProduct(@PathVariable Long id,
-                                                        @Valid @RequestBody UpdateProductRequest request) {
+                                                        @Valid @RequestBody UpdateProductRequest request,
+                                                        @AuthenticationPrincipal UserPrincipal principal) {
+        requireTenantAccess(menuService.getProduct(id).getMerchantId(), principal);
         return ResponseEntity.ok(menuService.updateProduct(id, request));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
     @Operation(summary = "Delete product item")
-    public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteProduct(@PathVariable Long id,
+                                              @AuthenticationPrincipal UserPrincipal principal) {
+        requireTenantAccess(menuService.getProduct(id).getMerchantId(), principal);
         menuService.deleteProduct(id);
         return ResponseEntity.noContent().build();
     }

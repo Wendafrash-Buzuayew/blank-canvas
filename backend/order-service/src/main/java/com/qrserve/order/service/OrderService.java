@@ -8,12 +8,15 @@ import com.qrserve.order.entity.OrderItemEntity;
 import com.qrserve.order.repository.OrderItemRepository;
 import com.qrserve.order.repository.OrderRepository;
 import com.qrserve.shared.common.OrderStatus;
+import com.qrserve.shared.common.QrSignatureService;
 import com.qrserve.shared.common.TableStatus;
 import com.qrserve.shared.events.OrderCreatedEvent;
 import com.qrserve.shared.events.OrderStatusUpdatedEvent;
 import com.qrserve.shared.exceptions.BusinessException;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
 import com.qrserve.shared.security.JwtTokenProvider;
+import com.qrserve.shared.security.UserPrincipal;
+import com.qrserve.shared.security.UserRole;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -24,8 +27,9 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import com.qrserve.shared.exceptions.ServiceUnavailableException;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpStatusCodeException;
@@ -38,9 +42,11 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -48,11 +54,24 @@ import java.util.UUID;
 @Slf4j
 public class OrderService {
 
+    /**
+     * Statuses after which an order no longer occupies its table. DELIVERED is
+     * included, as before: pay-at-counter orders may never be marked PAID.
+     */
+    static final Set<OrderStatus> TABLE_RELEASING =
+            EnumSet.of(OrderStatus.DELIVERED, OrderStatus.PAID, OrderStatus.CANCELLED);
+
+    /** Statuses of an order still keeping its table occupied. */
+    static final List<String> OPEN_STATUSES = EnumSet.complementOf(EnumSet.copyOf(TABLE_RELEASING))
+            .stream().map(Enum::name).toList();
+
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final OrderEventPublisher eventPublisher;
     private final RestTemplate restTemplate;
     private final JwtTokenProvider tokenProvider;
+    private final QrSignatureService qrSignatureService;
+    private final TransactionTemplate transactionTemplate;
 
     @Value("${services.merchant-service-url:http://localhost:8085}")
     private String merchantServiceUrl;
@@ -60,24 +79,25 @@ public class OrderService {
     @Value("${services.menu-service-url:http://localhost:8086}")
     private String menuServiceUrl;
 
-    @Transactional
+    /**
+     * Places an order.
+     *
+     * <p>Not {@code @Transactional}: the merchant/menu REST calls happen before the
+     * transaction and the table PATCH + Kafka publish after it commits. Holding a
+     * pooled connection (pool size 5) across REST retries starved the pool, and an
+     * event published before commit could announce an order that then rolled back.
+     *
+     * <p>Idempotency keys for guest retries are NOT implemented here.
+     */
     public CreateOrderResponse createOrder(CreateOrderRequest request) {
         TableInfo table = fetchTable(request.getTableId());
 
-        String orderNumber = "ORD-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")) + "-" + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
-        
-        OrderEntity order = OrderEntity.builder()
-                .orderNumber(orderNumber)
-                .merchantId(table.getMerchantId())
-                .branchId(table.getBranchId())
-                .tableId(table.getId())
-                .customerName(request.getCustomerName() != null ? request.getCustomerName() : "Guest")
-                .status(OrderStatus.PENDING.name())
-                .totalAmount(BigDecimal.ZERO)
-                .note(request.getNote())
-                .build();
-
-        OrderEntity savedOrder = orderRepository.save(order);
+        // The signature proves the guest scanned this table's printed QR code.
+        // Without it, anyone could place orders against any tableId of any tenant.
+        if (!qrSignatureService.validateSignature(request.getSignature(),
+                table.getMerchantId(), table.getBranchId(), table.getId())) {
+            throw new AccessDeniedException("Invalid QR signature for the requested table");
+        }
 
         BigDecimal calculatedTotal = BigDecimal.ZERO;
         int maxPrepTime = 10;
@@ -101,7 +121,6 @@ public class OrderService {
             }
 
             OrderItemEntity orderItem = OrderItemEntity.builder()
-                    .orderId(savedOrder.getId())
                     .productId(product.getId())
                     .productName(product.getName())
                     .quantity(itemReq.getQuantity())
@@ -113,13 +132,30 @@ public class OrderService {
             orderItems.add(orderItem);
         }
 
-        orderItemRepository.saveAll(orderItems);
+        String orderNumber = "ORD-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")) + "-" + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
 
-        savedOrder.setTotalAmount(calculatedTotal);
-        orderRepository.save(savedOrder);
+        OrderEntity order = OrderEntity.builder()
+                .orderNumber(orderNumber)
+                .merchantId(table.getMerchantId())
+                .branchId(table.getBranchId())
+                .tableId(table.getId())
+                .customerName(request.getCustomerName() != null ? request.getCustomerName() : "Guest")
+                .status(OrderStatus.PENDING.name())
+                .totalAmount(calculatedTotal)
+                .note(request.getNote())
+                .build();
+
+        OrderEntity savedOrder = transactionTemplate.execute(status -> {
+            OrderEntity saved = orderRepository.save(order);
+            orderItems.forEach(item -> item.setOrderId(saved.getId()));
+            orderItemRepository.saveAll(orderItems);
+            return saved;
+        });
+
+        // --- committed; everything below is outside the transaction ---
 
         // Mark table status as OCCUPIED via merchant-service REST call
-        updateTableStatus(table.getId(), TableStatus.OCCUPIED.name());
+        boolean tableUpdated = updateTableStatus(table.getId(), TableStatus.OCCUPIED.name());
 
         // Publish Kafka event for notification/analytics services
         eventPublisher.publishOrderCreated(OrderCreatedEvent.builder()
@@ -145,16 +181,70 @@ public class OrderService {
                 // the order needs it to watch /topic/orders/{id}, and it grants
                 // nothing beyond that one order.
                 .streamToken(tokenProvider.generateOrderStreamToken(savedOrder.getId()))
+                .tableStatusUpdated(tableUpdated)
                 .build();
     }
 
-    @Transactional
-    public OrderEntity updateOrderStatus(UUID orderId, UpdateOrderStatusRequest request) {
-        OrderEntity order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new ResourceNotFoundException("Order not found ID: " + orderId));
-
-        String previousStatus = order.getStatus();
+    /**
+     * Changes an order's status, scoped to the caller's tenant.
+     *
+     * <p>The DB write commits first; the table release and the Kafka event happen
+     * only after commit, so a rolled-back or conflicting (409) update never
+     * announces a status that was not persisted.
+     */
+    public OrderEntity updateOrderStatus(UUID orderId, UpdateOrderStatusRequest request, UserPrincipal principal) {
         OrderStatus next = request.getStatus();
+        String[] previous = new String[1];
+
+        OrderEntity updated = transactionTemplate.execute(txStatus -> {
+            OrderEntity order = getOrder(orderId, principal);
+            previous[0] = order.getStatus();
+            applyTransition(order, next);
+            // Flush now so a concurrent update surfaces as an optimistic-lock
+            // failure (409) here rather than at commit.
+            return orderRepository.saveAndFlush(order);
+        });
+
+        // --- committed; everything below is outside the transaction ---
+
+        if (TABLE_RELEASING.contains(next)) {
+            releaseTableIfIdle(updated);
+        }
+
+        // Publish Kafka event for notification/analytics services
+        eventPublisher.publishOrderStatusUpdated(OrderStatusUpdatedEvent.builder()
+                .orderId(updated.getId())
+                .orderNumber(updated.getOrderNumber())
+                .merchantId(updated.getMerchantId())
+                .branchId(updated.getBranchId())
+                .tableId(updated.getTableId())
+                .previousStatus(previous[0])
+                .newStatus(updated.getStatus())
+                .build());
+
+        return updated;
+    }
+
+    /**
+     * Frees the table only when no other order on it is still open. A table with
+     * two orders used to be freed when the first was delivered; a cancelled order
+     * never freed it at all.
+     *
+     * @return true if the table was marked AVAILABLE
+     */
+    boolean releaseTableIfIdle(OrderEntity order) {
+        if (orderRepository.existsByTableIdAndIdNotAndStatusIn(
+                order.getTableId(), order.getId(), OPEN_STATUSES)) {
+            log.info("Table {} stays occupied: another open order remains after order {} became {}",
+                    order.getTableId(), order.getOrderNumber(), order.getStatus());
+            return false;
+        }
+        return updateTableStatus(order.getTableId(), TableStatus.AVAILABLE.name());
+    }
+
+    private void applyTransition(OrderEntity order, OrderStatus next) {
+        UUID orderId = order.getId();
+        String previousStatus = order.getStatus();
 
         // Reject illegal transitions. Binding to the enum stops unknown names, but
         // PENDING -> PAID is a well-formed request that still corrupts reporting, so
@@ -176,25 +266,9 @@ public class OrderService {
         }
 
         order.setStatus(next.name());
-
-        if (next == OrderStatus.DELIVERED || next == OrderStatus.PAID) {
-            updateTableStatus(order.getTableId(), TableStatus.AVAILABLE.name());
+        if (next == OrderStatus.PAID) {
+            order.setPaymentStatus("PAID");
         }
-
-        OrderEntity updated = orderRepository.save(order);
-
-        // Publish Kafka event for notification/analytics services
-        eventPublisher.publishOrderStatusUpdated(OrderStatusUpdatedEvent.builder()
-                .orderId(updated.getId())
-                .orderNumber(updated.getOrderNumber())
-                .merchantId(updated.getMerchantId())
-                .branchId(updated.getBranchId())
-                .tableId(updated.getTableId())
-                .previousStatus(previousStatus)
-                .newStatus(updated.getStatus())
-                .build());
-
-        return updated;
     }
 
     /**
@@ -211,9 +285,26 @@ public class OrderService {
                 : orderRepository.findAll();
     }
 
+    /** Unscoped lookup — callers must authorize first (e.g. the order-stream token). */
     public OrderEntity getOrder(UUID orderId) {
         return orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found ID: " + orderId));
+    }
+
+    /**
+     * Tenant-scoped lookup for staff. Another tenant's order is reported exactly
+     * like a missing one (404), so ids cannot be probed across tenants.
+     * SUPER_ADMIN may read any order.
+     */
+    public OrderEntity getOrder(UUID orderId, UserPrincipal principal) {
+        OrderEntity order = getOrder(orderId);
+        boolean superAdmin = principal != null && principal.getRole() == UserRole.SUPER_ADMIN;
+        boolean sameTenant = principal != null && principal.getMerchantId() != null
+                && principal.getMerchantId().equals(order.getMerchantId());
+        if (!superAdmin && !sameTenant) {
+            throw new ResourceNotFoundException("Order not found ID: " + orderId);
+        }
+        return order;
     }
 
     /**
@@ -386,8 +477,11 @@ public class OrderService {
      * so this call is rejected by the endpoint's role check. That is the
      * inter-service identity gap tracked as deferred work — it needs a service
      * credential, not another retry.
+     *
+     * @return whether the table status was actually updated, so callers report
+     *         the outcome instead of implying success
      */
-    private void updateTableStatus(Long tableId, String status) {
+    private boolean updateTableStatus(Long tableId, String status) {
         String url = merchantServiceUrl + "/api/tables/" + tableId + "/status";
         HttpEntity<Map<String, String>> requestEntity =
                 new HttpEntity<>(Map.of("status", status), getAuthHeaders());
@@ -396,17 +490,17 @@ public class OrderService {
         for (int attempt = 1; attempt <= 3; attempt++) {
             try {
                 restTemplate.exchange(url, HttpMethod.PATCH, requestEntity, Map.class);
-                return;
+                return true;
             } catch (HttpClientErrorException e) {
                 // 4xx will not become 3xx on retry — stop immediately.
                 log.error("Table {} status not set to {}: merchant-service rejected the call with {} ({})",
                         tableId, status, e.getStatusCode(), url);
-                return;
+                return false;
             } catch (RestClientException e) {
                 if (attempt == 3) {
                     log.error("Table {} status not set to {} after {} attempts; occupancy is now stale",
                             tableId, status, attempt, e);
-                    return;
+                    return false;
                 }
                 log.warn("Attempt {}/3 to set table {} status to {} failed: {}",
                         attempt, tableId, status, e.getMessage());
@@ -414,11 +508,12 @@ public class OrderService {
                     Thread.sleep(backoffMs);
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
-                    return;
+                    return false;
                 }
                 backoffMs *= 2;
             }
         }
+        return false;
     }
 
     /**

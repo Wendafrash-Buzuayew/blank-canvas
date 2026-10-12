@@ -115,6 +115,11 @@ public class MerchantService {
         merchant.setCity(request.getCity());
         merchant.setAddress(request.getAddress());
         merchant.setCategory(request.getCategory());
+        // Previously ignored, so a wrong short code could never be corrected.
+        // Absent (null) means "not sent" and keeps the current value.
+        if (request.getShortCode() != null) {
+            merchant.setShortCode(request.getShortCode().isBlank() ? null : request.getShortCode().trim());
+        }
 
         // No cache invalidation here: the slug is the only field the gateway caches
         // and it is immutable (see the guard above). If renames are ever allowed,

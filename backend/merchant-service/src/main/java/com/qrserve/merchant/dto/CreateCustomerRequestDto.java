@@ -8,10 +8,10 @@ import java.util.UUID;
 
 @Data
 public class CreateCustomerRequestDto {
-    @NotNull
+    /** Ignored: the tenant is derived from the signed table. Kept for older clients. */
     private UUID merchantId;
 
-    @NotNull
+    /** Ignored: the branch is derived from the signed table. Kept for older clients. */
     private Long branchId;
 
     @NotNull

@@ -12,6 +12,7 @@ import com.qrserve.merchant.repository.TableRepository;
 import com.qrserve.shared.common.PublicMenuUrl;
 import com.qrserve.shared.common.QrSignatureService;
 import com.qrserve.shared.events.TableQrProvisionedEvent;
+import com.qrserve.shared.exceptions.BusinessException;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,14 @@ public class TableService {
 
         MerchantEntity merchant = merchantRepository.findById(branch.getMerchantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Merchant not found ID: " + branch.getMerchantId()));
+
+        // The public menu resolves a scan by (branch, table_number); a duplicate
+        // makes it ambiguous. The unique constraint on TableEntity backs this up
+        // against a concurrent create.
+        if (tableRepository.findByBranchIdAndTableNumber(branch.getId(), request.getTableNumber()).isPresent()) {
+            throw new BusinessException(
+                    "Table number '" + request.getTableNumber() + "' already exists in this branch");
+        }
 
         String qrToken = "qr-" + merchant.getSlug() + "-" + branch.getId() + "-" + UUID.randomUUID().toString().substring(0, 8);
 
@@ -85,6 +94,13 @@ public class TableService {
                 .terminalLabel(qr.getTerminalLabel())
                 .qrPayload(qr.getPayloadRaw())
                 .build();
+    }
+
+    /** The merchant owning a branch, for the controller's tenant check before createTable. */
+    public UUID branchMerchantId(Long branchId) {
+        return branchRepository.findById(branchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Branch not found ID: " + branchId))
+                .getMerchantId();
     }
 
     public TableEntity getTable(Long id) {

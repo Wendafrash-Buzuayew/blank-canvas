@@ -1,5 +1,8 @@
 package com.qrserve.menu.controller;
 
+import com.qrserve.menu.dto.CreateProductRequest;
+import com.qrserve.menu.dto.UpdateProductRequest;
+import com.qrserve.menu.entity.CategoryEntity;
 import com.qrserve.menu.entity.ProductEntity;
 import com.qrserve.menu.service.MenuService;
 import com.qrserve.shared.exceptions.UnauthorizedException;
@@ -14,7 +17,10 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -119,5 +125,51 @@ class ProductControllerTest {
                 .getBody();
 
         assertEquals(PRODUCT_ID, body.getId());
+    }
+
+    // --- mutations: ids are sequential, so each must check ownership ---
+
+    @Test
+    @DisplayName("createProduct refuses a categoryId belonging to another tenant")
+    void createProductInForeignCategoryRefused() {
+        when(menuService.getCategory(CATEGORY_ID))
+                .thenReturn(CategoryEntity.builder().id(CATEGORY_ID).merchantId(OTHER_MERCHANT).build());
+        CreateProductRequest request = CreateProductRequest.builder().categoryId(CATEGORY_ID).name("x").build();
+
+        assertThrows(UnauthorizedException.class, () ->
+                controller.createProduct(request, principal(OWN_MERCHANT, UserRole.MERCHANT_OWNER)));
+        verify(menuService, never()).createProduct(any());
+    }
+
+    @Test
+    @DisplayName("updateProduct refuses a caller from a different tenant")
+    void updateProductCrossTenantRefused() {
+        when(menuService.getProduct(PRODUCT_ID)).thenReturn(productOwnedBy(OTHER_MERCHANT));
+
+        assertThrows(UnauthorizedException.class, () -> controller.updateProduct(
+                PRODUCT_ID, new UpdateProductRequest(), principal(OWN_MERCHANT, UserRole.MERCHANT_OWNER)));
+        verify(menuService, never()).updateProduct(any(), any());
+    }
+
+    @Test
+    @DisplayName("updateProduct proceeds for the owning tenant")
+    void updateProductWithinTenant() {
+        UpdateProductRequest request = new UpdateProductRequest();
+        when(menuService.getProduct(PRODUCT_ID)).thenReturn(productOwnedBy(OWN_MERCHANT));
+        when(menuService.updateProduct(PRODUCT_ID, request)).thenReturn(productOwnedBy(OWN_MERCHANT));
+
+        controller.updateProduct(PRODUCT_ID, request, principal(OWN_MERCHANT, UserRole.MERCHANT_OWNER));
+
+        verify(menuService).updateProduct(PRODUCT_ID, request);
+    }
+
+    @Test
+    @DisplayName("deleteProduct refuses a caller from a different tenant")
+    void deleteProductCrossTenantRefused() {
+        when(menuService.getProduct(PRODUCT_ID)).thenReturn(productOwnedBy(OTHER_MERCHANT));
+
+        assertThrows(UnauthorizedException.class, () ->
+                controller.deleteProduct(PRODUCT_ID, principal(OWN_MERCHANT, UserRole.MERCHANT_OWNER)));
+        verify(menuService, never()).deleteProduct(any());
     }
 }

@@ -4,6 +4,7 @@ import com.qrserve.backoffice.dto.PlatformSummaryResponse;
 import com.qrserve.shared.security.JwtTokenProvider;
 import com.qrserve.shared.security.UserPrincipal;
 import com.qrserve.shared.security.UserRole;
+import com.qrserve.shared.exceptions.UpstreamServiceException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,6 +14,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
@@ -28,6 +30,13 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Slf4j
 public class ReportService {
+
+    /**
+     * Failures propagate as a 502 naming this upstream: a partial or empty
+     * summary would be indistinguishable from a platform with no merchants.
+     * Known: one branch call per merchant (N+1), acceptable at current scale.
+     */
+    static final String UPSTREAM_MERCHANT_SERVICE = "merchant-service";
 
     private final RestTemplate restTemplate;
     private final JwtTokenProvider jwtTokenProvider;
@@ -70,9 +79,8 @@ public class ReportService {
                     new ParameterizedTypeReference<List<Map<String, Object>>>() {});
             List<Map<String, Object>> body = response.getBody();
             return body == null ? List.of() : body;
-        } catch (Exception e) {
-            log.error("Failed to fetch merchants from merchant-service for platform summary", e);
-            return List.of();
+        } catch (RestClientException e) {
+            throw new UpstreamServiceException(UPSTREAM_MERCHANT_SERVICE, "Failed to fetch merchants for platform summary", e);
         }
     }
 
@@ -85,9 +93,9 @@ public class ReportService {
                     new ParameterizedTypeReference<List<Map<String, Object>>>() {});
             List<Map<String, Object>> body = response.getBody();
             return body == null ? List.of() : body;
-        } catch (Exception e) {
-            log.error("Failed to fetch branches for merchant {} for platform summary", merchantId, e);
-            return List.of();
+        } catch (RestClientException e) {
+            throw new UpstreamServiceException(UPSTREAM_MERCHANT_SERVICE,
+                    "Failed to fetch branches for merchant " + merchantId + " for platform summary", e);
         }
     }
 }

@@ -50,7 +50,7 @@ class TableQrProvisioningServiceTest {
         PublicMenuUrl urls = new PublicMenuUrl("qrserve.safaricom.et", "https");
         service = new TableQrProvisioningService(repository, settings, urls, signatures);
 
-        when(repository.save(any(TableQrEntity.class)))
+        when(repository.saveAndFlush(any(TableQrEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(repository.findTopByTableIdOrderByVersionDesc(42L)).thenReturn(Optional.empty());
         when(settings.destinationRef(MERCHANT, 5L)).thenReturn("1234567890");
@@ -164,6 +164,57 @@ class TableQrProvisioningServiceTest {
         assertTrue(EmvcoPayload.crcValid(qr.getPayloadRaw()),
                 "a payload whose CRC does not match is rejected by every bank app");
         assertEquals(qr.getPayloadCrc(), qr.getPayloadRaw().substring(qr.getPayloadRaw().length() - 4));
+    }
+
+    @Test
+    @DisplayName("an Amharic merchant name and city still mint a valid payload, falling back to ASCII")
+    void amharicNameIsSanitised() {
+        TableQrProvisioningService.TableRef ref = new TableQrProvisioningService.TableRef(
+                42L, MERCHANT, 5L, "selam-cafe", "\u1230\u120B\u121D \u12AB\u134C", "\u12A0\u12F2\u1235 \u12A0\u1260\u1263", "wello-sefer", "15");
+
+        TableQrEntity qr = service.provision(ref);
+
+        assertTrue(EmvcoPayload.crcValid(qr.getPayloadRaw()));
+        Map<String, String> tags = Emvco.parseTags(qr.getPayloadRaw());
+        assertEquals("selam-cafe", tags.get("59"), "no ASCII survives, so the slug stands in");
+        assertEquals("ADDIS ABABA", tags.get("60"));
+    }
+
+    @Test
+    @DisplayName("a 40-character merchant name is truncated to the 25-char tag 59 cap")
+    void longNameIsTruncated() {
+        String fortyChars = "The Very Long Named Coffee House Bole 01";
+        assertEquals(40, fortyChars.length());
+        TableQrProvisioningService.TableRef ref = new TableQrProvisioningService.TableRef(
+                42L, MERCHANT, 5L, "sunrise", fortyChars, "Addis Ababa City Centre",
+                "a-branch-slug-well-past-the-25-char-cap", "15");
+
+        TableQrEntity qr = service.provision(ref);
+
+        assertTrue(EmvcoPayload.crcValid(qr.getPayloadRaw()));
+        Map<String, String> tags = Emvco.parseTags(qr.getPayloadRaw());
+        assertEquals("The Very Long Named Coffe", tags.get("59"));
+        assertTrue(tags.get("60").length() <= 15);
+    }
+
+    @Test
+    @DisplayName("emvcoText folds accents, drops other scripts, and caps the length")
+    void emvcoTextSanitises() {
+        assertEquals("Cafe Selam", TableQrProvisioningService.emvcoText("Caf\u00E9 \u1230\u120B\u121D Selam", 25, "X"));
+        assertEquals("X", TableQrProvisioningService.emvcoText("\u1230\u120B\u121D", 25, "X"));
+        assertEquals("X", TableQrProvisioningService.emvcoText(null, 25, "X"));
+        assertEquals("abcde", TableQrProvisioningService.emvcoText("abcdefgh", 5, "X"));
+    }
+
+    @Test
+    @DisplayName("a concurrent reprint losing the unique-ACTIVE race is a 409, not a 500")
+    void concurrentReprintIsConflict() {
+        when(repository.saveAndFlush(any(TableQrEntity.class)))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("uq_table_qr_active"));
+
+        org.springframework.web.server.ResponseStatusException ex = assertThrows(
+                org.springframework.web.server.ResponseStatusException.class, () -> service.provision(ref()));
+        assertEquals(409, ex.getStatusCode().value());
     }
 
     @Test

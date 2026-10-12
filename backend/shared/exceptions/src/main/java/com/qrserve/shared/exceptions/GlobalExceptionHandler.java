@@ -4,12 +4,16 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -178,8 +182,57 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, HttpStatus.SERVICE_UNAVAILABLE);
     }
 
+    /** Malformed or unreadable request body (bad JSON, wrong field types) — 400. */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleNotReadable(HttpMessageNotReadableException ex) {
+        // The parser's message can echo payload fragments; keep it in the log.
+        log.debug("Unreadable request body: {}", ex.getMessage());
+        return error(HttpStatus.BAD_REQUEST, "Malformed request body");
+    }
+
+    /** A path/query parameter that cannot be converted to its declared type — 400. */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        return error(HttpStatus.BAD_REQUEST, "Invalid value for parameter '" + ex.getName() + "'");
+    }
+
+    /** Upload over the configured multipart limit — 413. */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
+        return error(HttpStatus.CONTENT_TOO_LARGE, "Uploaded file is too large");
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneralException(Exception ex) {
+        // Spring MVC's own client-error exceptions (missing parameter, 405, 415,
+        // 404 NoResourceFoundException, ResponseStatusException, ...) all
+        // implement org.springframework.web.ErrorResponse and carry their status.
+        // Matched via that interface because ResponseEntityExceptionHandler and
+        // NoResourceFoundException live in spring-webmvc, which is not on this
+        // module's compile classpath.
+        if (ex instanceof org.springframework.web.ErrorResponse springError
+                && springError.getStatusCode().is4xxClientError()) {
+            HttpStatusCode status = springError.getStatusCode();
+            String detail = springError.getBody().getDetail();
+            HttpStatus resolved = HttpStatus.resolve(status.value());
+            String message = detail != null ? detail
+                    : resolved != null ? resolved.getReasonPhrase() : "Request rejected";
+            return new ResponseEntity<>(
+                    new ErrorResponse(status.value(), message, LocalDateTime.now()),
+                    springError.getHeaders(), status);
+        }
+        // Persistence conflicts — 409. Matched by class name: spring-tx/spring-orm
+        // are not on this module's compile classpath, but are present at runtime
+        // in every JPA service. Fixed messages: the cause can carry SQL.
+        if (hasType(ex, DATA_INTEGRITY_VIOLATION)) {
+            log.warn("Data integrity violation: {}", ex.getMessage());
+            return error(HttpStatus.CONFLICT, "The request conflicts with existing data.");
+        }
+        if (hasType(ex, OPTIMISTIC_LOCKING_FAILURE)) {
+            log.warn("Optimistic locking failure: {}", ex.getMessage());
+            return error(HttpStatus.CONFLICT,
+                    "The resource was modified by another request. Reload and try again.");
+        }
         // Never return ex.getMessage() for an unhandled exception: it leaks SQL
         // fragments, downstream URLs, and stack hints to the client. Log the real
         // cause server-side and return a fixed, generic message instead.
@@ -190,5 +243,24 @@ public class GlobalExceptionHandler {
                 LocalDateTime.now()
         );
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    /** Also covers its subclasses, e.g. DuplicateKeyException. */
+    static final String DATA_INTEGRITY_VIOLATION = "org.springframework.dao.DataIntegrityViolationException";
+    /** Parent of spring-orm's ObjectOptimisticLockingFailureException. */
+    static final String OPTIMISTIC_LOCKING_FAILURE = "org.springframework.dao.OptimisticLockingFailureException";
+
+    /** True if {@code ex}'s class, or any superclass, has the given fully-qualified name. */
+    static boolean hasType(Throwable ex, String className) {
+        for (Class<?> c = ex.getClass(); c != null; c = c.getSuperclass()) {
+            if (c.getName().equals(className)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static ResponseEntity<ErrorResponse> error(HttpStatus status, String message) {
+        return new ResponseEntity<>(new ErrorResponse(status.value(), message, LocalDateTime.now()), status);
     }
 }

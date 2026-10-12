@@ -53,11 +53,13 @@ public class ReviewService {
 
     @Transactional(readOnly = true)
     public ReviewSummaryResponse getSummaryForBranch(Long branchId) {
-        List<ReviewEntity> reviews = reviewRepository.findByBranchIdOrderByCreatedAtDesc(branchId);
-        if (reviews.isEmpty()) {
+        ReviewRepository.RatingSummary summary = reviewRepository.summarizeByBranch(branchId);
+        if (summary == null || summary.getCount() == null || summary.getCount() == 0) {
             return ReviewSummaryResponse.builder().averageRating(0).count(0).build();
         }
-        double average = reviews.stream().mapToInt(ReviewEntity::getRating).average().orElse(0);
-        return ReviewSummaryResponse.builder().averageRating(average).count(reviews.size()).build();
+        return ReviewSummaryResponse.builder()
+                .averageRating(summary.getAverage() != null ? summary.getAverage() : 0)
+                .count(summary.getCount())
+                .build();
     }
 }

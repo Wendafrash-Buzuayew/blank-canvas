@@ -6,14 +6,18 @@ services:
   # S3-compatible provider in a cloud deployment — only endpoint/credentials
   # change.
   minio:
-    image: quay.io/minio/minio:latest
+    # Pinned: `latest` changes under you on every pull.
+    image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
     container_name: qrserve-minio
+    # Loopback only: the S3 API is what the browser loads media from in local
+    # dev (MEDIA_S3_PUBLIC_URL_BASE); the console is an admin UI.
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    # No default credentials: set both in backend/.env.
     environment:
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:?MINIO_ROOT_USER must be set}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set}
     command: server /data --console-address ":9001"
     volumes:
       - minio-data:/data
@@ -31,8 +35,9 @@ services:
       context: .
       dockerfile: discovery-service/Dockerfile
     container_name: qrserve-discovery-service
+    # Eureka has no auth; keep the registry and its dashboard off the LAN.
     ports:
-      - "8761:8761"
+      - "127.0.0.1:8761:8761"
     environment:
       - SPRING_PROFILES_ACTIVE=prod
     restart: unless-stopped
@@ -51,7 +56,11 @@ services:
     ports:
       - "8087:8087"
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
+      # Overridable for local dev only: auth-service refuses to start with
+      # SUPERAPP_DEV_FAKE_ENABLED=true under `prod`, and seeds the dev
+      # admin@hotel.com account only outside `prod`. Set AUTH_SERVICE_PROFILE=dev
+      # in backend/.env to get both locally; never in a shared environment.
+      - SPRING_PROFILES_ACTIVE=${AUTH_SERVICE_PROFILE:-prod}
       - DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/qrserve_auth
       - DATABASE_USERNAME=postgres
       - DATABASE_PASSWORD=postgres
@@ -62,13 +71,12 @@ services:
       - PUBLIC_MENU_DOMAIN=${PUBLIC_MENU_DOMAIN:?PUBLIC_MENU_DOMAIN must be set}
       - PUBLIC_URL_SCHEME=${PUBLIC_URL_SCHEME:-https}
       - MERCHANT_SERVICE_URL=http://merchant-service:8085
-      # TEMPORARY, defaults ON: no real Safaricom Super App adapter exists yet
-      # (see SuperAppAuthPort), so this fake is the only way to exercise the
-      # Mini App login end to end in this compose stack. It accepts ANY caller
-      # who supplies a merchantShortCode as proof of identity - remove this
-      # line (or set it to "false") the moment a real environment could see
-      # untrusted traffic, and definitely before the real adapter ships.
-      - SUPERAPP_DEV_FAKE_ENABLED=${SUPERAPP_DEV_FAKE_ENABLED:-true}
+      # Defaults OFF. The fake accepts ANY caller who supplies a
+      # merchantShortCode as that merchant's owner. It is the only way to
+      # exercise the Mini App login until a real Super App adapter exists (see
+      # SuperAppAuthPort); to use it locally set SUPERAPP_DEV_FAKE_ENABLED=true
+      # AND AUTH_SERVICE_PROFILE=dev - it is rejected at startup under `prod`.
+      - SUPERAPP_DEV_FAKE_ENABLED=${SUPERAPP_DEV_FAKE_ENABLED:-false}
       - EUREKA_SERVER_URL=http://discovery-service:8761/eureka
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -112,8 +120,8 @@ services:
       - MEDIA_BACKEND=${MEDIA_BACKEND:-filesystem}
       - MEDIA_UPLOAD_DIR=${MEDIA_UPLOAD_DIR:-/data/uploads}
       - MEDIA_S3_ENDPOINT=http://minio:9000
-      - MEDIA_S3_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
-      - MEDIA_S3_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MEDIA_S3_ACCESS_KEY=${MINIO_ROOT_USER:?MINIO_ROOT_USER must be set}
+      - MEDIA_S3_SECRET_KEY=${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set}
       - MEDIA_S3_PUBLIC_URL_BASE=${MEDIA_S3_PUBLIC_URL_BASE:-http://localhost:9000/qrserve-media}
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -151,8 +159,8 @@ services:
       - MEDIA_BACKEND=${MEDIA_BACKEND:-filesystem}
       - MEDIA_UPLOAD_DIR=${MEDIA_UPLOAD_DIR:-/data/uploads}
       - MEDIA_S3_ENDPOINT=http://minio:9000
-      - MEDIA_S3_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
-      - MEDIA_S3_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MEDIA_S3_ACCESS_KEY=${MINIO_ROOT_USER:?MINIO_ROOT_USER must be set}
+      - MEDIA_S3_SECRET_KEY=${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set}
       - MEDIA_S3_PUBLIC_URL_BASE=${MEDIA_S3_PUBLIC_URL_BASE:-http://localhost:9000/qrserve-media}
       # One-off, opt-in migration (see BranchMenuBackfillRunner) — leave
       # false; flip to true in .env for exactly one restart, then back off.

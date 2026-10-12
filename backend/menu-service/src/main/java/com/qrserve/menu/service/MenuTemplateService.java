@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,14 +45,26 @@ public class MenuTemplateService {
      * <p>The four starters deliberately differ in STRUCTURE as well as colour,
      * so a fresh install demonstrates the range the schema supports rather
      * than four recolourings of one layout.
+     *
+     * <p>Not {@code @Transactional}: saveAll commits in its own transaction, so
+     * when two replicas boot at once and both see an empty table, the loser's
+     * primary-key conflict surfaces here and is swallowed, rather than at an
+     * outer commit where it would fail application startup.
      */
     @EventListener(ApplicationReadyEvent.class)
-    @Transactional
     public void seedDefaults() {
         if (repository.count() > 0) {
             return;
         }
         log.info("Seeding default menu template definitions");
+        try {
+            saveStarterTemplates();
+        } catch (DataIntegrityViolationException e) {
+            log.info("Default menu templates already seeded by another instance");
+        }
+    }
+
+    private void saveStarterTemplates() {
         repository.saveAll(List.of(
                 // Classic: the reference look - a single readable column with a
                 // thumbnail beside each dish.

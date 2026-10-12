@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import { X } from 'lucide-react';
 
 /**
@@ -41,7 +41,8 @@ export const Modal: React.FC<ModalProps> = ({
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<Element | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const titleId = `modal-title-${title.replace(/\s+/g, '-').toLowerCase()}`;
+  // useId, not the title: two modals with the same title must not share an id.
+  const titleId = `modal-title-${useId()}`;
 
   // Callers routinely pass an inline onClose (`() => setOpen(false)`), a
   // fresh function on every render of the parent. A ref sidesteps that: the
@@ -64,10 +65,14 @@ export const Modal: React.FC<ModalProps> = ({
         return;
       }
       if (event.key !== 'Tab') return;
-      const focusables = panelRef.current?.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
-      if (!focusables || focusables.length === 0) return;
+      // Disabled controls and hidden elements can't take focus; including them
+      // as first/last would let Tab escape the trap.
+      const focusables = Array.from(
+        panelRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        ) ?? []
+      ).filter((el) => el.getClientRects().length > 0 && !el.closest('[hidden], [inert]'));
+      if (focusables.length === 0) return;
       const first = focusables[0];
       const last = focusables[focusables.length - 1];
       if (event.shiftKey && document.activeElement === first) {

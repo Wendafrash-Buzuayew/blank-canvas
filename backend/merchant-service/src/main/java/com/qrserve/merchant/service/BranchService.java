@@ -42,6 +42,13 @@ public class BranchService {
     public BranchEntity createBranch(CreateBranchRequest request) {
         String slug = Slugs.toPathSlug(request.getSlug());
 
+        // Locks the merchant row first so concurrent creates for one merchant run
+        // one at a time: the tier cap and first-branch-is-primary checks below are
+        // check-then-act and would otherwise both pass.
+        MerchantEntity merchant = merchantRepository.findByIdForUpdate(request.getMerchantId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Merchant not found with ID: " + request.getMerchantId()));
+
         // Checked rather than left to the database: a raw constraint violation
         // surfaces through the catch-all handler as 500 "An unexpected server
         // error occurred", which tells the owner nothing about what to change.
@@ -60,16 +67,12 @@ public class BranchService {
         // A merchant's very first branch always passes regardless of tier —
         // including the one SuperAppProvisioningService creates automatically
         // on Super App sign-up, since that also starts from zero branches.
-        if (!isFirstBranch) {
-            MerchantEntity merchant = merchantRepository.findById(request.getMerchantId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Merchant not found with ID: " + request.getMerchantId()));
-            if (merchant.getTier() == MerchantTier.FREE
-                    && existingBranches.size() >= FREE_TIER_MAX_BRANCHES) {
-                throw new TierLimitExceededException(
-                        "Free tier is limited to " + FREE_TIER_MAX_BRANCHES
-                                + " branch. Upgrade to Pro to add more branches.");
-            }
+        if (!isFirstBranch
+                && merchant.getTier() == MerchantTier.FREE
+                && existingBranches.size() >= FREE_TIER_MAX_BRANCHES) {
+            throw new TierLimitExceededException(
+                    "Free tier is limited to " + FREE_TIER_MAX_BRANCHES
+                            + " branch. Upgrade to Pro to add more branches.");
         }
 
         BranchEntity branch = BranchEntity.builder()
@@ -98,14 +101,10 @@ public class BranchService {
             throw new ResourceNotFoundException("Branch not found with ID: " + branchId);
         }
 
-        for (BranchEntity branch : branchRepository.findByMerchantId(merchantId)) {
-            if (branch.isPrimary() && !branch.getId().equals(branchId)) {
-                branch.setPrimary(false);
-                branchRepository.save(branch);
-            }
-        }
+        // Clear the old primary in the database before the new one is flushed.
+        branchRepository.clearPrimaryExcept(merchantId, branchId);
         target.setPrimary(true);
-        return branchRepository.save(target);
+        return branchRepository.saveAndFlush(target);
     }
 
     public BranchEntity getBranchByMerchantAndSlug(UUID merchantId, String slug) {
@@ -140,6 +139,11 @@ public class BranchService {
     @Transactional
     public void deleteBranch(Long id) {
         BranchEntity branch = getBranch(id);
+        // Deleting the primary would leave /m/{merchant-slug} with nowhere to redirect.
+        if (branch.isPrimary()) {
+            throw new BusinessException(
+                    "The primary branch cannot be deleted. Designate another branch as primary first.");
+        }
         branchRepository.delete(branch);
     }
 }

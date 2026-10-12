@@ -9,8 +9,11 @@ import com.qrserve.merchant.repository.TableRepository;
 import com.qrserve.shared.exceptions.BusinessException;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -38,6 +41,9 @@ public class TableAssignmentService {
         if (!waiter.getMerchantId().equals(merchantId)) {
             throw new ResourceNotFoundException("Waiter not found ID: " + waiterId);
         }
+        if ("INACTIVE".equalsIgnoreCase(waiter.getStatus())) {
+            throw new BusinessException("Waiter " + waiterId + " is inactive and cannot be assigned");
+        }
 
         // Validate table belongs to the merchant
         TableEntity table = tableRepository.findById(tableId)
@@ -61,12 +67,14 @@ public class TableAssignmentService {
                     "Waiter " + waiterId + " does not belong to branch " + branchId);
         }
 
-        // End any existing active assignment for this table
+        // End any existing active assignment for this table. Flushed so the ENDED
+        // row is written before the new ACTIVE one: the one-active-per-table
+        // partial unique index (db/manual/007) would otherwise see two.
         assignmentRepository.findByTableIdAndStatus(tableId, "ACTIVE")
                 .ifPresent(existing -> {
                     existing.setStatus("ENDED");
                     existing.setEndedAt(LocalDateTime.now());
-                    assignmentRepository.save(existing);
+                    assignmentRepository.saveAndFlush(existing);
                 });
 
         TableAssignmentEntity assignment = TableAssignmentEntity.builder()
@@ -79,7 +87,15 @@ public class TableAssignmentService {
                 .shift(shift)
                 .build();
 
-        return assignmentRepository.save(assignment);
+        // The check above is check-then-act: two concurrent assigns can both see
+        // no ACTIVE row. The partial unique index rejects the loser; report it as
+        // a conflict rather than a 500.
+        try {
+            return assignmentRepository.saveAndFlush(assignment);
+        } catch (DataIntegrityViolationException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Table " + tableId + " was assigned concurrently. Reload and try again.");
+        }
     }
 
     /**
@@ -125,6 +141,10 @@ public class TableAssignmentService {
         // Tenant isolation
         if (!assignment.getMerchantId().equals(merchantId)) {
             throw new ResourceNotFoundException("Assignment not found ID: " + assignmentId);
+        }
+        // Only an ACTIVE assignment can end; re-ending would overwrite endedAt.
+        if (!"ACTIVE".equals(assignment.getStatus())) {
+            throw new BusinessException("Assignment " + assignmentId + " is not active (" + assignment.getStatus() + ")");
         }
         assignment.setStatus("ENDED");
         assignment.setEndedAt(LocalDateTime.now());

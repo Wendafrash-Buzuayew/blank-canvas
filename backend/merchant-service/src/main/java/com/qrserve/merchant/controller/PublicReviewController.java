@@ -9,7 +9,6 @@ import com.qrserve.merchant.service.ReviewService;
 import com.qrserve.shared.common.QrSignatureService;
 import com.qrserve.shared.common.TenantContext;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
-import com.qrserve.shared.exceptions.UnauthorizedException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -24,7 +23,7 @@ import org.springframework.web.bind.annotation.*;
  * (merchantId + branchId derived from the branch, not order-scoped): phase
  * 1's digital menu has no cart/order, so this cannot depend on the parked
  * ordering system. Mirrors PublicCustomerRequestController's anti-abuse
- * shape: tenant scoping is mandatory, the QR signature is optional (same
+ * shape: tenant scoping and the branch QR signature are both mandatory (same
  * "dm:" 2-arg scheme the digital-menu QR code itself already encodes).
  */
 @RestController
@@ -52,9 +51,11 @@ public class PublicReviewController {
             throw new AccessDeniedException("This branch belongs to a different tenant");
         }
 
-        if (signature != null && !signature.isBlank()
-                && !qrSignatureService.validateSignature(signature, branch.getMerchantId(), branch.getId())) {
-            throw new UnauthorizedException("Invalid QR signature for the requested branch");
+        // Required: without it anyone could post reviews into any branch by
+        // walking sequential branch ids.
+        if (signature == null || signature.isBlank()
+                || !qrSignatureService.validateSignature(signature, branch.getMerchantId(), branch.getId())) {
+            throw new AccessDeniedException("A valid QR signature is required for this branch");
         }
 
         return ResponseEntity.ok(reviewService.createReview(branchId, request));

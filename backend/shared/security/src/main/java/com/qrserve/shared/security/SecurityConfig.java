@@ -1,5 +1,6 @@
 package com.qrserve.shared.security;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -111,11 +112,6 @@ public class SecurityConfig {
                 // Public digital-menu content (menu-service). Single-segment
                 // wildcard so this cannot widen to match a write endpoint.
                 .requestMatchers(HttpMethod.GET, "/api/menu/branch/*").permitAll()
-                // Public digital-menu QR rendering (qr-service). Two single-segment
-                // wildcards (merchantSlug, branchSlug) so this cannot widen beyond
-                // this one path shape to match anything under /api/qr/{tableId} or
-                // qr-service's staff-only export endpoints.
-                .requestMatchers(HttpMethod.GET, "/api/qr/digital-menu/*/*").permitAll()
                 // Uploaded product/branding images (filesystem storage backend) — must
                 // be publicly viewable, the same way a hardcoded preset image URL always
                 // was. The upload endpoints themselves (POST) are staff-only and stay
@@ -141,10 +137,14 @@ public class SecurityConfig {
         return http.build();
     }
 
+    // Same variable and default list as the api-gateway's globalcors config.
+    @Value("${CORS_ALLOWED_ORIGIN_PATTERNS:https://qrserve.safaricom.et,https://*.qrserve.safaricom.et,https://menu.safaricom.et,http://localhost:[*],http://127.0.0.1:[*],capacitor://localhost}")
+    private List<String> allowedOriginPatterns;
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*"));
+        configuration.setAllowedOriginPatterns(allowedOriginPatterns);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

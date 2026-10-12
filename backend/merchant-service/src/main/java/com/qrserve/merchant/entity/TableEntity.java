@@ -10,7 +10,13 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "tables")
+@Table(
+        name = "tables",
+        // PublicMenuResolutionService resolves a scanned QR by (branch, table_number);
+        // a duplicate makes that lookup ambiguous and breaks the public menu.
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_tables_branch_table_number",
+                columnNames = {"branch_id", "table_number"}))
 @Data
 @Builder
 @NoArgsConstructor

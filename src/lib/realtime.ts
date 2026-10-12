@@ -13,7 +13,19 @@
  */
 import { Client, IMessage, StompSubscription } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
-import { getAuthToken } from './api';
+import { getAuthToken, tryRefreshToken } from './api';
+
+/** True if the JWT's `exp` is within 30s; unparseable tokens are left to the server. */
+function isExpired(token: string | null): boolean {
+  if (!token) return false;
+  try {
+    const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const { exp } = JSON.parse(atob(b64.padEnd(b64.length + ((4 - (b64.length % 4)) % 4), '=')));
+    return typeof exp === 'number' && exp * 1000 < Date.now() + 30_000;
+  } catch {
+    return false;
+  }
+}
 
 export interface NotificationEnvelope<T = any> {
   destination: string;
@@ -88,6 +100,11 @@ class RealtimeClient {
   setGuestToken(token: string | null) {
     if (this.guestToken === token) return;
     this.guestToken = token;
+    // Clearing is not a reason to reconnect: useOrderStream clears the token in
+    // a cleanup that runs just before its subscription's cleanup, which then
+    // disconnects anyway (or a new token follows and reconnects once below).
+    // Reconnecting here made every unmount/order switch churn the socket.
+    if (token === null) return;
     // Tear down the socket but KEEP handlers, so existing subscriptions are
     // re-established under the new token. Calling disconnect() here would drop
     // them and silently stop delivering to already-mounted components.
@@ -126,7 +143,13 @@ class RealtimeClient {
         const token = this.resolveToken();
         return new SockJS(token ? `${url}?token=${encodeURIComponent(token)}` : url) as any;
       },
-      beforeConnect: () => {
+      // Runs before every (re)connect and before webSocketFactory. The token
+      // must stay in the query string (the backend's JwtHandshakeInterceptor
+      // authenticates the SockJS HTTP handshake, where browsers can't set
+      // headers), but an expired staff token would be rejected on every retry,
+      // so refresh it first.
+      beforeConnect: async () => {
+        if (isExpired(getAuthToken())) await tryRefreshToken();
         const token = this.resolveToken();
         client.connectHeaders = token ? { Authorization: `Bearer ${token}` } : {};
       },

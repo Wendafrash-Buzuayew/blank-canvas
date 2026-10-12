@@ -11,6 +11,7 @@ import com.qrserve.menu.storage.MediaStorageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
@@ -58,13 +59,25 @@ class MenuServiceCategoryTest {
     @Test
     void getOrCreateMenuForBranchCreatesADraftMenuOnFirstUse() {
         when(menuRepository.findByBranchId(BRANCH)).thenReturn(Optional.empty());
-        when(menuRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(menuRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
 
         MenuEntity menu = service.getOrCreateMenuForBranch(BRANCH, MERCHANT);
 
         assertEquals(BRANCH, menu.getBranchId());
         assertEquals(MERCHANT, menu.getMerchantId());
         assertEquals(MenuEntity.Status.DRAFT, menu.getStatus());
+    }
+
+    @Test
+    void getOrCreateMenuForBranchReReadsWhenAConcurrentCreateWins() {
+        MenuEntity winner = MenuEntity.builder().id(UUID.randomUUID()).branchId(BRANCH).merchantId(MERCHANT)
+                .status(MenuEntity.Status.DRAFT).build();
+        when(menuRepository.findByBranchId(BRANCH)).thenReturn(Optional.empty(), Optional.of(winner));
+        when(menuRepository.saveAndFlush(any())).thenThrow(new DataIntegrityViolationException("uk_menus_branch_id"));
+
+        MenuEntity menu = service.getOrCreateMenuForBranch(BRANCH, MERCHANT);
+
+        assertSame(winner, menu);
     }
 
     @Test
@@ -76,7 +89,7 @@ class MenuServiceCategoryTest {
         MenuEntity menu = service.getOrCreateMenuForBranch(BRANCH, MERCHANT);
 
         assertSame(existing, menu);
-        verify(menuRepository, never()).save(any());
+        verify(menuRepository, never()).saveAndFlush(any());
     }
 
     @Test

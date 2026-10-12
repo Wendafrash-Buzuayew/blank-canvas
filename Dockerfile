@@ -65,7 +65,12 @@ ENV VITE_API_BASE_URL=$VITE_API_BASE_URL \
 RUN npm run build
 
 
-FROM nginx:1.27-alpine
+# The unprivileged variant of the same nginx: runs as UID 101 with its pid and
+# temp paths under /tmp, so the container never needs root. It cannot bind
+# below 1024, hence nginx.conf listens on 8080 (frontend-service still
+# exposes port 80 to the Ingress).
+FROM nginxinc/nginx-unprivileged:1.27-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
-EXPOSE 80
+EXPOSE 8080
+USER 101

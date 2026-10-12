@@ -13,7 +13,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import com.qrserve.shared.security.UserPrincipal;
+import com.qrserve.shared.security.UserRole;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -42,10 +46,18 @@ public class TableAssignmentV1Controller {
     @Operation(summary = "Assign a waiter to a table")
     public ResponseEntity<WaiterAssignmentDto> assignWaiter(
             @PathVariable Long tableId,
-            @Valid @RequestBody WaiterAssignmentDto request) {
+            @Valid @RequestBody WaiterAssignmentDto request,
+            @AuthenticationPrincipal UserPrincipal principal) {
 
         TableEntity table = tableRepository.findById(tableId)
                 .orElseThrow(() -> new ResourceNotFoundException("Table not found ID: " + tableId));
+
+        // Waiter and table matching each other is not enough: both could belong to
+        // another merchant. Pin the caller to its own tenant; SUPER_ADMIN may cross.
+        if (principal.getRole() != UserRole.SUPER_ADMIN
+                && !table.getMerchantId().equals(principal.getMerchantId())) {
+            throw new AccessDeniedException("Table belongs to another merchant");
+        }
 
         WaiterEntity waiter = waiterRepository.findById(request.getWaiterId())
                 .orElseThrow(() -> new ResourceNotFoundException("Waiter not found ID: " + request.getWaiterId()));

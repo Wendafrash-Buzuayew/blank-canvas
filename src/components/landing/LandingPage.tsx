@@ -16,7 +16,8 @@ import { IdentityChip } from '../ui/Chip';
 interface LandingPageProps {
   onStartCustomerDemo: () => void;
   onStartMerchantDemo: () => void;
-  onBookDemo: () => void;
+  /** Omit until there is a real booking flow; the button is hidden without it. */
+  onBookDemo?: () => void;
 }
 
 const FEATURES = [
@@ -149,7 +150,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <li>&#10003; POS &amp; M-PESA Integration</li>
               <li>&#10003; White-Label Domain</li>
             </ul>
-            <Button onClick={onBookDemo} variant="secondary" fullWidth>Book Demo</Button>
+            {onBookDemo && <Button onClick={onBookDemo} variant="secondary" fullWidth>Book Demo</Button>}
           </Card>
         </div>
       </section>

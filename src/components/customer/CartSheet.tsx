@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 export interface CartLine {
   productId: number;
   name: string;
+  /** Unit price actually charged (the item's effectivePrice when discounted). */
   price: number;
   quantity: number;
 }
@@ -20,6 +21,8 @@ interface Props {
   onConfirm: () => void;
   submitting: boolean;
   errorMessage?: string | null;
+  /** False when ordering is impossible (e.g. no table QR signature); errorMessage says why. */
+  canConfirm?: boolean;
   tableNumber: string;
 }
 
@@ -33,6 +36,7 @@ export const CartSheet: React.FC<Props> = ({
   onConfirm,
   submitting,
   errorMessage,
+  canConfirm = true,
   tableNumber,
 }) => {
   const total = lines.reduce((s, l) => s + l.price * l.quantity, 0);
@@ -61,7 +65,7 @@ export const CartSheet: React.FC<Props> = ({
           <Button
             onClick={onConfirm}
             loading={submitting}
-            disabled={lines.length === 0}
+            disabled={lines.length === 0 || !canConfirm}
             fullWidth
             size="lg"
           >

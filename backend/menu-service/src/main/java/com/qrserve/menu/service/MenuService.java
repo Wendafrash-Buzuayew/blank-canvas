@@ -25,6 +25,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -32,6 +33,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.RestTemplate;
@@ -41,7 +43,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -56,6 +60,19 @@ import java.util.stream.Collectors;
 public class MenuService {
 
     private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
+
+    /**
+     * Merchants enter discount windows as Addis Ababa wall-clock times, so
+     * "now" must be read in that zone, not the JVM's (UTC in the containers).
+     */
+    static final ZoneId MENU_ZONE = ZoneId.of("Africa/Addis_Ababa");
+
+    // Not final, so not a constructor arg: tests swap in a fixed clock.
+    Clock clock = Clock.systemUTC();
+
+    private LocalDateTime menuNow() {
+        return LocalDateTime.ofInstant(clock.instant(), MENU_ZONE);
+    }
 
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
@@ -77,16 +94,27 @@ public class MenuService {
      */
     @Transactional
     public MenuEntity getOrCreateMenuForBranch(Long branchId, UUID merchantId) {
-        return menuRepository.findByBranchId(branchId)
-                .orElseGet(() -> menuRepository.save(MenuEntity.builder()
+        return menuRepository.findByBranchId(branchId).orElseGet(() -> {
+            // menus.branch_id is unique, so two concurrent first-category requests
+            // can't both create a menu. The insert runs (and flushes) in its own
+            // transaction so the loser's constraint violation doesn't poison the
+            // caller's transaction, and the loser re-reads the winner's row.
+            TransactionTemplate requiresNew = new TransactionTemplate(transactionManager);
+            requiresNew.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+            try {
+                return requiresNew.execute(status -> menuRepository.saveAndFlush(MenuEntity.builder()
                         .branchId(branchId)
                         .merchantId(merchantId)
                         // Explicit rather than relying on MenuEntity#prePersist: that
                         // callback only fires through real JPA persistence, not when
-                        // menuRepository.save is mocked (see MenuServiceCategoryTest).
+                        // menuRepository.saveAndFlush is mocked (see MenuServiceCategoryTest).
                         .status(MenuEntity.Status.DRAFT)
                         .templateStyle("CLASSIC")
                         .build()));
+            } catch (DataIntegrityViolationException e) {
+                return menuRepository.findByBranchId(branchId).orElseThrow(() -> e);
+            }
+        });
     }
 
     /**
@@ -117,6 +145,12 @@ public class MenuService {
     @Transactional(readOnly = true)
     public List<CategoryEntity> getCategories(UUID merchantId) {
         return categoryRepository.findByMerchantIdOrderByDisplayOrderAsc(merchantId);
+    }
+
+    @Transactional(readOnly = true)
+    public CategoryEntity getCategory(Long id) {
+        return categoryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with ID: " + id));
     }
 
     @Transactional
@@ -286,12 +320,37 @@ public class MenuService {
      * so it is deterministic and unit-testable without mocking the clock.
      */
     static BigDecimal effectivePrice(ProductEntity product, LocalDateTime now) {
-        if (product.getDiscountPrice() == null) {
-            return product.getPrice();
+        return effectivePrice(product.getPrice(), product.getDiscountPrice(),
+                product.getDiscountStartAt(), product.getDiscountEndAt(), now);
+    }
+
+    private static BigDecimal effectivePrice(BigDecimal price, BigDecimal discountPrice,
+                                             LocalDateTime start, LocalDateTime end, LocalDateTime now) {
+        if (discountPrice == null) {
+            return price;
         }
-        boolean startedOrUnbounded = product.getDiscountStartAt() == null || !now.isBefore(product.getDiscountStartAt());
-        boolean notYetEndedOrUnbounded = product.getDiscountEndAt() == null || !now.isAfter(product.getDiscountEndAt());
-        return (startedOrUnbounded && notYetEndedOrUnbounded) ? product.getDiscountPrice() : product.getPrice();
+        boolean startedOrUnbounded = start == null || !now.isBefore(start);
+        boolean notYetEndedOrUnbounded = end == null || !now.isAfter(end);
+        return (startedOrUnbounded && notYetEndedOrUnbounded) ? discountPrice : price;
+    }
+
+    /**
+     * Recomputes every item's effectivePrice for this instant. getFullMenu's
+     * result sits in a 10-minute cache, so the value computed when it was
+     * cached can be stale by the time it's served — the caller applies this
+     * on every read, after the cache.
+     */
+    public MenuResponse withCurrentPrices(MenuResponse menu) {
+        LocalDateTime now = menuNow();
+        if (menu.getCategories() != null) {
+            menu.getCategories().forEach(cat -> {
+                if (cat.getItems() != null) {
+                    cat.getItems().forEach(item -> item.setEffectivePrice(effectivePrice(item.getPrice(),
+                            item.getDiscountPrice(), item.getDiscountStartAt(), item.getDiscountEndAt(), now)));
+                }
+            });
+        }
+        return menu;
     }
 
     @Transactional
@@ -304,9 +363,20 @@ public class MenuService {
 
     // ============ Full Menu ============
 
+    /**
+     * Public, so only categories belonging to one of the merchant's PUBLISHED
+     * branch menus — never a draft menu's, nor legacy rows with no menu.
+     */
     @Cacheable(value = "menus", key = "#merchantId")
     public MenuResponse getFullMenu(UUID merchantId) {
-        List<CategoryEntity> categories = categoryRepository.findByMerchantIdOrderByDisplayOrderAsc(merchantId);
+        Set<UUID> publishedMenuIds = menuRepository
+                .findByMerchantIdAndStatus(merchantId, MenuEntity.Status.PUBLISHED).stream()
+                .map(MenuEntity::getId)
+                .collect(Collectors.toSet());
+        List<CategoryEntity> categories = categoryRepository.findByMerchantIdOrderByDisplayOrderAsc(merchantId)
+                .stream()
+                .filter(cat -> publishedMenuIds.contains(cat.getMenuId()))
+                .toList();
         return toMenuResponse(categories);
     }
 
@@ -324,7 +394,7 @@ public class MenuService {
      * product independently sampling the clock.
      */
     private MenuResponse toMenuResponse(List<CategoryEntity> categories) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = menuNow();
 
         List<MenuResponse.CategoryDto> categoryDtos = categories.stream().map(cat -> {
             List<ProductEntity> products = productRepository.findByCategoryId(cat.getId());
@@ -431,6 +501,7 @@ public class MenuService {
      * (via adding a category) before this.
      */
     /** Not {@code @Transactional} — see createCategory's Javadoc for why. */
+    @CacheEvict(value = "menus", allEntries = true)
     public MenuEntity publish(Long branchId, UserPrincipal principal) {
         if (principal == null) {
             throw new UnauthorizedException("Authentication required");

@@ -1,11 +1,14 @@
 package com.qrserve.merchant.controller;
 
+import com.qrserve.merchant.dto.CreateTableRequest;
 import com.qrserve.merchant.dto.TableQrResponse;
+import com.qrserve.merchant.dto.UpdateTableStatusRequest;
+import com.qrserve.shared.common.TableStatus;
 import com.qrserve.merchant.entity.TableEntity;
 import com.qrserve.merchant.entity.TableQrEntity;
 import com.qrserve.merchant.service.TableQrProvisioningService;
 import com.qrserve.merchant.service.TableService;
-import com.qrserve.shared.exceptions.UnauthorizedException;
+import org.springframework.security.access.AccessDeniedException;
 import com.qrserve.shared.security.UserPrincipal;
 import com.qrserve.shared.security.UserRole;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -83,7 +87,7 @@ class TableControllerTest {
     void getTableQrCrossTenantRefused() {
         when(tableService.getTable(TABLE_ID)).thenReturn(tableOwnedBy(OTHER_MERCHANT));
 
-        assertThrows(UnauthorizedException.class, () ->
+        assertThrows(AccessDeniedException.class, () ->
                 controller.getTableQr(TABLE_ID, principal(OWN_MERCHANT, UserRole.MERCHANT_OWNER)));
 
         verify(provisioningService, never()).getActive(any());
@@ -123,7 +127,7 @@ class TableControllerTest {
     void provisionTableQrCrossTenantRefused() {
         when(tableService.getTable(TABLE_ID)).thenReturn(tableOwnedBy(OTHER_MERCHANT));
 
-        assertThrows(UnauthorizedException.class, () ->
+        assertThrows(AccessDeniedException.class, () ->
                 controller.provisionTableQr(TABLE_ID, principal(OWN_MERCHANT, UserRole.MERCHANT_OWNER)));
 
         verify(tableService, never()).provisionOrReprintQr(any());
@@ -140,5 +144,65 @@ class TableControllerTest {
                 .getBody();
 
         assertEquals("T42-2", body.getTerminalLabel());
+    }
+
+    // --- POST / ---
+
+    @Test
+    @DisplayName("createTable refuses a branch owned by another tenant, without creating anything")
+    void createTableCrossTenantRefused() {
+        when(tableService.branchMerchantId(5L)).thenReturn(OTHER_MERCHANT);
+        CreateTableRequest request = new CreateTableRequest();
+        request.setBranchId(5L);
+        request.setTableNumber("1");
+        request.setCapacity(2);
+
+        assertThrows(AccessDeniedException.class, () ->
+                controller.createTable(request, principal(OWN_MERCHANT, UserRole.MERCHANT_OWNER)));
+
+        verify(tableService, never()).createTable(any());
+    }
+
+    @Test
+    @DisplayName("createTable allows SUPER_ADMIN on any branch")
+    void createTableSuperAdmin() {
+        when(tableService.branchMerchantId(5L)).thenReturn(OTHER_MERCHANT);
+        CreateTableRequest request = new CreateTableRequest();
+        request.setBranchId(5L);
+
+        controller.createTable(request, principal(null, UserRole.SUPER_ADMIN));
+
+        verify(tableService).createTable(request);
+    }
+
+    // --- PATCH /{id}/status ---
+
+    @Test
+    @DisplayName("updateTableStatus refuses a table owned by another tenant")
+    void updateTableStatusCrossTenantRefused() {
+        when(tableService.getTable(TABLE_ID)).thenReturn(tableOwnedBy(OTHER_MERCHANT));
+        UpdateTableStatusRequest request = new UpdateTableStatusRequest();
+        request.setStatus(TableStatus.OCCUPIED);
+
+        assertThrows(AccessDeniedException.class, () ->
+                controller.updateTableStatus(TABLE_ID, request, principal(OWN_MERCHANT, UserRole.WAITER)));
+
+        verify(tableService, never()).updateTableStatus(any(), any());
+    }
+
+    // --- GET /{id} (public) ---
+
+    @Test
+    @DisplayName("the public table view never carries the qrToken")
+    void publicTableViewHasNoQrToken() {
+        TableEntity table = tableOwnedBy(OWN_MERCHANT);
+        table.setQrToken("qr-secret-token");
+        when(tableService.getTable(TABLE_ID)).thenReturn(table);
+
+        TableController.PublicTableView view = controller.getTable(TABLE_ID).getBody();
+
+        assertEquals("15", view.tableNumber());
+        assertEquals(OWN_MERCHANT, view.merchantId());
+        assertFalse(view.toString().contains("qr-secret-token"));
     }
 }

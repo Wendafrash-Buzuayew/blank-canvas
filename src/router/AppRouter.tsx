@@ -67,7 +67,6 @@ export const AppRouter: React.FC = () => {
             // menu, and this is the one seeded merchant it can demo.
             onStartCustomerDemo={() => { window.location.href = '/m/sunrise-coffee'; }}
             onStartMerchantDemo={() => { window.location.href = '/login'; }}
-            onBookDemo={() => alert('Demo booking request sent! We will contact you at wendebuzu@gmail.com')}
           />} />
 
           <Route path="/login" element={<LoginPage />} />

@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import { realtime } from '../lib/realtime';
+import { queryClient } from '../lib/queryClient';
 import { authApi, setTokens, clearTokens, setUser, getUser, isAuthenticated, LoginResponse, UserInfoResponse } from '../lib/api';
 
 export type AuthUser = {
@@ -45,6 +46,21 @@ function mapUserInfoToAuthUser(info: UserInfoResponse): AuthUser {
   };
 }
 
+/**
+ * Decodes a JWT payload. JWTs are base64url (`-`/`_`, no padding), which
+ * plain atob() rejects. Called after setTokens(), so a malformed token clears
+ * them again rather than leaving a half-stored session behind.
+ */
+function decodeJwtPayload(token: string): any {
+  try {
+    const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(b64.padEnd(b64.length + ((4 - (b64.length % 4)) % 4), '=')));
+  } catch (err) {
+    clearTokens();
+    throw err;
+  }
+}
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUserState] = useState<AuthUser | null>(() => getUser());
   const [isLoading, setIsLoading] = useState(false);
@@ -73,11 +89,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Listen for storage events to sync auth state across tabs
+  // Listen for storage events to sync auth state across tabs, and for
+  // qrserve_auth_update (login/logout here, or api.ts clearing a session whose
+  // refresh token was rejected).
+  const wasAuthenticated = useRef(isAuthenticated());
   useEffect(() => {
     const handleStorageUpdate = () => {
+      const authed = isAuthenticated();
+      if (wasAuthenticated.current && !authed) {
+        // Session ended (logout, forced clear, or another tab): drop the
+        // previous user's cached data and live socket.
+        queryClient.clear();
+        realtime.disconnect();
+      }
+      wasAuthenticated.current = authed;
       setUserState(getUser());
-      setAuthState(isAuthenticated());
+      setAuthState(authed);
     };
 
     window.addEventListener('storage', handleStorageUpdate);
@@ -102,7 +129,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         authUser = mapUserInfoToAuthUser(info);
       } catch (err) {
         // Fallback: decode JWT payload if /me fails
-        const payload = JSON.parse(atob(response.accessToken.split('.')[1]));
+        const payload = decodeJwtPayload(response.accessToken);
         authUser = {
           id: payload.sub || payload.userId || '',
           email: payload.email || email,
@@ -137,7 +164,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         authUser = mapUserInfoToAuthUser(info);
       } catch (err) {
         // Fallback: decode JWT payload if /me fails - mirrors login()'s own fallback.
-        const payload = JSON.parse(atob(response.accessToken.split('.')[1]));
+        const payload = decodeJwtPayload(response.accessToken);
         authUser = {
           id: payload.sub || payload.userId || '',
           email: payload.email || '',
@@ -170,6 +197,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
     clearTokens();
     realtime.disconnect();
+    // The next user on this device must not see the previous user's cache.
+    queryClient.clear();
     setUserState(null);
     setAuthState(false);
     window.dispatchEvent(new CustomEvent('qrserve_auth_update'));

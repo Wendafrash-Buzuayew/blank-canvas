@@ -8,14 +8,19 @@ spring:
     gateway:
       server:
         webflux:
+          # Off: the locator exposed every Eureka-registered service at
+          # /{service-id}/**, bypassing the route table below (and its filters).
+          # Every path the frontend calls is routed explicitly.
           discovery:
             locator:
-              enabled: true
-              lower-case-service-id: true
+              enabled: false
           globalcors:
             cors-configurations:
               '[/**]':
-                allowedOriginPatterns: "*"
+                # Credentialed CORS, so never "*". Comma-separated; defaults to the
+                # tenant domain (k8s/base/config.yaml public-base-domain), the
+                # digital-menu domain, and local dev / Capacitor origins.
+                allowedOriginPatterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:https://qrserve.safaricom.et,https://*.qrserve.safaricom.et,https://menu.safaricom.et,http://localhost:[*],http://127.0.0.1:[*],capacitor://localhost}
                 allowedMethods:
                   - GET
                   - POST
@@ -42,7 +47,7 @@ spring:
               filters:
                 - name: CircuitBreaker
                   args:
-                    name: default
+                    name: auth-service
                     fallbackUri: forward:/fallback
                 - name: Retry
                   args:
@@ -65,7 +70,7 @@ spring:
               filters:
                 - name: CircuitBreaker
                   args:
-                    name: default
+                    name: order-service-public
                     fallbackUri: forward:/fallback
                 - name: Retry
                   args:
@@ -80,11 +85,11 @@ spring:
             - id: merchant-service
               uri: lb://merchant-service
               predicates:
-                - Path=/api/merchants/**, /api/branches/**, /api/tables/**, /api/waiters/**, /api/table-assignments/**, /api/customer-requests/**, /api/reviews/**, /api/v1/**
+                - Path=/api/merchants/**, /api/branches/**, /api/tables/**, /api/waiters/**, /api/table-assignments/**, /api/customer-requests/**, /api/reviews/**, /api/media/branding/**, /api/v1/**
               filters:
                 - name: CircuitBreaker
                   args:
-                    name: default
+                    name: merchant-service
                     fallbackUri: forward:/fallback
                 - name: Retry
                   args:
@@ -103,7 +108,7 @@ spring:
               filters:
                 - name: CircuitBreaker
                   args:
-                    name: default
+                    name: order-service
                     fallbackUri: forward:/fallback
                 - name: Retry
                   args:
@@ -118,11 +123,11 @@ spring:
             - id: menu-service
               uri: lb://menu-service
               predicates:
-                - Path=/api/categories/**, /api/products/**, /api/menu/**, /api/payment/**
+                - Path=/api/categories/**, /api/products/**, /api/menu/**, /api/payment/**, /api/media/products/**
               filters:
                 - name: CircuitBreaker
                   args:
-                    name: default
+                    name: menu-service
                     fallbackUri: forward:/fallback
                 - name: Retry
                   args:
@@ -141,7 +146,7 @@ spring:
               filters:
                 - name: CircuitBreaker
                   args:
-                    name: default
+                    name: qr-service
                     fallbackUri: forward:/fallback
                 - name: Retry
                   args:
@@ -160,7 +165,7 @@ spring:
               filters:
                 - name: CircuitBreaker
                   args:
-                    name: default
+                    name: analytics-service
                     fallbackUri: forward:/fallback
                 - name: Retry
                   args:
@@ -179,7 +184,7 @@ spring:
               filters:
                 - name: CircuitBreaker
                   args:
-                    name: default
+                    name: back-office-service
                     fallbackUri: forward:/fallback
                 - name: Retry
                   args:
@@ -242,8 +247,12 @@ eureka:
     prefer-ip-address: true
 
 resilience4j:
+  # configs.default (not instances.default): each route has its own breaker,
+  # named after its route id, so one failing service cannot open the breaker
+  # for every other route. configs.default is the registry-wide base config
+  # those per-route instances are created from.
   circuitbreaker:
-    instances:
+    configs:
       default:
         sliding-window-size: 10
         failure-rate-threshold: 50
@@ -265,7 +274,7 @@ resilience4j:
   # it is a ceiling that stops a hung downstream from holding the caller forever,
   # not a promise. Tighten it once startup latency is measured.
   timelimiter:
-    instances:
+    configs:
       default:
         timeout-duration: 10s
 
@@ -286,7 +295,7 @@ management:
       group:
         site:
           include: siteReadiness, diskSpace, ping
-          show-details: always
+          show-details: when_authorized
   tracing:
     sampling:
       probability: ${TRACE_SAMPLE_RATE:0.1}

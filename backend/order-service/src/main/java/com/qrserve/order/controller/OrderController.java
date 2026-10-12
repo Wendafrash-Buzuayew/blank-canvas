@@ -57,8 +57,10 @@ public class OrderController {
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER','WAITER','KITCHEN','CASHIER')")
     @Operation(summary = "Get order by ID")
-    public ResponseEntity<OrderEntity> getOrder(@PathVariable UUID id) {
-        return ResponseEntity.ok(orderService.getOrder(id));
+    public ResponseEntity<OrderEntity> getOrder(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(orderService.getOrder(id, principal));
     }
 
     @PatchMapping("/{id}/status")
@@ -66,7 +68,8 @@ public class OrderController {
     @Operation(summary = "Update order lifecycle status (ACCEPTED, PREPARING, READY, DELIVERED, PAID, CANCELLED)")
     public ResponseEntity<OrderEntity> updateStatus(
             @PathVariable UUID id,
-            @Valid @RequestBody UpdateOrderStatusRequest request) {
-        return ResponseEntity.ok(orderService.updateOrderStatus(id, request));
+            @Valid @RequestBody UpdateOrderStatusRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(orderService.updateOrderStatus(id, request, principal));
     }
 }

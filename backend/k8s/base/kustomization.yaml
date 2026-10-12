@@ -27,6 +27,7 @@ resources:
   - back-office-service.yaml
   - api-gateway.yaml
   - frontend.yaml
+  - network-policies.yaml
 
 # Surge-only rollouts for every Deployment in the base.
 #
@@ -75,3 +76,40 @@ patches:
         path: /spec/strategy
         value:
           type: Recreate
+
+  # Container hardening, for every Deployment (each has exactly one
+  # container, hence containers/0). No readOnlyRootFilesystem: Spring/Tomcat
+  # write to /tmp, the filesystem media backend writes ./uploads, and Kafka
+  # keeps its log dir under /tmp.
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/securityContext
+        value:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+
+  # runAsNonRoot for every image we build: each Dockerfile ends in a numeric
+  # USER (10001 for the services, 101 for nginx-unprivileged), which is what
+  # lets the kubelet verify it.
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/securityContext
+        value:
+          runAsNonRoot: true
+
+  # ...except Kafka: apache/kafka declares a non-numeric USER (appuser), which
+  # the kubelet refuses to start under runAsNonRoot. It does not run as root
+  # regardless. Must stay AFTER the patch above.
+  - target:
+      kind: Deployment
+      name: kafka-deployment
+    patch: |-
+      - op: remove
+        path: /spec/template/spec/securityContext/runAsNonRoot

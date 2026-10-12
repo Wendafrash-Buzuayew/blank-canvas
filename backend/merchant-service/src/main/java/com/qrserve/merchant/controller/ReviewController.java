@@ -3,6 +3,7 @@ package com.qrserve.merchant.controller;
 import com.qrserve.merchant.entity.ReviewEntity;
 import com.qrserve.merchant.service.ReviewService;
 import com.qrserve.shared.exceptions.UnauthorizedException;
+import org.springframework.security.access.AccessDeniedException;
 import com.qrserve.shared.security.UserPrincipal;
 import com.qrserve.shared.security.UserRole;
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,7 +44,7 @@ public class ReviewController {
         if (branchId != null) {
             List<ReviewEntity> reviews = reviewService.getReviewsByBranch(branchId);
             if (scope != null && reviews.stream().anyMatch(r -> !scope.equals(r.getMerchantId()))) {
-                throw new UnauthorizedException("Caller has no access to branch " + branchId);
+                throw new AccessDeniedException("Caller has no access to branch " + branchId);
             }
             return ResponseEntity.ok(reviews);
         }
@@ -59,7 +60,7 @@ public class ReviewController {
         }
         UUID own = principal.getMerchantId();
         if (own == null) {
-            throw new UnauthorizedException("Caller has no merchant scope");
+            throw new AccessDeniedException("Caller has no merchant scope");
         }
         return own;
     }

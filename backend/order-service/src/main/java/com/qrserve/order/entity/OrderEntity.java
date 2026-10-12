@@ -57,6 +57,15 @@ public class OrderEntity {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    /**
+     * Optimistic lock: two concurrent status changes (e.g. READY->DELIVERED and
+     * READY->CANCELLED) can no longer both win. The DB default backfills 0 into
+     * rows that existed before ddl-auto added the column.
+     */
+    @Version
+    @Column(columnDefinition = "bigint default 0")
+    private Long version;
+
     @PrePersist
     public void prePersist() {
         if (createdAt == null) createdAt = LocalDateTime.now();

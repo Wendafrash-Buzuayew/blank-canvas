@@ -29,14 +29,23 @@ public class MerchantSettingsService {
         return MerchantSettingsResolver.resolve(merchantRow, branchRow);
     }
 
-    /** The merchant's own account, or null when unconfigured. Never defaulted. */
+    /**
+     * The merchant's own account, or null when unconfigured. Never defaulted.
+     *
+     * <p>A branch row whose destinationRef is null/blank (it exists only to narrow
+     * fulfilment settings) falls through to the merchant-wide row; previously it
+     * shadowed it and silently downgraded the branch's tables to MENU_URL QRs.
+     */
     @Transactional(readOnly = true)
     public String destinationRef(UUID merchantId, Long branchId) {
         return (branchId == null
                 ? Optional.<MerchantSettingsEntity>empty()
                 : repository.findByMerchantIdAndBranchId(merchantId, branchId))
-                .or(() -> repository.findByMerchantIdAndBranchIdIsNull(merchantId))
                 .map(MerchantSettingsEntity::getDestinationRef)
+                .filter(ref -> !ref.isBlank())
+                .or(() -> repository.findByMerchantIdAndBranchIdIsNull(merchantId)
+                        .map(MerchantSettingsEntity::getDestinationRef)
+                        .filter(ref -> !ref.isBlank()))
                 .orElse(null);
     }
 

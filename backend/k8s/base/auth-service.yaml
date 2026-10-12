@@ -4,7 +4,8 @@ metadata:
   name: auth-service
   namespace: default
 spec:
-  replicas: 4
+  # Matches the HPA's minReplicas; the HPA owns scaling from here.
+  replicas: 2
   selector:
     matchLabels:
       app: auth-service
@@ -62,15 +63,9 @@ spec:
         # resolve. See the Phase 0 rollout runbook.
         - name: EUREKA_SERVER_URL
           value: "http://discovery-service:8761/eureka"
-        # TEMPORARY, defaults ON: no real Safaricom Super App adapter exists
-        # yet (see SuperAppAuthPort), so this fake is the only way to
-        # exercise the Mini App login end to end against this deployment. It
-        # accepts ANY caller who supplies a merchantShortCode as proof of
-        # identity - remove this env var (or set it to "false") the moment
-        # this environment could see untrusted traffic, and definitely before
-        # the real adapter ships.
-        - name: SUPERAPP_DEV_FAKE_ENABLED
-          value: "true"
+        # SUPERAPP_DEV_FAKE_ENABLED is deliberately absent (defaults false):
+        # the fake accepts ANY caller as any merchant's owner, and
+        # auth-service refuses to start with it on under the prod profile.
         resources:
           requests: { cpu: "250m", memory: "512Mi" }
           limits: { cpu: "750m", memory: "1Gi" }

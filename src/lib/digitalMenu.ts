@@ -98,7 +98,10 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
   if (!response.ok) {
     throw new Error(`Request to ${path} failed with ${response.status}`);
   }
-  return response.json() as Promise<T>;
+  // A 201/204 with no body is still a success; parsing it would throw and show
+  // an error after the write landed, inviting a duplicate submit.
+  const text = await response.text();
+  return (text ? JSON.parse(text) : null) as T;
 }
 
 export function resolvePrimaryBranch(merchantSlug: string): Promise<DigitalMenuResolution> {
@@ -122,9 +125,14 @@ export function fetchReviewSummary(branchId: number): Promise<ReviewSummary> {
   return getJson<ReviewSummary>(`/api/v1/public/branches/${branchId}/reviews/summary`);
 }
 
+/** `signature` is the branch QR's `?signature=`; the backend rejects reviews without it. */
 export function submitReview(
   branchId: number,
+  signature: string,
   data: { rating: number; comment?: string; customerName?: string },
 ): Promise<void> {
-  return postJson<void>(`/api/v1/public/branches/${branchId}/reviews`, data);
+  return postJson<void>(
+    `/api/v1/public/branches/${branchId}/reviews?signature=${encodeURIComponent(signature)}`,
+    data,
+  );
 }

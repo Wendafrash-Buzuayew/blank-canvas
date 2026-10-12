@@ -1,6 +1,7 @@
 package com.qrserve.backoffice.service;
 
 import com.qrserve.backoffice.dto.PlatformSummaryResponse;
+import com.qrserve.shared.exceptions.UpstreamServiceException;
 import com.qrserve.shared.security.JwtTokenProvider;
 import com.qrserve.shared.security.UserPrincipal;
 import org.junit.jupiter.api.BeforeEach;
@@ -76,33 +77,23 @@ class ReportServiceTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    void aFailedMerchantServiceCallDegradesToAnEmptySummaryInsteadOfThrowing() {
+    void aFailedMerchantListCallPropagatesAsAnUpstreamFailure() {
         when(restTemplate.exchange(eq("http://merchant-service/api/merchants"), eq(HttpMethod.GET), any(HttpEntity.class), any(org.springframework.core.ParameterizedTypeReference.class)))
                 .thenThrow(new RestClientException("merchant-service unreachable"));
-        when(auditLogService.count()).thenReturn(5L);
 
-        PlatformSummaryResponse summary = service.getPlatformSummary();
-
-        assertEquals(0, summary.getMerchantCount());
-        assertEquals(0, summary.getBranchCount());
-        assertEquals(5L, summary.getAuditEventCount());
+        UpstreamServiceException ex = assertThrows(UpstreamServiceException.class, () -> service.getPlatformSummary());
+        assertEquals("merchant-service", ex.getUpstream());
     }
 
     @SuppressWarnings("unchecked")
     @Test
-    void aFailedBranchLookupForOneMerchantDoesNotAbortTheOthers() {
+    void aFailedBranchLookupFailsTheSummaryInsteadOfUndercounting() {
         List<Map<String, Object>> merchants = List.of(Map.of("id", "m1"), Map.of("id", "m2"));
         when(restTemplate.exchange(eq("http://merchant-service/api/merchants"), eq(HttpMethod.GET), any(HttpEntity.class), any(org.springframework.core.ParameterizedTypeReference.class)))
                 .thenReturn(ResponseEntity.ok(merchants));
         when(restTemplate.exchange(eq("http://merchant-service/api/branches/merchant/m1"), eq(HttpMethod.GET), any(HttpEntity.class), any(org.springframework.core.ParameterizedTypeReference.class)))
                 .thenThrow(new RestClientException("timeout"));
-        when(restTemplate.exchange(eq("http://merchant-service/api/branches/merchant/m2"), eq(HttpMethod.GET), any(HttpEntity.class), any(org.springframework.core.ParameterizedTypeReference.class)))
-                .thenReturn(ResponseEntity.ok(List.of(Map.of("id", "b3"))));
-        when(auditLogService.count()).thenReturn(0L);
 
-        PlatformSummaryResponse summary = service.getPlatformSummary();
-
-        assertEquals(2, summary.getMerchantCount());
-        assertEquals(1, summary.getBranchCount());
+        assertThrows(UpstreamServiceException.class, () -> service.getPlatformSummary());
     }
 }

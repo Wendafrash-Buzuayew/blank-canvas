@@ -147,8 +147,10 @@ VALUES
 (2, 1, 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'T-02', 4, 'OCCUPIED', 'qr-token-sunrise-1-2'),
 (15, 1, 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'T-15', 4, 'AVAILABLE', 'qr-token-sunrise-1-15');
 
--- Default Super Admin User (password: password)
-INSERT INTO users (id, merchant_id, name, email, password_hash, role)
-VALUES
-('c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33', NULL, 'Super Administrator', 'admin@hotel.com', '$2a$10$eD7gE7Kz5hZ6Yh8Y3r8B6e5n7Q6F1K9P3L5M2N8O1P4Q7R0S3T6U9', 'SUPER_ADMIN'),
-('d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Sunrise Manager', 'owner@sunrise.com', '$2a$10$eD7gE7Kz5hZ6Yh8Y3r8B6e5n7Q6F1K9P3L5M2N8O1P4Q7R0S3T6U9', 'MERCHANT_OWNER');
+-- The explicit ids above do not advance the BIGSERIAL sequences; without this
+-- the first application insert would collide with id 1.
+SELECT setval(pg_get_serial_sequence('branches', 'id'), (SELECT MAX(id) FROM branches));
+SELECT setval(pg_get_serial_sequence('tables', 'id'), (SELECT MAX(id) FROM tables));
+
+-- No seeded users: a well-known login shipped in a schema script is a
+-- standing credential. Create the first SUPER_ADMIN out of band.

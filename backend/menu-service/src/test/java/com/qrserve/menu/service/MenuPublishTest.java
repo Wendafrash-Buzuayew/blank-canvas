@@ -81,6 +81,22 @@ class MenuPublishTest {
     }
 
     @Test
+    void publicMerchantMenuServesOnlyPublishedMenusCategories() {
+        UUID draftMenu = UUID.randomUUID();
+        when(menuRepository.findByMerchantIdAndStatus(MERCHANT, MenuEntity.Status.PUBLISHED)).thenReturn(List.of(
+                MenuEntity.builder().id(MENU_ID).merchantId(MERCHANT).status(MenuEntity.Status.PUBLISHED).build()));
+        when(categoryRepository.findByMerchantIdOrderByDisplayOrderAsc(MERCHANT)).thenReturn(List.of(
+                CategoryEntity.builder().id(1L).menuId(MENU_ID).name("Published").build(),
+                CategoryEntity.builder().id(2L).menuId(draftMenu).name("Draft").build(),
+                CategoryEntity.builder().id(3L).menuId(null).name("Legacy").build()));
+        when(productRepository.findByCategoryId(any())).thenReturn(List.of());
+
+        MenuResponse response = service.getFullMenu(MERCHANT);
+
+        assertEquals(List.of("Published"), response.getCategories().stream().map(MenuResponse.CategoryDto::getName).toList());
+    }
+
+    @Test
     void publishMarksTheMenuPublishedWithATimestamp() {
         MenuEntity menu = MenuEntity.builder().id(MENU_ID).branchId(BRANCH)
                 .status(MenuEntity.Status.DRAFT).build();

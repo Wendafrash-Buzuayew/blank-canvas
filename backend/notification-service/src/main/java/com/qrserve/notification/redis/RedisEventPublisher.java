@@ -19,13 +19,13 @@ public class RedisEventPublisher {
 
     private final RedisTemplate<String, Object> redisTemplate;
 
+    /**
+     * Failures propagate on purpose: the Kafka listener calling this must fail
+     * so the container's error handler retries instead of acking the offset.
+     */
     public void publish(NotificationEnvelope envelope) {
-        try {
-            redisTemplate.convertAndSend(RedisConfig.NOTIFICATION_CHANNEL, envelope);
-            log.debug("Published {} to Redis for destination {}",
-                    envelope.getEventType(), envelope.getDestination());
-        } catch (Exception e) {
-            log.error("Failed to publish notification envelope to Redis: {}", e.getMessage());
-        }
+        redisTemplate.convertAndSend(RedisConfig.NOTIFICATION_CHANNEL, envelope);
+        log.debug("Published {} to Redis for destination {}",
+                envelope.getEventType(), envelope.getDestination());
     }
 }

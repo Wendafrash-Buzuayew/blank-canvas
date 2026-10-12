@@ -1,6 +1,7 @@
 package com.qrserve.menu.service;
 
 import com.qrserve.menu.dto.CreateProductRequest;
+import com.qrserve.menu.dto.MenuResponse;
 import com.qrserve.menu.dto.UpdateProductRequest;
 import com.qrserve.menu.entity.CategoryEntity;
 import com.qrserve.menu.entity.ProductEntity;
@@ -16,7 +17,11 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -96,6 +101,25 @@ class MenuServiceDiscountTest {
     void withinTheWindowTheDiscountApplies() {
         ProductEntity p = product(BigDecimal.TEN, BigDecimal.ONE, NOW.minusHours(1), NOW.plusHours(1));
         assertEquals(BigDecimal.ONE, MenuService.effectivePrice(p, NOW));
+    }
+
+    @Test
+    void withCurrentPricesReadsNowInAddisAbabaNotTheJvmZone() {
+        // 09:30 UTC is 12:30 in Addis Ababa (UTC+3). A discount starting at 12:00
+        // Addis wall-clock time is active; read in UTC it would not be yet.
+        service.clock = Clock.fixed(Instant.parse("2026-06-15T09:30:00Z"), ZoneOffset.UTC);
+        MenuResponse.ProductDto item = MenuResponse.ProductDto.builder()
+                .price(BigDecimal.TEN).discountPrice(BigDecimal.ONE)
+                .discountStartAt(LocalDateTime.of(2026, 6, 15, 12, 0))
+                // a stale value, as it would be when served from the 10-minute cache
+                .effectivePrice(BigDecimal.TEN)
+                .build();
+        MenuResponse menu = MenuResponse.builder().categories(List.of(
+                MenuResponse.CategoryDto.builder().items(List.of(item)).build())).build();
+
+        service.withCurrentPrices(menu);
+
+        assertEquals(BigDecimal.ONE, item.getEffectivePrice());
     }
 
     // ============ createProduct validation ============

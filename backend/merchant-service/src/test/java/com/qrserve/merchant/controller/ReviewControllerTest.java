@@ -3,6 +3,7 @@ package com.qrserve.merchant.controller;
 import com.qrserve.merchant.entity.ReviewEntity;
 import com.qrserve.merchant.service.ReviewService;
 import com.qrserve.shared.exceptions.UnauthorizedException;
+import org.springframework.security.access.AccessDeniedException;
 import com.qrserve.shared.security.UserPrincipal;
 import com.qrserve.shared.security.UserRole;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,7 +56,7 @@ class ReviewControllerTest {
         when(reviewService.getReviewsByBranch(BRANCH_ID)).thenReturn(List.of(
                 ReviewEntity.builder().branchId(BRANCH_ID).merchantId(OTHER_MERCHANT).rating(2).build()));
 
-        assertThrows(UnauthorizedException.class,
+        assertThrows(AccessDeniedException.class,
                 () -> controller.getReviews(BRANCH_ID, null, principal(OWN_MERCHANT, UserRole.MERCHANT_OWNER)));
     }
 

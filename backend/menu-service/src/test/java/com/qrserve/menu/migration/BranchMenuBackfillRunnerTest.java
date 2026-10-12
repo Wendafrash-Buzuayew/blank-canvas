@@ -18,6 +18,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -41,6 +42,7 @@ class BranchMenuBackfillRunnerTest {
     private CategoryRepository categoryRepository;
     private ProductRepository productRepository;
     private static final UUID MERCHANT = UUID.randomUUID();
+    private static final LocalDateTime DISCOUNT_START = LocalDateTime.of(2026, 6, 1, 0, 0);
 
     @BeforeEach
     void setUp() {
@@ -55,7 +57,9 @@ class BranchMenuBackfillRunnerTest {
                 .id(1L).merchantId(MERCHANT).name("Drinks").displayOrder(0).build();
         ProductEntity existingProduct = ProductEntity.builder()
                 .id(1L).merchantId(MERCHANT).categoryId(1L).name("Espresso")
-                .price(BigDecimal.TEN).available(true).preparationTime(3).build();
+                .price(BigDecimal.TEN).discountPrice(BigDecimal.ONE)
+                .discountStartAt(DISCOUNT_START).discountEndAt(DISCOUNT_START.plusDays(7))
+                .available(true).preparationTime(3).build();
 
         when(categoryRepository.findByMerchantIdOrderByDisplayOrderAsc(MERCHANT))
                 .thenReturn(List.of(existingCategory));
@@ -132,6 +136,11 @@ class BranchMenuBackfillRunnerTest {
         assertNotEquals(existingCategory.getId(), productForBranch10.getCategoryId());
         assertNotEquals(existingCategory.getId(), productForBranch11.getCategoryId());
         assertNotEquals(productForBranch10.getCategoryId(), productForBranch11.getCategoryId());
+
+        // An active promotion survives the copy rather than silently reverting to full price.
+        assertEquals(BigDecimal.ONE, productForBranch10.getDiscountPrice());
+        assertEquals(DISCOUNT_START, productForBranch10.getDiscountStartAt());
+        assertEquals(DISCOUNT_START.plusDays(7), productForBranch10.getDiscountEndAt());
     }
 
     @Test

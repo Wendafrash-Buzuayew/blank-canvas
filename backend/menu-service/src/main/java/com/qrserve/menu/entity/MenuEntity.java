@@ -16,7 +16,11 @@ import java.util.UUID;
  * docs/superpowers/specs/2026-09-04-menu-url-access-redesign-design.md.
  */
 @Entity
-@Table(name = "menus")
+// The unique branch_id is what makes MenuService.getOrCreateMenuForBranch
+// race-safe (the loser of a concurrent create gets a constraint violation and
+// re-reads). ddl-auto=update adds it, but only logs a warning and skips it if
+// duplicate branch_id rows already exist - dedupe those first.
+@Table(name = "menus", uniqueConstraints = @UniqueConstraint(name = "uk_menus_branch_id", columnNames = "branch_id"))
 @Data
 @Builder
 @NoArgsConstructor

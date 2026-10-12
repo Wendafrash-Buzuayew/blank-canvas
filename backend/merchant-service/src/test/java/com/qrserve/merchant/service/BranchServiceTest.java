@@ -7,6 +7,7 @@ import com.qrserve.merchant.entity.MerchantEntity;
 import com.qrserve.merchant.entity.MerchantTier;
 import com.qrserve.merchant.repository.BranchRepository;
 import com.qrserve.merchant.repository.MerchantRepository;
+import com.qrserve.shared.exceptions.BusinessException;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
 import com.qrserve.shared.exceptions.TierLimitExceededException;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,6 +37,8 @@ class BranchServiceTest {
 
     @Test
     void firstBranchForAMerchantIsAutoPrimary() {
+        when(merchantRepository.findByIdForUpdate(MERCHANT)).thenReturn(
+                Optional.of(MerchantEntity.builder().id(MERCHANT).tier(MerchantTier.FREE).build()));
         when(repository.findByMerchantIdAndSlug(MERCHANT, "main")).thenReturn(Optional.empty());
         when(repository.findByMerchantId(MERCHANT)).thenReturn(List.of());
         when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -45,15 +48,15 @@ class BranchServiceTest {
                 .phone("0700000000").address("Addis Ababa").build());
 
         assertTrue(created.isPrimary(), "the merchant's first branch has nothing to be secondary to");
-        verifyNoInteractions(merchantRepository);
     }
 
     @Test
-    void firstBranchSucceedsEvenOnFreeTierWithNoMerchantLookup() {
+    void firstBranchSucceedsEvenOnFreeTier() {
         // The property SuperAppProvisioningService's auto-provisioning depends
         // on: a brand new merchant's first branch is never blocked by the tier
-        // check, and the check does not even need to look the merchant up to
-        // know that (see the isFirstBranch guard in createBranch).
+        // check (see the isFirstBranch guard in createBranch).
+        when(merchantRepository.findByIdForUpdate(MERCHANT)).thenReturn(
+                Optional.of(MerchantEntity.builder().id(MERCHANT).tier(MerchantTier.FREE).build()));
         when(repository.findByMerchantIdAndSlug(MERCHANT, "main")).thenReturn(Optional.empty());
         when(repository.findByMerchantId(MERCHANT)).thenReturn(List.of());
         when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -61,7 +64,24 @@ class BranchServiceTest {
         assertDoesNotThrow(() -> service.createBranch(CreateBranchRequest.builder()
                 .merchantId(MERCHANT).name("Main").slug("main")
                 .phone("0700000000").address("Addis Ababa").build()));
-        verifyNoInteractions(merchantRepository);
+    }
+
+    @Test
+    void createBranchLocksTheMerchantRowBeforeCheckingTheCap() {
+        when(merchantRepository.findByIdForUpdate(MERCHANT)).thenReturn(
+                Optional.of(MerchantEntity.builder().id(MERCHANT).tier(MerchantTier.PRO).build()));
+        when(repository.findByMerchantIdAndSlug(MERCHANT, "main")).thenReturn(Optional.empty());
+        when(repository.findByMerchantId(MERCHANT)).thenReturn(List.of());
+        when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.createBranch(CreateBranchRequest.builder()
+                .merchantId(MERCHANT).name("Main").slug("main")
+                .phone("0700000000").address("Addis Ababa").build());
+
+        var order = inOrder(merchantRepository, repository);
+        order.verify(merchantRepository).findByIdForUpdate(MERCHANT);
+        order.verify(repository).findByMerchantId(MERCHANT);
+        verify(merchantRepository, never()).findById(any());
     }
 
     @Test
@@ -69,7 +89,7 @@ class BranchServiceTest {
         when(repository.findByMerchantIdAndSlug(MERCHANT, "annex")).thenReturn(Optional.empty());
         when(repository.findByMerchantId(MERCHANT)).thenReturn(
                 List.of(BranchEntity.builder().id(1L).merchantId(MERCHANT).isPrimary(true).build()));
-        when(merchantRepository.findById(MERCHANT)).thenReturn(
+        when(merchantRepository.findByIdForUpdate(MERCHANT)).thenReturn(
                 Optional.of(MerchantEntity.builder().id(MERCHANT).tier(MerchantTier.PRO).build()));
         when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -85,7 +105,7 @@ class BranchServiceTest {
         when(repository.findByMerchantIdAndSlug(MERCHANT, "annex")).thenReturn(Optional.empty());
         when(repository.findByMerchantId(MERCHANT)).thenReturn(
                 List.of(BranchEntity.builder().id(1L).merchantId(MERCHANT).isPrimary(true).build()));
-        when(merchantRepository.findById(MERCHANT)).thenReturn(
+        when(merchantRepository.findByIdForUpdate(MERCHANT)).thenReturn(
                 Optional.of(MerchantEntity.builder().id(MERCHANT).tier(MerchantTier.FREE).build()));
 
         assertThrows(TierLimitExceededException.class, () -> service.createBranch(CreateBranchRequest.builder()
@@ -96,17 +116,19 @@ class BranchServiceTest {
 
     @Test
     void setPrimaryBranchSwapsTheFlag() {
-        BranchEntity oldPrimary = BranchEntity.builder().id(1L).merchantId(MERCHANT).isPrimary(true).build();
         BranchEntity newPrimary = BranchEntity.builder().id(2L).merchantId(MERCHANT).isPrimary(false).build();
-        when(repository.findByMerchantId(MERCHANT)).thenReturn(List.of(oldPrimary, newPrimary));
         when(repository.findById(2L)).thenReturn(Optional.of(newPrimary));
-        when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(repository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
 
         BranchEntity result = service.setPrimaryBranch(MERCHANT, 2L);
 
         assertTrue(result.isPrimary());
-        assertFalse(oldPrimary.isPrimary(), "exactly one primary branch per merchant");
-        verify(repository, times(2)).save(any());
+        // The old primary is cleared by a bulk update that runs before the new
+        // primary is written, so the one-primary unique index never sees two.
+        var order = inOrder(repository);
+        order.verify(repository).clearPrimaryExcept(MERCHANT, 2L);
+        order.verify(repository).saveAndFlush(newPrimary);
+        verify(repository, never()).save(any());
     }
 
     @Test
@@ -148,6 +170,15 @@ class BranchServiceTest {
         service.deleteBranch(1L);
 
         verify(repository).delete(existing);
+    }
+
+    @Test
+    void deleteBranchRefusesThePrimaryBranch() {
+        BranchEntity primary = BranchEntity.builder().id(1L).merchantId(MERCHANT).isPrimary(true).build();
+        when(repository.findById(1L)).thenReturn(Optional.of(primary));
+
+        assertThrows(BusinessException.class, () -> service.deleteBranch(1L));
+        verify(repository, never()).delete(any());
     }
 
     @Test

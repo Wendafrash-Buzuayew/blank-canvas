@@ -84,7 +84,7 @@ export const CustomerMenuPage: React.FC = () => {
     isLoading: menuLoading,
     error: menuError,
     refetch: refetchMenu,
-  } = usePublicMenu(resolution?.merchantId);
+  } = usePublicMenu(resolution?.branchId);
 
   const [cart, setCart] = useState<CartLine[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
@@ -178,13 +178,15 @@ export const CustomerMenuPage: React.FC = () => {
   const cartCount = cart.reduce((n, l) => n + l.quantity, 0);
   const cartTotal = cart.reduce((s, l) => s + l.price * l.quantity, 0);
 
-  const changeQty = (item: { id: number; name: string; price: number }, delta: number) => {
+  // The cart holds the price the backend will charge: effectivePrice (an active
+  // discount), falling back to the list price for older payloads without it.
+  const changeQty = (item: { id: number; name: string; price: number; effectivePrice?: number }, delta: number) => {
     setBumpKey((k) => k + 1);
     setCart((prev) => {
       const existing = prev.find((l) => l.productId === item.id);
       if (!existing) {
         return delta > 0
-          ? [...prev, { productId: item.id, name: item.name, price: Number(item.price), quantity: 1 }]
+          ? [...prev, { productId: item.id, name: item.name, price: Number(item.effectivePrice ?? item.price), quantity: 1 }]
           : prev;
       }
       const quantity = existing.quantity + delta;
@@ -194,10 +196,13 @@ export const CustomerMenuPage: React.FC = () => {
   };
 
   const placeOrder = () => {
-    if (!resolution || cart.length === 0) return;
+    // The backend only accepts guest orders carrying the table QR's signature;
+    // without one the request is a guaranteed 403 (the cart sheet explains why).
+    if (!resolution || cart.length === 0 || !signature) return;
     createOrder.mutate(
       {
         tableId: resolution.tableId,
+        signature,
         items: cart.map((l) => ({ productId: l.productId, quantity: l.quantity })),
       },
       {
@@ -508,8 +513,13 @@ export const CustomerMenuPage: React.FC = () => {
                           {/* brand-press, not brand-dark/brand: DESIGN.md §6.11
                               and §3.1 - both of those fail AA at this size. */}
                           <span className="font-display text-label-m text-brand-press [font-variant-numeric:tabular-nums]">
-                            {Number(item.price).toLocaleString()}{' '}
+                            {Number(item.effectivePrice ?? item.price).toLocaleString()}{' '}
                             <span className="text-label-s text-muted">{currency}</span>
+                            {item.effectivePrice != null && Number(item.effectivePrice) < Number(item.price) && (
+                              <span className="ml-1.5 text-label-s text-muted line-through">
+                                {Number(item.price).toLocaleString()}
+                              </span>
+                            )}
                           </span>
 
                           {!isPhase2Enabled() ? null : soldOut ? (
@@ -602,8 +612,11 @@ export const CustomerMenuPage: React.FC = () => {
           onRemove={(id) => setCart((prev) => prev.filter((l) => l.productId !== id))}
           onConfirm={placeOrder}
           submitting={createOrder.isPending}
+          canConfirm={Boolean(signature)}
           errorMessage={
-            createOrder.isError
+            !signature
+              ? 'To place an order, scan the QR code on your table with your phone camera.'
+              : createOrder.isError
               ? 'We couldn’t send your order. Check your connection and try again, or ask a waiter.'
               : null
           }

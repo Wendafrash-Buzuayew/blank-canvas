@@ -109,6 +109,24 @@ class MerchantSettingsServiceTest {
     }
 
     @Test
+    @DisplayName("destinationRef falls back to the merchant-wide row when the branch row has a blank destination")
+    void destinationRefFallsBackWhenBranchRowBlank() {
+        when(repository.findByMerchantIdAndBranchId(MERCHANT, 5L)).thenReturn(Optional.of(
+                MerchantSettingsEntity.builder()
+                        .merchantId(MERCHANT)
+                        .branchId(5L)
+                        .destinationRef(" ")
+                        .build()));
+        when(repository.findByMerchantIdAndBranchIdIsNull(MERCHANT)).thenReturn(Optional.of(
+                MerchantSettingsEntity.builder()
+                        .merchantId(MERCHANT)
+                        .destinationRef("merchant-account")
+                        .build()));
+
+        assertEquals("merchant-account", service.destinationRef(MERCHANT, 5L));
+    }
+
+    @Test
     @DisplayName("destinationRef is null, never defaulted, when neither row is configured")
     void destinationRefNullWhenUnconfigured() {
         when(repository.findByMerchantIdAndBranchId(MERCHANT, 5L)).thenReturn(Optional.empty());

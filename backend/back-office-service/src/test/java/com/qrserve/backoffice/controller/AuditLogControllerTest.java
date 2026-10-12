@@ -40,9 +40,9 @@ class AuditLogControllerTest {
     void getLogsPassesMerchantIdAndActionThroughToTheService() {
         UUID merchantId = UUID.randomUUID();
         List<AuditLogEntity> expected = List.of(AuditLogEntity.builder().id(2L).build());
-        when(auditLogService.getLogs(merchantId, "MERCHANT_CREATED")).thenReturn(expected);
+        when(auditLogService.getLogs(merchantId, "MERCHANT_CREATED", 1, 50)).thenReturn(expected);
 
-        var response = controller.getLogs(merchantId, "MERCHANT_CREATED");
+        var response = controller.getLogs(merchantId, "MERCHANT_CREATED", 1, 50);
 
         assertEquals(expected, response.getBody());
     }
@@ -50,9 +50,9 @@ class AuditLogControllerTest {
     @Test
     void getLogsWithNoFiltersPassesNullsThrough() {
         List<AuditLogEntity> expected = List.of();
-        when(auditLogService.getLogs(null, null)).thenReturn(expected);
+        when(auditLogService.getLogs(null, null, 0, 100)).thenReturn(expected);
 
-        var response = controller.getLogs(null, null);
+        var response = controller.getLogs(null, null, 0, 100);
 
         assertEquals(expected, response.getBody());
     }

@@ -9,7 +9,6 @@ import com.qrserve.merchant.service.ReviewService;
 import com.qrserve.shared.common.QrSignatureService;
 import com.qrserve.shared.common.TenantContext;
 import com.qrserve.shared.exceptions.ResourceNotFoundException;
-import com.qrserve.shared.exceptions.UnauthorizedException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,15 +52,13 @@ class PublicReviewControllerTest {
     }
 
     @Test
-    void createsAReviewWhenNoHostTenantIsSetAndNoSignatureIsGiven() {
+    void rejectsAReviewWithNoSignature() {
         when(branchRepository.findById(BRANCH_ID)).thenReturn(Optional.of(
                 BranchEntity.builder().id(BRANCH_ID).merchantId(MERCHANT).build()));
-        when(reviewService.createReview(eq(BRANCH_ID), any())).thenReturn(
-                ReviewEntity.builder().branchId(BRANCH_ID).merchantId(MERCHANT).rating(5).build());
 
-        var response = controller.createReview(BRANCH_ID, request(5), null);
-
-        assertEquals(5, response.getBody().getRating());
+        assertThrows(AccessDeniedException.class, () -> controller.createReview(BRANCH_ID, request(5), null));
+        assertThrows(AccessDeniedException.class, () -> controller.createReview(BRANCH_ID, request(5), " "));
+        verify(reviewService, never()).createReview(any(), any());
     }
 
     @Test
@@ -79,26 +76,27 @@ class PublicReviewControllerTest {
         TenantContext.setCurrentTenant(MERCHANT);
         when(branchRepository.findById(BRANCH_ID)).thenReturn(Optional.of(
                 BranchEntity.builder().id(BRANCH_ID).merchantId(MERCHANT).build()));
+        when(qrSignatureService.validateSignature("good-sig", MERCHANT, BRANCH_ID)).thenReturn(true);
         when(reviewService.createReview(eq(BRANCH_ID), any())).thenReturn(
                 ReviewEntity.builder().branchId(BRANCH_ID).merchantId(MERCHANT).rating(4).build());
 
-        var response = controller.createReview(BRANCH_ID, request(4), null);
+        var response = controller.createReview(BRANCH_ID, request(4), "good-sig");
 
         assertEquals(4, response.getBody().getRating());
     }
 
     @Test
-    void rejectsAnInvalidSignatureWhenOneIsSupplied() {
+    void rejectsAnInvalidSignature() {
         when(branchRepository.findById(BRANCH_ID)).thenReturn(Optional.of(
                 BranchEntity.builder().id(BRANCH_ID).merchantId(MERCHANT).build()));
         when(qrSignatureService.validateSignature("bad-sig", MERCHANT, BRANCH_ID)).thenReturn(false);
 
-        assertThrows(UnauthorizedException.class, () -> controller.createReview(BRANCH_ID, request(5), "bad-sig"));
+        assertThrows(AccessDeniedException.class, () -> controller.createReview(BRANCH_ID, request(5), "bad-sig"));
         verify(reviewService, never()).createReview(any(), any());
     }
 
     @Test
-    void acceptsAValidSignatureWhenOneIsSupplied() {
+    void acceptsAValidSignature() {
         when(branchRepository.findById(BRANCH_ID)).thenReturn(Optional.of(
                 BranchEntity.builder().id(BRANCH_ID).merchantId(MERCHANT).build()));
         when(qrSignatureService.validateSignature("good-sig", MERCHANT, BRANCH_ID)).thenReturn(true);

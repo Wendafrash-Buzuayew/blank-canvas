@@ -38,10 +38,13 @@ public class AuditLogController {
 
     @GetMapping
     @PreAuthorize("hasRole('SUPER_ADMIN')")
-    @Operation(summary = "List audit log entries, optionally filtered by merchant or action")
+    @Operation(summary = "List audit log entries, newest first, optionally filtered by merchant and/or action")
     public ResponseEntity<List<AuditLogEntity>> getLogs(
             @RequestParam(required = false) UUID merchantId,
-            @RequestParam(required = false) String action) {
-        return ResponseEntity.ok(auditLogService.getLogs(merchantId, action));
+            @RequestParam(required = false) String action,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        // Still a plain array (the frontend reads AuditLogEntry[]); page/size bound it.
+        return ResponseEntity.ok(auditLogService.getLogs(merchantId, action, page, size));
     }
 }

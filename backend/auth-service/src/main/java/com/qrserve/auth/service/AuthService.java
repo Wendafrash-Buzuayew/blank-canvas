@@ -40,6 +40,9 @@ public class AuthService {
         if (!matches) {
             throw new UnauthorizedException("Invalid email or password");
         }
+        if (!user.isEnabled()) {
+            throw new UnauthorizedException("Account is disabled");
+        }
 
         UserPrincipal principal = UserPrincipal.builder()
                 .userId(user.getId())
@@ -72,6 +75,11 @@ public class AuthService {
         String email = tokenProvider.getUsernameFromToken(request.getRefreshToken());
         UserEntity user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        // Refresh tokens live 7 days; without this a disabled account keeps
+        // minting fresh access tokens for the rest of that window.
+        if (!user.isEnabled()) {
+            throw new UnauthorizedException("Account is disabled");
+        }
 
         UserPrincipal principal = UserPrincipal.builder()
                 .userId(user.getId())

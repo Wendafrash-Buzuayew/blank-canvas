@@ -1,0 +1,110 @@
+# Default-deny ingress for every pod in the namespace, then explicit allows:
+#
+#   ingress-nginx  -> frontend, api-gateway
+#   gateway + every backend service -> backend services (gateway routing plus
+#                     the direct service-to-service REST calls, e.g.
+#                     auth -> merchant, order -> menu, analytics -> order)
+#   backend services -> kafka
+#   every pod       -> discovery-service (Eureka registration/lookup)
+#
+# Egress is NOT restricted: Postgres/Redis are external VMs reached through
+# ExternalName Services (data-tier-external.yaml), so an egress allowlist
+# would need their IP ranges, which differ per site.
+#
+# ASSUMES the ingress controller runs in the `ingress-nginx` namespace (the
+# upstream chart default). If yours differs, change the namespaceSelector in
+# allow-ingress-controller or the whole site goes dark.
+#
+# Kubelet liveness/readiness probes come from the node, which mainstream CNIs
+# (Calico, Cilium) allow regardless of NetworkPolicy.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: default
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-controller
+  namespace: default
+spec:
+  podSelector:
+    matchExpressions:
+    - key: app
+      operator: In
+      values: ["frontend", "api-gateway"]
+  policyTypes: ["Ingress"]
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+    ports:
+    - { protocol: TCP, port: 8080 }
+    - { protocol: TCP, port: 8081 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-to-services
+  namespace: default
+spec:
+  podSelector:
+    matchExpressions:
+    - key: app
+      operator: In
+      values: ["auth-service", "merchant-service", "menu-service", "order-service",
+               "qr-service", "notification-service", "analytics-service",
+               "back-office-service"]
+  policyTypes: ["Ingress"]
+  ingress:
+  - from:
+    - podSelector:
+        matchExpressions:
+        - key: app
+          operator: In
+          values: ["api-gateway", "auth-service", "merchant-service", "menu-service",
+                   "order-service", "qr-service", "notification-service",
+                   "analytics-service", "back-office-service"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-to-kafka
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      app: kafka
+  policyTypes: ["Ingress"]
+  ingress:
+  - from:
+    - podSelector:
+        matchExpressions:
+        - key: app
+          operator: In
+          values: ["api-gateway", "auth-service", "merchant-service", "menu-service",
+                   "order-service", "qr-service", "notification-service",
+                   "analytics-service", "back-office-service"]
+    ports:
+    - { protocol: TCP, port: 9092 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-all-to-discovery
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      app: discovery-service
+  policyTypes: ["Ingress"]
+  ingress:
+  - from:
+    - podSelector: {}
+    ports:
+    - { protocol: TCP, port: 8761 }

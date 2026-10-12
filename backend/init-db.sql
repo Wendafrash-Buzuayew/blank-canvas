@@ -6,3 +6,4 @@ CREATE DATABASE qrserve_order;
 CREATE DATABASE qrserve_qr;
 CREATE DATABASE qrserve_notification;
 CREATE DATABASE qrserve_analytics;
+CREATE DATABASE qrserve_backoffice;

@@ -698,11 +698,13 @@ export const usePublicMenuResolution = (
 };
 
 /** Full public menu for a resolved merchant. */
-export const usePublicMenu = (merchantId?: string | null) => {
+// Per-branch: the merchant-wide GET /api/menu/{merchantId} merges every
+// published branch, so a guest would see (and order) another branch's items.
+export const usePublicMenu = (branchId?: number | null) => {
   return useQuery({
-    queryKey: ['public-menu', merchantId],
-    queryFn: () => menuApi.getFullMenu(merchantId!),
-    enabled: !!merchantId,
+    queryKey: ['public-menu', 'branch', branchId],
+    queryFn: () => menuApi.getPublicBranchMenu(branchId!),
+    enabled: branchId != null,
   });
 };
 

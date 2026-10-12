@@ -12,10 +12,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import com.qrserve.shared.exceptions.UnauthorizedException;
 import com.qrserve.shared.security.UserPrincipal;
 import com.qrserve.shared.security.UserRole;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -35,7 +35,12 @@ public class TableController {
     @PostMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','MERCHANT_OWNER','BRANCH_MANAGER')")
     @Operation(summary = "Create a table and auto-generate QR menu URL")
-    public ResponseEntity<CreateTableResponse> createTable(@Valid @RequestBody CreateTableRequest request) {
+    public ResponseEntity<CreateTableResponse> createTable(
+            @Valid @RequestBody CreateTableRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        // The branch id is caller-supplied; without this an owner could create
+        // tables (and mint QRs) under any other merchant's branch.
+        requireTenantAccess(tableService.branchMerchantId(request.getBranchId()), principal);
         return ResponseEntity.ok(tableService.createTable(request));
     }
 
@@ -57,17 +62,27 @@ public class TableController {
                 ? merchantId
                 : (principal != null ? principal.getMerchantId() : null);
         if (scope == null && (principal == null || principal.getRole() != UserRole.SUPER_ADMIN)) {
-            throw new UnauthorizedException("Caller has no merchant scope");
+            throw new AccessDeniedException("Caller has no merchant scope");
         }
         return ResponseEntity.ok(tableService.getAllTables(scope));
     }
 
     // Intentionally NOT role-restricted: a customer scanning a QR resolves their
     // table without logging in (SecurityConfig permits GET /api/tables/{id}).
+    // Returns a minimal view: the full entity carried qrToken, and ids are
+    // sequential, so every table's token was enumerable anonymously.
     @GetMapping("/{id}")
-    @Operation(summary = "Get table details by ID")
-    public ResponseEntity<TableEntity> getTable(@PathVariable Long id) {
-        return ResponseEntity.ok(tableService.getTable(id));
+    @Operation(summary = "Get public table details by ID")
+    public ResponseEntity<PublicTableView> getTable(@PathVariable Long id) {
+        TableEntity table = tableService.getTable(id);
+        return ResponseEntity.ok(new PublicTableView(
+                table.getId(), table.getBranchId(), table.getMerchantId(),
+                table.getTableNumber(), table.getCapacity(), table.getStatus()));
+    }
+
+    /** What an anonymous caller may see of a table. No qrToken. */
+    public record PublicTableView(
+            Long id, Long branchId, UUID merchantId, String tableNumber, Integer capacity, String status) {
     }
 
     /**
@@ -143,7 +158,7 @@ public class TableController {
         boolean superAdmin = principal != null && principal.getRole() == UserRole.SUPER_ADMIN;
         boolean sameTenant = principal != null && merchantId.equals(principal.getMerchantId());
         if (!superAdmin && !sameTenant) {
-            throw new UnauthorizedException("Caller has no access to merchant " + merchantId);
+            throw new AccessDeniedException("Caller has no access to merchant " + merchantId);
         }
     }
 
@@ -159,7 +174,9 @@ public class TableController {
     @Operation(summary = "Update table status (inter-service)")
     public ResponseEntity<TableEntity> updateTableStatus(
             @PathVariable Long id,
-            @Valid @RequestBody UpdateTableStatusRequest request) {
+            @Valid @RequestBody UpdateTableStatusRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        requireTenantAccess(tableService.getTable(id).getMerchantId(), principal);
         return ResponseEntity.ok(tableService.updateTableStatus(id, request.getStatus().name()));
     }
 }

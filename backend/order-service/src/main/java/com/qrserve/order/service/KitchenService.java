@@ -19,6 +19,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.request.RequestContextHolder; // Fixed: Added Web Context import
 import org.springframework.web.context.request.ServletRequestAttributes; // Fixed: Added Web Attributes import
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -36,27 +37,46 @@ public class KitchenService {
     @Value("${services.merchant-service-url:http://localhost:8085}")
     private String merchantServiceUrl;
 
+    /**
+     * Lists kitchen orders within one tenant.
+     *
+     * @param merchantId the caller's tenant scope, resolved by the controller from
+     *                   the token. Null only for SUPER_ADMIN reading across tenants.
+     *                   branchId/tableId narrow within it and can never widen it —
+     *                   they used to be queried on their own, returning any
+     *                   tenant's orders for a guessed branch or table id.
+     */
     public List<KitchenOrderResponse> getKitchenOrders(String status, Long branchId, Long tableId, UUID merchantId) {
+        String wantedStatus = status != null && !status.isBlank() ? status.toUpperCase() : null;
         List<OrderEntity> orders;
 
-        if (branchId != null && status != null && !status.isBlank()) {
-            orders = orderRepository.findByBranchIdAndStatus(branchId, status.toUpperCase());
-        } else if (merchantId != null && status != null && !status.isBlank()) {
-            orders = orderRepository.findByMerchantIdAndStatus(merchantId, status.toUpperCase());
-        } else if (tableId != null) {
-            orders = orderRepository.findByTableId(tableId);
-        } else if (branchId != null) {
-            orders = orderRepository.findByBranchId(branchId);
-        } else if (merchantId != null) {
-            orders = orderRepository.findByMerchantId(merchantId);
+        if (merchantId != null) {
+            orders = wantedStatus != null
+                    ? orderRepository.findByMerchantIdAndStatus(merchantId, wantedStatus)
+                    : orderRepository.findByMerchantId(merchantId);
         } else {
-            orders = orderRepository.findAll();
+            orders = wantedStatus != null
+                    ? orderRepository.findByStatus(wantedStatus)
+                    : orderRepository.findAll();
         }
 
-        return orders.stream().map(order -> {
-            String tableNum = fetchTableNumber(order.getTableId());
+        orders = orders.stream()
+                .filter(o -> branchId == null || branchId.equals(o.getBranchId()))
+                .filter(o -> tableId == null || tableId.equals(o.getTableId()))
+                .collect(Collectors.toList());
 
-            List<OrderItemEntity> items = orderItemRepository.findByOrderId(order.getId());
+        // One item query for the whole board instead of one per order, and one
+        // table lookup per distinct table instead of one per order.
+        Map<UUID, List<OrderItemEntity>> itemsByOrder = orders.isEmpty()
+                ? Map.of()
+                : orderItemRepository.findByOrderIdIn(orders.stream().map(OrderEntity::getId).toList())
+                        .stream().collect(Collectors.groupingBy(OrderItemEntity::getOrderId));
+        Map<Long, String> tableNumbers = new HashMap<>();
+
+        return orders.stream().map(order -> {
+            String tableNum = tableNumbers.computeIfAbsent(order.getTableId(), this::fetchTableNumber);
+
+            List<OrderItemEntity> items = itemsByOrder.getOrDefault(order.getId(), List.of());
             List<KitchenOrderResponse.ItemDto> itemDtos = items.stream().map(item ->
                     KitchenOrderResponse.ItemDto.builder()
                             .productId(item.getProductId())
@@ -85,6 +105,12 @@ public class KitchenService {
         }).collect(Collectors.toList());
     }
 
+    /**
+     * Returns null when the table number cannot be resolved. It used to return a
+     * made-up "T-01", which sent food to the wrong table on a lookup failure.
+     * (HashMap.computeIfAbsent does not cache a null, so a failed lookup is retried
+     * for the next order on the same table.)
+     */
     private String fetchTableNumber(Long tableId) {
         try {
             String url = merchantServiceUrl + "/api/tables/" + tableId;
@@ -92,15 +118,15 @@ public class KitchenService {
             HttpEntity<Void> requestEntity = new HttpEntity<>(getAuthHeaders());
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                     url, HttpMethod.GET, requestEntity, new ParameterizedTypeReference<Map<String, Object>>() {});
-            
+
             Map<String, Object> body = response.getBody();
             if (body == null) {
-                return "T-01";
+                return null;
             }
-            return body.get("tableNumber") != null ? (String) body.get("tableNumber") : "T-01";
+            return body.get("tableNumber") != null ? (String) body.get("tableNumber") : null;
         } catch (Exception e) {
             log.warn("Failed to fetch table {} from merchant-service: {}", tableId, e.getMessage());
-            return "T-01";
+            return null;
         }
     }
 

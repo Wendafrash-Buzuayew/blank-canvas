@@ -155,6 +155,8 @@ export interface MenuResponse {
 
 export interface CreateOrderRequest {
   tableId: number;
+  /** QR signature from the scanned table link; the backend rejects guest orders without it. */
+  signature: string;
   customerName?: string;
   note?: string;
   items: {
@@ -257,6 +259,20 @@ export function clearTokens() {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  // Tell AuthContext (same tab) the session is gone; it re-reads
+  // isAuthenticated()/getUser() on this event.
+  window.dispatchEvent(new CustomEvent('qrserve_auth_update'));
+}
+
+// Another tab logged in, out, or refreshed: localStorage changed under us, so
+// re-read the module copies. Registered at import time, i.e. before
+// AuthContext's own `storage` listener, so that one sees the fresh values.
+if (typeof window !== 'undefined' && hasLocalStorage) {
+  window.addEventListener('storage', (event) => {
+    if (event.key !== null && event.key !== ACCESS_TOKEN_KEY && event.key !== REFRESH_TOKEN_KEY) return;
+    authToken = localStorage.getItem(ACCESS_TOKEN_KEY);
+    refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+  });
 }
 
 export function getAuthToken(): string | null {
@@ -319,26 +335,40 @@ function getErrorMessage(status: number): string {
 
 // ============ Generic Request Helper ============
 
-async function tryRefreshToken(): Promise<boolean> {
+/**
+ * Only a definitive rejection of the refresh token ends the session. A network
+ * error (status null), 5xx or 429 is transient - keep the tokens so a later
+ * request can retry instead of silently logging the user out.
+ */
+export function isRefreshRejection(status: number | null): boolean {
+  return status === 400 || status === 401 || status === 403;
+}
+
+/** Also used by realtime's reconnect. Resolves true if a new access token was stored. */
+export async function tryRefreshToken(): Promise<boolean> {
   if (!refreshToken) return false;
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
+    let status: number | null = null;
     try {
       const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken }),
       });
+      status = response.status;
       if (response.ok) {
         const data = await response.json();
         setTokens(data.accessToken, data.refreshToken);
         return true;
       }
     } catch {
-      // Network error during refresh
+      // Network error during refresh - transient, keep the session
     }
-    clearTokens();
+    if (isRefreshRejection(status)) {
+      clearTokens();
+    }
     return false;
   })();
 
@@ -776,6 +806,10 @@ export const menuApi = {
   getFullMenu: (merchantId: string) =>
     request<MenuResponse>(`/menu/${merchantId}`),
 
+  /** Public: one branch's PUBLISHED menu (404 if none) - what a guest at that branch orders from. */
+  getPublicBranchMenu: (branchId: number) =>
+    request<MenuResponse>(`/menu/branch/${branchId}`, { skipAuth: true }),
+
   /** Staff-only, draft-inclusive — for the merchant's own menu-builder UI. */
   getBranchMenu: (branchId: number) =>
     request<MenuResponse>(`/menu/branch/${branchId}/manage`),
@@ -994,10 +1028,9 @@ export const qrApi = {
     }),
 
   /**
-   * @deprecated Returns bytes that are not a valid PDF — qr-service assembles
-   * the file by hand with no xref table and a mismatched image filter, so no
-   * reader opens it. The Standee Studio prints from the browser instead
-   * (src/components/qr/StandeeStudio.tsx). Do not wire new UI to this.
+   * @deprecated A bare single-QR PDF (no branding). The Standee Studio prints
+   * from the browser instead (src/components/qr/StandeeStudio.tsx); prefer that
+   * for new UI.
    */
   exportPdf: (data: { tableId: number; format?: string; brandColor?: string; titleText?: string }) =>
     request<Blob>('/qr/export/pdf', {
@@ -1136,9 +1169,6 @@ export const customerRequestApi = {
     const qs = query.toString();
     return request<CustomerRequestEntity[]>(`/customer-requests${qs ? `?${qs}` : ''}`);
   },
-
-  getRequestsByTable: (tableId: number) =>
-    request<CustomerRequestEntity[]>(`/customer-requests/table/${tableId}`),
 
   updateRequestStatus: (id: number, status: string, merchantId?: string) => {
     const query = merchantId ? `?merchantId=${merchantId}` : '';

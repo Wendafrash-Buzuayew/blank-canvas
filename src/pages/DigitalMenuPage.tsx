@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Star } from 'lucide-react';
 import {
@@ -86,6 +86,7 @@ function PrimaryBranchRedirect({ merchantSlug }: { merchantSlug: string }) {
 }
 
 function BranchMenu({ merchantSlug, branchSlug }: { merchantSlug: string; branchSlug: string }) {
+  const signature = useSearchParams()[0].get('signature');
   const resolutionQuery = useQuery({
     queryKey: ['digital-menu-resolution', merchantSlug, branchSlug],
     queryFn: () => resolveBranch(merchantSlug, branchSlug),
@@ -159,7 +160,13 @@ function BranchMenu({ merchantSlug, branchSlug }: { merchantSlug: string; branch
               ? (secondaryTextClass) => <RatingBadge branchId={branchId} textClass={secondaryTextClass} />
               : undefined
           }
-          footerSlot={branchId != null ? <ReviewForm branchId={branchId} /> : undefined}
+          footerSlot={
+            branchId == null ? undefined : signature ? (
+              <ReviewForm key={branchId} branchId={branchId} signature={signature} />
+            ) : (
+              <p className="px-4 py-8 text-center text-body-m opacity-70">Scan the QR code at the venue to leave a review.</p>
+            )
+          }
         />
       </div>
     </div>
@@ -186,7 +193,7 @@ function alreadyReviewedKey(branchId: number) {
   return `qrserve.reviewed-branch.${branchId}`;
 }
 
-function ReviewForm({ branchId }: { branchId: number }) {
+function ReviewForm({ branchId, signature }: { branchId: number; signature: string }) {
   const queryClient = useQueryClient();
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -209,7 +216,7 @@ function ReviewForm({ branchId }: { branchId: number }) {
     setSubmitting(true);
     setError(null);
     try {
-      await submitReview(branchId, { rating, comment: comment.trim() || undefined });
+      await submitReview(branchId, signature, { rating, comment: comment.trim() || undefined });
       try { localStorage.setItem(alreadyReviewedKey(branchId), 'true'); } catch { /* ignore */ }
       queryClient.invalidateQueries({ queryKey: ['digital-menu-review-summary', branchId] });
       setDone(true);
